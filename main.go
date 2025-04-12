@@ -313,16 +313,16 @@ func init() {
 				switch commandName {
 				case "text2image":
 					models = text2imageModels
-					modelList = "Available models for text2image:\n"
+					modelList = "Available models for text2image:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
 				case "text2speech":
 					models = text2speechModels
-					modelList = "Available models for text2speech:\n"
+					modelList = "Available models for text2speech:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
 				default:
 					return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image' or 'text2speech'.")
 				}
 
 				for _, model := range models {
-					modelList += fmt.Sprintf("- %s: %s (Price: $%.4f)\n", model.Name, model.Description, model.Price)
+					modelList += fmt.Sprintf("| %s | %s | $%.2f |\n", model.Name, model.Description, model.Price)
 				}
 
 				return bot.SendPM(ctx, pm.Nick, modelList)
