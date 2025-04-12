@@ -290,9 +290,9 @@ func init() {
 			Name:        "help",
 			Description: "Shows this help message",
 			Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
-				helpMsg := "Available commands:\n"
+				helpMsg := "| Command | Description |\n| -------- | ----------- |\n"
 				for _, cmd := range commands {
-					helpMsg += fmt.Sprintf("**!%s** - %s\n", cmd.Name, cmd.Description)
+					helpMsg += fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description)
 				}
 				return bot.SendPM(ctx, pm.Nick, helpMsg)
 			},
