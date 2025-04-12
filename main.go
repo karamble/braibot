@@ -24,7 +24,6 @@ import (
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/companyzero/gopus"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/hajimehoshi/go-mp3"
 	"github.com/karamble/braibot/internal/audio"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
@@ -88,8 +87,8 @@ var text2imageModels = map[string]Model{
 var text2speechModels = map[string]Model{
 	"minimax-tts/text-to-speech": {
 		Name:        "minimax-tts/text-to-speech",
-		Description: "Text-to-speech model for converting text to audio.",
-		Price:       0.01,
+		Description: "Text-to-speech model for converting text to audio. $0.10 per 1000 characters.",
+		Price:       0.10,
 	},
 }
 
@@ -293,7 +292,7 @@ func init() {
 			Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 				helpMsg := "Available commands:\n"
 				for _, cmd := range commands {
-					helpMsg += fmt.Sprintf("!%s - %s\n", cmd.Name, cmd.Description)
+					helpMsg += fmt.Sprintf("**!%s** - %s\n", cmd.Name, cmd.Description)
 				}
 				return bot.SendPM(ctx, pm.Nick, helpMsg)
 			},
@@ -626,17 +625,58 @@ func init() {
 		},
 		"text2speech": {
 			Name:        "text2speech",
-			Description: "Converts text to speech. Usage: !text2speech [text]",
+			Description: "Converts text to speech. Usage: !text2speech [voice_id] [text] - voice_id is optional, defaults to Wise_Woman. Available voices: Wise_Woman, Friendly_Person, Inspirational_girl, Deep_Voice_Man, Calm_Woman, Casual_Guy, Lively_Girl, Patient_Man, Young_Knight, Determined_Man, Lovely_Girl, Decent_Boy, Imposing_Manner, Elegant_Man, Abbess, Sweet_Girl_2, Exuberant_Girl",
 			Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 				if len(args) == 0 {
-					return bot.SendPM(ctx, pm.Nick, "Please provide text to convert to speech. Usage: !text2speech [text]")
+					return bot.SendPM(ctx, pm.Nick, "Please provide text to convert to speech. Usage: !text2speech [voice_id] [text] - voice_id is optional, defaults to Wise_Woman. Available voices: Wise_Woman, Friendly_Person, Inspirational_girl, Deep_Voice_Man, Calm_Woman, Casual_Guy, Lively_Girl, Patient_Man, Young_Knight, Determined_Man, Lovely_Girl, Decent_Boy, Imposing_Manner, Elegant_Man, Abbess, Sweet_Girl_2, Exuberant_Girl")
 				}
 
-				text := strings.Join(args, " ")
+				var text string
+				var voiceID string = "Wise_Woman" // Default voice
+
+				// Check if first argument might be a voice ID
+				if len(args) > 1 {
+					possibleVoiceID := args[0]
+					// List of valid voice IDs
+					validVoices := []string{
+						"Wise_Woman", "Friendly_Person", "Inspirational_girl",
+						"Deep_Voice_Man", "Calm_Woman", "Casual_Guy",
+						"Lively_Girl", "Patient_Man", "Young_Knight",
+						"Determined_Man", "Lovely_Girl", "Decent_Boy",
+						"Imposing_Manner", "Elegant_Man", "Abbess",
+						"Sweet_Girl_2", "Exuberant_Girl",
+					}
+
+					// Check if the first argument is a valid voice ID
+					isVoiceID := false
+					for _, v := range validVoices {
+						if v == possibleVoiceID {
+							isVoiceID = true
+							voiceID = possibleVoiceID
+							text = strings.Join(args[1:], " ")
+							break
+						}
+					}
+
+					if !isVoiceID {
+						// If not a voice ID, use all args as text
+						text = strings.Join(args, " ")
+					}
+				} else {
+					text = strings.Join(args, " ")
+				}
 
 				// Prepare the request
 				requestBody, err := json.Marshal(map[string]interface{}{
 					"text": text,
+					"voice_setting": map[string]interface{}{
+						"voice_id": voiceID,
+					},
+					"audio_setting": map[string]interface{}{
+						"format":      "pcm",
+						"sample_rate": 44100, // Highest supported sample rate (integer)
+						"channel":     1,     // Mono audio (integer)
+					},
 				})
 				if err != nil {
 					return err
@@ -726,10 +766,12 @@ func init() {
 
 						switch statusResponse.Status {
 						case "IN_QUEUE":
-							// No need to send queue position updates
+							// Send queue position update
+							bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Your request is in queue. Position: %d", statusResponse.QueuePosition))
 							continue
 						case "IN_PROGRESS":
-							// No need to send progress updates
+							// Send processing status
+							bot.SendPM(ctx, pm.Nick, "Your audio is being generated, please be patient")
 							continue
 						case "COMPLETED":
 							// Fetch final response using the request ID
@@ -788,8 +830,8 @@ func init() {
 								return err
 							}
 
-							// Convert MP3 to Opus
-							opusData, err := convertMP3ToOpus(audioData)
+							// Convert PCM to Opus
+							opusData, err := convertPCMToOpus(audioData)
 							if err != nil {
 								return fmt.Errorf("failed to convert audio to Opus: %v", err)
 							}
@@ -848,15 +890,8 @@ func isCommand(msg string) (string, []string, bool) {
 	return cmd, args, true
 }
 
-// convertMP3ToOpus converts MP3 audio data to Opus format with proper OGG container
-func convertMP3ToOpus(mp3Data []byte) ([]byte, error) {
-	// Create an MP3 decoder
-	reader := bytes.NewReader(mp3Data)
-	decoder, err := mp3.NewDecoder(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create MP3 decoder: %v", err)
-	}
-
+// convertPCMToOpus converts PCM audio data to Opus format with proper OGG container
+func convertPCMToOpus(pcmData []byte) ([]byte, error) {
 	// Create Opus encoder
 	const sampleRate = 48000 // Opus standard sample rate
 	const channels = 1       // Mono audio
@@ -877,41 +912,47 @@ func convertMP3ToOpus(mp3Data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create Opus writer: %v", err)
 	}
 
-	// Buffer for PCM data
-	const frameSize = 960 // 20ms frame at 48kHz
-	pcmBuffer := make([]int16, frameSize*channels)
+	// Opus frame size must be one of: 120, 240, 480, 960, 1920, 2880 samples
+	// Using 960 samples (20ms at 48kHz) for good quality and reasonable latency
+	const frameSize = 960
+	pcmBuffer := make([]int16, frameSize)
 	var granulePosition uint64
 
-	for {
-		// Read PCM data
-		buffer := make([]byte, frameSize*channels*2) // 2 bytes per sample
-		n, err := decoder.Read(buffer)
-		if err == io.EOF {
-			break
+	// Process PCM data in frames
+	for i := 0; i < len(pcmData); i += frameSize * 2 { // *2 because each sample is 2 bytes
+		// Calculate how many samples we can process in this frame
+		remainingBytes := len(pcmData) - i
+		samplesToProcess := frameSize
+		if remainingBytes < frameSize*2 {
+			samplesToProcess = remainingBytes / 2
 		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to read PCM data: %v", err)
+
+		// Clear the buffer for this frame
+		for j := range pcmBuffer {
+			pcmBuffer[j] = 0
 		}
 
 		// Convert bytes to int16 samples
-		samplesRead := n / 2
-		for i := 0; i < samplesRead; i++ {
-			pcmBuffer[i] = int16(buffer[i*2]) | int16(buffer[i*2+1])<<8
+		for j := 0; j < samplesToProcess; j++ {
+			if i+j*2+1 < len(pcmData) {
+				// Convert little-endian bytes to int16
+				pcmBuffer[j] = int16(pcmData[i+j*2]) | int16(pcmData[i+j*2+1])<<8
+			}
 		}
 
 		// Encode to Opus
 		opusFrame := make([]byte, 1275) // Max size for 20ms frame
-		encodedData, err := enc.Encode(pcmBuffer[:samplesRead], frameSize, opusFrame)
+		encodedData, err := enc.Encode(pcmBuffer, frameSize, opusFrame)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode to Opus: %v", err)
 		}
 
 		if len(encodedData) > 0 {
 			// Update granule position (samples processed)
-			granulePosition += uint64(samplesRead)
+			granulePosition += uint64(samplesToProcess)
 
 			// Write the Opus frame to the OGG container
-			err := opusWriter.WritePacket(encodedData, uint64(samplesRead), false)
+			err := opusWriter.WritePacket(encodedData, uint64(samplesToProcess), false)
 			if err != nil {
 				return nil, fmt.Errorf("failed to write Opus frame: %v", err)
 			}
