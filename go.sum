@@ -2,6 +2,8 @@ github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 h1:w1UutsfOrms1J05zt7I
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412/go.mod h1:WPjqKcmVOxf0XSf3YxCJs6N6AOSrOx3obionmG7T0y0=
 github.com/companyzero/bisonrelay v0.2.4-0.20250321132913-c1cc5b0fd438 h1:0EyoXhC8gOu1uf4UGFaAhCy+jDzCEaL/iYOsMOqi+aM=
 github.com/companyzero/bisonrelay v0.2.4-0.20250321132913-c1cc5b0fd438/go.mod h1:DTvrwdtiz42XKo7LdpbPtx4TbYJ52JyT2VlvoLj85X8=
+github.com/companyzero/gopus v0.0.1 h1:u84EXF3lZiWjUsKmf+0mShxsQF7dgZmkrlTAuoNjTOE=
+github.com/companyzero/gopus v0.0.1/go.mod h1:omndjAm61XYmtKSyBe3ulvpUNIEBwJazewUIVagmd9E=
 github.com/companyzero/sntrup4591761 v0.0.0-20220309191932-9e0f3af2f07a h1:clYxJ3Os0EQUKDDVU8M0oipllX0EkuFNBfhVQuIfyF0=
 github.com/companyzero/sntrup4591761 v0.0.0-20220309191932-9e0f3af2f07a/go.mod h1:z/9Ck1EDixEbBbZ2KH2qNHekEmDLTOZ+FyoIPWWSVOI=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
