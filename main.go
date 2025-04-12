@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,7 +22,10 @@ import (
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
+	"github.com/companyzero/gopus"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/hajimehoshi/go-mp3"
+	"github.com/karamble/braibot/internal/audio"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
 	"github.com/vctt94/bisonbotkit/logging"
@@ -41,48 +46,57 @@ type Model struct {
 	Price       float64 // Price per picture in USD
 }
 
-// Update availableModels to hold Model structs
-var availableModels = []Model{
-	{
+// Separate model maps for each command type
+var text2imageModels = map[string]Model{
+	"fast-sdxl": {
 		Name:        "fast-sdxl",
 		Description: "Fast model for generating images quickly.",
 		Price:       0.02,
 	},
-	{
+	"hidream-i1-full": {
 		Name:        "hidream-i1-full",
 		Description: "High-quality model for detailed images.",
 		Price:       0.10,
 	},
-	{
+	"hidream-i1-dev": {
 		Name:        "hidream-i1-dev",
 		Description: "Development version of the HiDream model.",
 		Price:       0.06,
 	},
-	{
+	"hidream-i1-fast": {
 		Name:        "hidream-i1-fast",
 		Description: "Faster version of the HiDream model.",
 		Price:       0.03,
 	},
-	{
+	"flux-pro/v1.1": {
 		Name:        "flux-pro/v1.1",
 		Description: "Professional model for high-end image generation.",
 		Price:       0.08,
 	},
-	{
+	"flux-pro/v1.1-ultra": {
 		Name:        "flux-pro/v1.1-ultra",
 		Description: "Ultra version of the professional model.",
 		Price:       0.12,
 	},
-	{
+	"flux/schnell": {
 		Name:        "flux/schnell",
 		Description: "Quick model for rapid image generation.",
 		Price:       0.02,
 	},
 }
 
+var text2speechModels = map[string]Model{
+	"minimax-tts/text-to-speech": {
+		Name:        "minimax-tts/text-to-speech",
+		Description: "Text-to-speech model for converting text to audio.",
+		Price:       0.01,
+	},
+}
+
 // Map to hold the current model for each command
 var currentModels = map[string]string{
-	"text2image": "fast-sdxl", // Default model for text2image
+	"text2image":  "fast-sdxl",                  // Default model for text2image
+	"text2speech": "minimax-tts/text-to-speech", // Default model for text2speech
 }
 
 // Command represents a bot command
@@ -119,6 +133,158 @@ type FalResponse struct {
 // Available commands
 var commands map[string]Command
 
+const oggSig = "OggS"
+
+type OggHeader struct {
+	Version     uint8
+	IsContinued bool
+	IsFirstPage bool
+	IsLastPage  bool
+
+	GranulePosition uint64
+	BitstreamSerial uint32
+	PageSequence    uint32
+	CrcChecksum     uint32
+
+	PageSegments uint8
+	SegmentTable []uint8
+}
+
+type OggPage struct {
+	OggHeader
+	Segments [][]byte
+
+	// Size of all segments in bytes
+	SegmentTotal int
+}
+
+var checksumTable = crcChecksum()
+
+type oggWriter struct {
+	w      io.Writer
+	serial uint32
+}
+
+func newOggWriter(out io.Writer) *oggWriter {
+	return &oggWriter{
+		w:      out,
+		serial: rand.Uint32(),
+	}
+}
+
+func (o *oggWriter) WritePage(p OggPage) error {
+	headerSize := 27 + int(p.PageSegments)
+	totalSize := headerSize + p.SegmentTotal
+
+	buf := make([]byte, totalSize)
+	headerType := uint8(0x0)
+	if p.IsContinued {
+		headerType = headerType | 0x1
+	}
+	if p.IsFirstPage {
+		headerType = headerType | 0x2
+	}
+	if p.IsLastPage {
+		headerType = headerType | 0x4
+	}
+
+	copy(buf[0:], oggSig)
+	buf[4] = p.Version
+	buf[5] = headerType
+
+	binary.LittleEndian.PutUint64(buf[6:], p.GranulePosition)
+	binary.LittleEndian.PutUint32(buf[14:], p.BitstreamSerial)
+	binary.LittleEndian.PutUint32(buf[18:], p.PageSequence)
+	// compute checksum later
+
+	buf[26] = p.PageSegments
+	for i, s := range p.SegmentTable {
+		buf[27+i] = s
+	}
+
+	idx := headerSize
+	for i, s := range p.Segments {
+		copy(buf[idx:], s)
+		idx += int(p.SegmentTable[i])
+	}
+
+	var checksum uint32
+	for i := range buf {
+		checksum = (checksum << 8) ^ checksumTable[byte(checksum>>24)^buf[i]]
+	}
+	binary.LittleEndian.PutUint32(buf[22:], checksum)
+
+	_, err := o.w.Write(buf)
+	return err
+}
+
+// partions a slice of bytes into units no bigger than 255
+func partition(p []byte) ([]uint8, [][]byte) {
+	segCountHint := len(p)/255 + 1
+	st := make([]uint8, 0, segCountHint)
+	s := make([][]byte, 0, segCountHint)
+
+	for len(p) > 255 {
+		st = append(st, 255)
+		s = append(s, p[:255])
+		p = p[255:]
+	}
+
+	st = append(st, uint8(len(p)))
+	s = append(s, p)
+
+	// packet of exactly 255 bytes is terminated by lacing value of 0
+	if len(p) == 255 {
+		st = append(st, 0)
+		s = append(s, []byte{})
+	}
+	return st, s
+}
+
+func (o *oggWriter) NewPage(payload []byte, granulePosition uint64, pageSeqence uint32) OggPage {
+	segTable, segments := partition(payload)
+	total := len(payload)
+
+	return OggPage{
+		OggHeader: OggHeader{
+			Version:         0,
+			GranulePosition: granulePosition,
+			BitstreamSerial: o.serial,
+			PageSequence:    pageSeqence,
+
+			PageSegments: uint8(len(segTable)),
+			SegmentTable: segTable,
+		},
+		Segments:     segments,
+		SegmentTotal: total,
+	}
+}
+
+func (o *oggWriter) Finish(granulePosition uint64, pageSeqence uint32) error {
+	page := o.NewPage([]byte{}, granulePosition, pageSeqence)
+	page.IsLastPage = true
+	return o.WritePage(page)
+}
+
+// https://github.com/pion/webrtc/blob/67826b19141ec9e6f1002a2267008a016a118934/pkg/media/oggwriter/oggwriter.go#L245-L261
+func crcChecksum() *[256]uint32 {
+	var table [256]uint32
+	const poly = 0x04c11db7
+
+	for i := range table {
+		r := uint32(i) << 24
+		for j := 0; j < 8; j++ {
+			if (r & 0x80000000) != 0 {
+				r = (r << 1) ^ poly
+			} else {
+				r <<= 1
+			}
+			table[i] = (r & 0xffffffff)
+		}
+	}
+	return &table
+}
+
 func init() {
 	commands = map[string]Command{
 		"help": {
@@ -134,12 +300,32 @@ func init() {
 		},
 		"listmodels": {
 			Name:        "listmodels",
-			Description: "Lists all available models for the text2image command.",
+			Description: "Lists available models for a specific command. Usage: !listmodels [command]",
 			Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
-				modelList := "Available models for text2image:\n"
-				for _, model := range availableModels {
+				if len(args) == 0 {
+					return bot.SendPM(ctx, pm.Nick, "Please specify a command. Usage: !listmodels [command]")
+				}
+
+				commandName := strings.ToLower(args[0])
+
+				var modelList string
+				var models map[string]Model
+
+				switch commandName {
+				case "text2image":
+					models = text2imageModels
+					modelList = "Available models for text2image:\n"
+				case "text2speech":
+					models = text2speechModels
+					modelList = "Available models for text2speech:\n"
+				default:
+					return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image' or 'text2speech'.")
+				}
+
+				for _, model := range models {
 					modelList += fmt.Sprintf("- %s: %s (Price: $%.4f)\n", model.Name, model.Description, model.Price)
 				}
+
 				return bot.SendPM(ctx, pm.Nick, modelList)
 			},
 		},
@@ -158,14 +344,23 @@ func init() {
 					return bot.SendPM(ctx, pm.Nick, "Invalid command name. Use !listmodels to see available commands.")
 				}
 
-				// Check if the model is valid
-				for _, model := range availableModels {
-					if model.Name == modelName {
-						currentModels[commandName] = model.Name
-						return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Model for %s set to: %s", commandName, model.Name))
-					}
+				// Check if the model is valid for the specific command
+				var models map[string]Model
+				switch commandName {
+				case "text2image":
+					models = text2imageModels
+				case "text2speech":
+					models = text2speechModels
+				default:
+					return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image' or 'text2speech'.")
 				}
-				return bot.SendPM(ctx, pm.Nick, "Invalid model name. Use !listmodels to see available models.")
+
+				if _, exists := models[modelName]; exists {
+					currentModels[commandName] = modelName
+					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Model for %s set to: %s", commandName, modelName))
+				}
+
+				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Invalid model name for %s. Use !listmodels %s to see available models.", commandName, commandName))
 			},
 		},
 		"text2image": {
@@ -429,6 +624,211 @@ func init() {
 				return bot.SendPM(ctx, pm.Nick, message)
 			},
 		},
+		"text2speech": {
+			Name:        "text2speech",
+			Description: "Converts text to speech. Usage: !text2speech [text]",
+			Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
+				if len(args) == 0 {
+					return bot.SendPM(ctx, pm.Nick, "Please provide text to convert to speech. Usage: !text2speech [text]")
+				}
+
+				text := strings.Join(args, " ")
+
+				// Prepare the request
+				requestBody, err := json.Marshal(map[string]interface{}{
+					"text": text,
+				})
+				if err != nil {
+					return err
+				}
+
+				// Create HTTP request for initial call
+				req, err := http.NewRequestWithContext(ctx, "POST", "https://queue.fal.run/fal-ai/minimax-tts/text-to-speech", bytes.NewBuffer(requestBody))
+				if err != nil {
+					return err
+				}
+
+				// Set headers
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("Authorization", "Key "+cfg.ExtraConfig["falapikey"])
+
+				// Send request
+				client := &http.Client{}
+				resp, err := client.Do(req)
+				if err != nil {
+					return err
+				}
+				defer resp.Body.Close()
+
+				// Read response
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					return err
+				}
+
+				// Debug output for initial response
+				if debug {
+					fmt.Printf("Initial Response: %s\n", string(body))
+				}
+
+				// Parse initial response to get request ID
+				var initialResp struct {
+					RequestID string `json:"request_id"`
+				}
+				if err := json.Unmarshal(body, &initialResp); err != nil {
+					return err
+				}
+
+				if initialResp.RequestID == "" {
+					return bot.SendPM(ctx, pm.Nick, "Error: No request ID received from the API")
+				}
+
+				// Poll until completion
+				ticker := time.NewTicker(500 * time.Millisecond)
+				defer ticker.Stop()
+
+				for {
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case <-ticker.C:
+						// Check status using the request ID
+						statusURL := fmt.Sprintf("https://queue.fal.run/fal-ai/minimax-tts/requests/%s/status", initialResp.RequestID)
+						statusReq, err := http.NewRequestWithContext(ctx, "GET", statusURL, nil)
+						if err != nil {
+							return err
+						}
+						statusReq.Header.Set("Authorization", "Key "+cfg.ExtraConfig["falapikey"])
+
+						statusResp, err := client.Do(statusReq)
+						if err != nil {
+							return err
+						}
+
+						statusBody, err := io.ReadAll(statusResp.Body)
+						statusResp.Body.Close()
+						if err != nil {
+							return err
+						}
+
+						// Debug output for status response
+						if debug {
+							fmt.Printf("Status Response: %s\n", string(statusBody))
+						}
+
+						var statusResponse struct {
+							Status        string `json:"status"`
+							QueuePosition int    `json:"queue_position,omitempty"`
+						}
+						if err := json.Unmarshal(statusBody, &statusResponse); err != nil {
+							return err
+						}
+
+						switch statusResponse.Status {
+						case "IN_QUEUE":
+							// No need to send queue position updates
+							continue
+						case "IN_PROGRESS":
+							// No need to send progress updates
+							continue
+						case "COMPLETED":
+							// Fetch final response using the request ID
+							resultURL := fmt.Sprintf("https://queue.fal.run/fal-ai/minimax-tts/requests/%s", initialResp.RequestID)
+							finalReq, err := http.NewRequestWithContext(ctx, "GET", resultURL, nil)
+							if err != nil {
+								return err
+							}
+							finalReq.Header.Set("Authorization", "Key "+cfg.ExtraConfig["falapikey"])
+
+							finalResp, err := client.Do(finalReq)
+							if err != nil {
+								return err
+							}
+							defer finalResp.Body.Close()
+
+							// Check the status code
+							if finalResp.StatusCode != http.StatusOK {
+								body, _ := io.ReadAll(finalResp.Body) // Read the body for logging
+								return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Error fetching final response: %s. Body: %s", finalResp.Status, string(body)))
+							}
+
+							finalBody, err := io.ReadAll(finalResp.Body)
+							if err != nil {
+								return err
+							}
+
+							// Debug output
+							if debug {
+								fmt.Printf("Final Response Body: %s\n", string(finalBody))
+							}
+
+							// Unmarshal the final response
+							var finalResponse struct {
+								Audio struct {
+									URL         string `json:"url"`
+									ContentType string `json:"content_type"`
+									FileName    string `json:"file_name"`
+									FileSize    int    `json:"file_size"`
+								} `json:"audio"`
+								DurationMs int `json:"duration_ms"`
+							}
+							if err := json.Unmarshal(finalBody, &finalResponse); err != nil {
+								return err
+							}
+
+							// Fetch the audio data
+							audioResp, err := http.Get(finalResponse.Audio.URL)
+							if err != nil {
+								return err
+							}
+							defer audioResp.Body.Close()
+
+							audioData, err := io.ReadAll(audioResp.Body)
+							if err != nil {
+								return err
+							}
+
+							// Convert MP3 to Opus
+							opusData, err := convertMP3ToOpus(audioData)
+							if err != nil {
+								return fmt.Errorf("failed to convert audio to Opus: %v", err)
+							}
+
+							if debug {
+								fmt.Printf("Opus data size before encoding: %d bytes\n", len(opusData))
+							}
+
+							// Encode as base64
+							encodedAudio := base64.StdEncoding.EncodeToString(opusData)
+
+							if debug {
+								fmt.Printf("Base64 encoded size: %d bytes\n", len(encodedAudio))
+							}
+
+							// Create the message with embedded audio in BisonRelay format
+							message := fmt.Sprintf("--embed[alt=%s,type=%s,filename=%s,data=%s]--",
+								url.QueryEscape("Text to Speech"),
+								"audio/ogg",
+								time.Now().Format("2006-01-02-15_04_05")+"-tts.opus",
+								encodedAudio)
+
+							// Debug output
+							if debug {
+								fmt.Printf("Message for the User of the Audio file: %s\n", message)
+							}
+							return bot.SendPM(ctx, pm.Nick, message)
+						case "FAILED":
+							// Send the complete raw response body as PM
+							responseMessage := fmt.Sprintf("Failed to generate speech. Complete response: %s", string(statusBody))
+							return bot.SendPM(ctx, pm.Nick, responseMessage)
+						default:
+							// Still processing, continue polling
+							continue
+						}
+					}
+				}
+			},
+		},
 	}
 }
 
@@ -446,6 +846,85 @@ func isCommand(msg string) (string, []string, bool) {
 	cmd := strings.ToLower(parts[0])
 	args := parts[1:]
 	return cmd, args, true
+}
+
+// convertMP3ToOpus converts MP3 audio data to Opus format with proper OGG container
+func convertMP3ToOpus(mp3Data []byte) ([]byte, error) {
+	// Create an MP3 decoder
+	reader := bytes.NewReader(mp3Data)
+	decoder, err := mp3.NewDecoder(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create MP3 decoder: %v", err)
+	}
+
+	// Create Opus encoder
+	const sampleRate = 48000 // Opus standard sample rate
+	const channels = 1       // Mono audio
+	const bitrate = 64000    // 64kbps bitrate
+
+	enc, err := gopus.NewEncoder(sampleRate, channels, gopus.Audio)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Opus encoder: %v", err)
+	}
+
+	// Set the bitrate
+	enc.SetBitrate(bitrate)
+
+	// Create a buffer to store the OGG container
+	var oggBuffer bytes.Buffer
+	opusWriter, err := audio.NewOpusWriter(&oggBuffer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Opus writer: %v", err)
+	}
+
+	// Buffer for PCM data
+	const frameSize = 960 // 20ms frame at 48kHz
+	pcmBuffer := make([]int16, frameSize*channels)
+	var granulePosition uint64
+
+	for {
+		// Read PCM data
+		buffer := make([]byte, frameSize*channels*2) // 2 bytes per sample
+		n, err := decoder.Read(buffer)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read PCM data: %v", err)
+		}
+
+		// Convert bytes to int16 samples
+		samplesRead := n / 2
+		for i := 0; i < samplesRead; i++ {
+			pcmBuffer[i] = int16(buffer[i*2]) | int16(buffer[i*2+1])<<8
+		}
+
+		// Encode to Opus
+		opusFrame := make([]byte, 1275) // Max size for 20ms frame
+		encodedData, err := enc.Encode(pcmBuffer[:samplesRead], frameSize, opusFrame)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode to Opus: %v", err)
+		}
+
+		if len(encodedData) > 0 {
+			// Update granule position (samples processed)
+			granulePosition += uint64(samplesRead)
+
+			// Write the Opus frame to the OGG container
+			err := opusWriter.WritePacket(encodedData, uint64(samplesRead), false)
+			if err != nil {
+				return nil, fmt.Errorf("failed to write Opus frame: %v", err)
+			}
+		}
+	}
+
+	// Write the final packet
+	err = opusWriter.WritePacket([]byte{}, 0, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write final Opus packet: %v", err)
+	}
+
+	return oggBuffer.Bytes(), nil
 }
 
 func realMain() error {
