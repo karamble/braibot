@@ -25,6 +25,7 @@ import (
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/karamble/braibot/internal/audio"
+	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/falapi"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
@@ -34,8 +35,8 @@ import (
 
 var (
 	flagAppRoot = flag.String("approot", "~/.braibot", "Path to application data directory")
-	debug       = true     // Set to true for debugging
-	dbManager   *DBManager // Database manager for user balances
+	debug       = true              // Set to true for debugging
+	dbManager   *database.DBManager // Database manager for user balances
 )
 
 // Command represents a bot command
@@ -347,7 +348,7 @@ func realMain() error {
 
 	// Initialize database manager
 	var err error
-	dbManager, err = NewDBManager(appRoot)
+	dbManager, err = database.NewDBManager(appRoot)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %v", err)
 	}
