@@ -475,7 +475,7 @@ func init() {
 				}
 
 				// Generate speech
-				audioResp, err := client.GenerateSpeech(ctx, text, voiceID)
+				audioResp, err := client.GenerateSpeech(ctx, text, voiceID, bot, pm.Nick)
 				if err != nil {
 					return fmt.Errorf("failed to generate speech: %v", err)
 				}

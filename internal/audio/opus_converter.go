@@ -10,7 +10,7 @@ import (
 // ConvertPCMToOpus converts PCM audio data to Opus format with proper OGG container
 func ConvertPCMToOpus(pcmData []byte) ([]byte, error) {
 	// Create Opus encoder
-	const sampleRate = 48000 // Opus standard sample rate
+	const sampleRate = 24000 // Opus supported sample rate
 	const channels = 1       // Mono audio
 	const bitrate = 64000    // 64kbps bitrate
 
@@ -30,7 +30,7 @@ func ConvertPCMToOpus(pcmData []byte) ([]byte, error) {
 	}
 
 	// Opus frame size must be one of: 120, 240, 480, 960, 1920, 2880 samples
-	// Using 960 samples (20ms at 48kHz) for good quality and reasonable latency
+	// Using 960 samples (40ms at 24kHz) for good quality and reasonable latency
 	const frameSize = 960
 	pcmBuffer := make([]int16, frameSize)
 	var granulePosition uint64
