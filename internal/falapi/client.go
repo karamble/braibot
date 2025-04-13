@@ -318,13 +318,46 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 func (c *Client) GenerateSpeech(ctx context.Context, text string, voiceID string, bot interface{}, userNick string) (*AudioResponse, error) {
 	// Create request body
 	reqBody := map[string]interface{}{
-		"text":     text,
-		"voice_id": voiceID,
+		"text": text,
 		"audio_setting": map[string]interface{}{
 			"format":      "pcm",
 			"sample_rate": 24000,
 			"channel":     1,
 		},
+	}
+
+	// Only include voice_id if it's a valid voice ID
+	validVoices := map[string]bool{
+		"Wise_Woman":         true,
+		"Friendly_Person":    true,
+		"Inspirational_girl": true,
+		"Deep_Voice_Man":     true,
+		"Calm_Woman":         true,
+		"Casual_Guy":         true,
+		"Lively_Girl":        true,
+		"Patient_Man":        true,
+		"Young_Knight":       true,
+		"Determined_Man":     true,
+		"Lovely_Girl":        true,
+		"Decent_Boy":         true,
+		"Imposing_Manner":    true,
+		"Elegant_Man":        true,
+		"Abbess":             true,
+		"Sweet_Girl_2":       true,
+		"Exuberant_Girl":     true,
+	}
+
+	// If voiceID is provided and valid, include it in the voice_setting
+	if voiceID != "" && validVoices[voiceID] {
+		reqBody["voice_setting"] = map[string]interface{}{
+			"voice_id": voiceID,
+		}
+	}
+
+	// Debug log for request body
+	if c.debug {
+		reqBodyJSON, _ := json.MarshalIndent(reqBody, "", "  ")
+		fmt.Printf("Text-to-speech request body: %s\n", string(reqBodyJSON))
 	}
 
 	// Make initial request to queue with the correct URL format
