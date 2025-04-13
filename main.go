@@ -67,7 +67,7 @@ func init() {
 			Description: "Lists available models for a specific command. Usage: !listmodels [command]",
 			Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 				if len(args) == 0 {
-					return bot.SendPM(ctx, pm.Nick, "Please specify a command. Usage: !listmodels [command]")
+					return bot.SendPM(ctx, pm.Nick, "Please specify a command (text2image or text2speech). Usage: !listmodels [command]")
 				}
 
 				commandName := strings.ToLower(args[0])
