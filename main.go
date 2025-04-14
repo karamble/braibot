@@ -386,9 +386,9 @@ func testAssetServerCredentials(serverURL, apiKey string) error {
 
 // checkAndUpdateConfig checks if required configuration settings are present
 // and prompts the user to enter them if they're missing.
-func checkAndUpdateConfig(cfg *config.BotConfig) error {
+func checkAndUpdateConfig(cfg *config.BotConfig, appRoot string) error {
 	// Ensure the directory exists first
-	if err := os.MkdirAll(*flagAppRoot, 0755); err != nil {
+	if err := os.MkdirAll(appRoot, 0755); err != nil {
 		return fmt.Errorf("error creating app root directory: %v", err)
 	}
 
@@ -409,7 +409,7 @@ func checkAndUpdateConfig(cfg *config.BotConfig) error {
 		cfg.ExtraConfig["falapikey"] = apiKey
 
 		// Append to config file
-		configPath := filepath.Join(*flagAppRoot, "braibot.conf")
+		configPath := filepath.Join(appRoot, "braibot.conf")
 		f, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return fmt.Errorf("error opening config file: %v", err)
@@ -448,7 +448,7 @@ func checkAndUpdateConfig(cfg *config.BotConfig) error {
 		cfg.ExtraConfig["use_assetserver"] = useAssetServerValue
 
 		// Append to config file
-		configPath := filepath.Join(*flagAppRoot, "braibot.conf")
+		configPath := filepath.Join(appRoot, "braibot.conf")
 		f, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return fmt.Errorf("error opening config file: %v", err)
@@ -515,7 +515,7 @@ func checkAndUpdateConfig(cfg *config.BotConfig) error {
 				cfg.ExtraConfig["use_assetserver"] = "false"
 
 				// Update the config file with the new value
-				configPath := filepath.Join(*flagAppRoot, "braibot.conf")
+				configPath := filepath.Join(appRoot, "braibot.conf")
 				f, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err != nil {
 					return fmt.Errorf("error opening config file: %v", err)
@@ -574,7 +574,7 @@ func realMain() error {
 	for i := 0; i < 5; i++ { // Try for 5 seconds
 		if _, err := os.Stat(configPath); err == nil {
 			// File exists, proceed with checkAndUpdateConfig
-			if err := checkAndUpdateConfig(cfg); err != nil {
+			if err := checkAndUpdateConfig(cfg, appRoot); err != nil {
 				return fmt.Errorf("failed to check and update config: %v", err)
 			}
 			break
