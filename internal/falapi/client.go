@@ -48,17 +48,15 @@ type QueueResponse struct {
 type Client struct {
 	apiKey     string
 	httpClient *http.Client
-	debug      bool
 }
 
 // NewClient creates a new Fal.ai API client
-func NewClient(apiKey string, debug bool) *Client {
+func NewClient(apiKey string) *Client {
 	return &Client{
 		apiKey: apiKey,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		debug: debug,
 	}
 }
 
@@ -131,10 +129,6 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 				return nil, fmt.Errorf("failed to read status response: %v", err)
 			}
 
-			if c.debug {
-				fmt.Printf("Raw status response: %s\n", string(statusBytes))
-			}
-
 			var status struct {
 				Status      string `json:"status"`
 				RequestID   string `json:"request_id"`
@@ -154,10 +148,6 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 				return nil, fmt.Errorf("failed to parse status response: %v", err)
 			}
 
-			if c.debug {
-				fmt.Printf("Status Response: %+v\n", status)
-			}
-
 			switch status.Status {
 			case "IN_QUEUE":
 				if status.QueuePosition > 0 {
@@ -165,12 +155,11 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 					botValue := reflect.ValueOf(bot)
 					sendPMMethod := botValue.MethodByName("SendPM")
 					if sendPMMethod.IsValid() {
-						ctxValue := reflect.ValueOf(ctx)
-						userNickValue := reflect.ValueOf(userNick)
-						messageValue := reflect.ValueOf(fmt.Sprintf("Your image generation request is in queue, position: %d", status.QueuePosition))
-
-						args := []reflect.Value{ctxValue, userNickValue, messageValue}
-						sendPMMethod.Call(args)
+						sendPMMethod.Call([]reflect.Value{
+							reflect.ValueOf(ctx),
+							reflect.ValueOf(userNick),
+							reflect.ValueOf(fmt.Sprintf("Your image generation request is in queue, position: %d", status.QueuePosition)),
+						})
 					}
 				}
 			case "IN_PROGRESS":
@@ -188,12 +177,6 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 							reflect.ValueOf(userNick),
 							reflect.ValueOf(fmt.Sprintf("Progress: %s", latestLog.Message)),
 						})
-					}
-				}
-
-				if len(status.Logs) > 0 {
-					for _, log := range status.Logs {
-						fmt.Printf("Progress: %s\n", log.Message)
 					}
 				}
 			case "COMPLETED":
@@ -217,10 +200,6 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 					return nil, fmt.Errorf("failed to read final response: %v", err)
 				}
 
-				if c.debug {
-					fmt.Printf("Raw final response: %s\n", string(finalBytes))
-				}
-
 				var finalResponse struct {
 					Images []struct {
 						URL         string `json:"url"`
@@ -238,10 +217,6 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 
 				if err := json.Unmarshal(finalBytes, &finalResponse); err != nil {
 					return nil, fmt.Errorf("failed to parse final response: %v", err)
-				}
-
-				if c.debug {
-					fmt.Printf("Final Response: %+v\n", finalResponse)
 				}
 
 				if len(finalResponse.Images) == 0 {
@@ -265,14 +240,10 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 				base64Image := base64.StdEncoding.EncodeToString(imgData)
 
 				// Create the PM message format
-				message := fmt.Sprintf("--embed[alt=%s,type=%s,data=%s]--",
+				_ = fmt.Sprintf("--embed[alt=%s,type=%s,data=%s]--",
 					url.QueryEscape(prompt),
 					finalResponse.Images[0].ContentType,
 					base64Image)
-
-				if c.debug {
-					fmt.Printf("PM Message: %s\n", message)
-				}
 
 				// Create an ImageResponse to return
 				imageResp := &ImageResponse{
@@ -305,12 +276,11 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, modelName str
 				botValue := reflect.ValueOf(bot)
 				sendPMMethod := botValue.MethodByName("SendPM")
 				if sendPMMethod.IsValid() {
-					ctxValue := reflect.ValueOf(ctx)
-					userNickValue := reflect.ValueOf(userNick)
-					messageValue := reflect.ValueOf("Your image generation request failed.")
-
-					args := []reflect.Value{ctxValue, userNickValue, messageValue}
-					sendPMMethod.Call(args)
+					sendPMMethod.Call([]reflect.Value{
+						reflect.ValueOf(ctx),
+						reflect.ValueOf(userNick),
+						reflect.ValueOf("Your image generation request failed."),
+					})
 				}
 				return nil, fmt.Errorf("request failed")
 			}
@@ -359,10 +329,8 @@ func (c *Client) GenerateSpeech(ctx context.Context, text string, voiceID string
 	}
 
 	// Debug log for request body
-	if c.debug {
-		reqBodyJSON, _ := json.MarshalIndent(reqBody, "", "  ")
-		fmt.Printf("Text-to-speech request body: %s\n", string(reqBodyJSON))
-	}
+	reqBodyJSON, _ := json.MarshalIndent(reqBody, "", "  ")
+	fmt.Printf("Text-to-speech request body: %s\n", string(reqBodyJSON))
 
 	// Make initial request to queue with the correct URL format
 	// Format: https://queue.fal.run/fal-ai/minimax-tts/text-to-speech
@@ -427,10 +395,6 @@ func (c *Client) GenerateSpeech(ctx context.Context, text string, voiceID string
 				return nil, fmt.Errorf("failed to read status response: %v", err)
 			}
 
-			if c.debug {
-				fmt.Printf("Raw status response: %s\n", string(statusBytes))
-			}
-
 			var status struct {
 				Status      string `json:"status"`
 				RequestID   string `json:"request_id"`
@@ -448,10 +412,6 @@ func (c *Client) GenerateSpeech(ctx context.Context, text string, voiceID string
 
 			if err := json.Unmarshal(statusBytes, &status); err != nil {
 				return nil, fmt.Errorf("failed to parse status response: %v", err)
-			}
-
-			if c.debug {
-				fmt.Printf("Status Response: %+v\n", status)
 			}
 
 			switch status.Status {
@@ -507,10 +467,6 @@ func (c *Client) GenerateSpeech(ctx context.Context, text string, voiceID string
 					return nil, fmt.Errorf("failed to read final response: %v", err)
 				}
 
-				if c.debug {
-					fmt.Printf("Raw final response: %s\n", string(finalBytes))
-				}
-
 				// Check if the response is an error
 				if finalResp.StatusCode != http.StatusOK {
 					return nil, fmt.Errorf("request failed with status %d: %s", finalResp.StatusCode, string(finalBytes))
@@ -529,10 +485,6 @@ func (c *Client) GenerateSpeech(ctx context.Context, text string, voiceID string
 
 				if err := json.Unmarshal(finalBytes, &responseData); err != nil {
 					return nil, fmt.Errorf("failed to parse final response: %v", err)
-				}
-
-				if c.debug {
-					fmt.Printf("Parsed Response: %+v\n", responseData)
 				}
 
 				// Check if we have a valid audio URL
