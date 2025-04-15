@@ -50,6 +50,11 @@ var Image2ImageModels = map[string]Model{
 		Description: "Transforms images into Studio Ghibli style artwork.",
 		Price:       0.15,
 	},
+	"cartoonify": {
+		Name:        "cartoonify",
+		Description: "Transforms images into Pixar like 3d cartoon-style artwork.",
+		Price:       0.15,
+	},
 }
 
 // Text2SpeechModels contains all available text-to-speech models

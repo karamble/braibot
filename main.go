@@ -30,7 +30,7 @@ import (
 
 var (
 	flagAppRoot = flag.String("approot", "~/.braibot", "Path to application data directory")
-	debug       = true              // Set to true for debugging
+	debug       = false             // Set to true for debugging
 	dbManager   *database.DBManager // Database manager for user balances
 )
 

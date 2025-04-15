@@ -57,6 +57,22 @@ type GhiblifyResponse struct {
 	} `json:"image"`
 }
 
+// CartoonifyResponse represents the response from the Cartoonify image transformation API
+type CartoonifyResponse struct {
+	Images []struct {
+		URL         string `json:"url"`
+		Width       int    `json:"width"`
+		Height      int    `json:"height"`
+		ContentType string `json:"content_type"`
+	} `json:"images"`
+	Timings struct {
+		Inference float64 `json:"inference"`
+	} `json:"timings"`
+	Seed            json.Number `json:"seed"`
+	HasNSFWConcepts []bool      `json:"has_nsfw_concepts"`
+	Prompt          string      `json:"prompt"`
+}
+
 // AudioResponse represents the final audio generation response
 type AudioResponse struct {
 	Audio struct {

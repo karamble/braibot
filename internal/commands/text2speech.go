@@ -31,7 +31,7 @@ func Text2SpeechCommand(debug bool) Command {
 			text := strings.Join(args[1:], " ")
 
 			// Create Fal.ai client
-			client := falapi.NewClient(cfg.ExtraConfig["falapikey"])
+			client := falapi.NewClient(cfg.ExtraConfig["falapikey"], debug)
 
 			// Get model configuration
 			modelName, exists := falapi.GetDefaultModel("text2speech")
