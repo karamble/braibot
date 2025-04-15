@@ -17,7 +17,7 @@ import (
 // UserBalance represents a user's balance in the database
 type UserBalance struct {
 	UID     string
-	Balance int64 // Balance in atoms (1 DCR = 1e8 atoms)
+	Balance int64 // Balance in atoms (1 DCR = 1e11 atoms)
 }
 
 // DBManager handles database operations

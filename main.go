@@ -18,7 +18,6 @@ import (
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/karamble/braibot/internal/commands"
 	braiconfig "github.com/karamble/braibot/internal/config"
 	"github.com/karamble/braibot/internal/database"
@@ -30,12 +29,16 @@ import (
 
 var (
 	flagAppRoot = flag.String("approot", "~/.braibot", "Path to application data directory")
-	debug       = false             // Set to true for debugging
+	flagDebug   = flag.Bool("debug", false, "Enable debug mode")
 	dbManager   *database.DBManager // Database manager for user balances
+	debug       bool                // Debug mode flag
 )
 
 func realMain() error {
 	flag.Parse()
+
+	// Set debug mode
+	debug = *flagDebug
 
 	// Expand and clean the app root path
 	appRoot := utils.CleanAndExpandPath(*flagAppRoot)
@@ -168,7 +171,7 @@ func realMain() error {
 			}
 
 			// Convert to DCR for display
-			dcrAmount := dcrutil.Amount(tip.AmountMatoms / 1e3).ToCoin()
+			dcrAmount := float64(tip.AmountMatoms) / 1e11
 
 			log.Infof("Tip received: %.8f DCR from %s",
 				dcrAmount,
