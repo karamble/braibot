@@ -30,8 +30,9 @@ import (
 var (
 	flagAppRoot = flag.String("approot", "~/.braibot", "Path to application data directory")
 	flagDebug   = flag.Bool("debug", false, "Enable debug mode")
-	dbManager   *database.DBManager // Database manager for user balances
-	debug       bool                // Debug mode flag
+	dbManager   *database.DBManager     // Database manager for user balances
+	debug       bool                    // Debug mode flag
+	welcomeSent = make(map[string]bool) // Track users who have received welcome message
 )
 
 func realMain() error {
@@ -114,8 +115,16 @@ func realMain() error {
 		for pm := range pmChan {
 			log.Infof("Received PM from %s: %s", pm.Nick, pm.Msg.Message)
 
+			// Convert UID to string ID for tracking
+			var userID zkidentity.ShortID
+			userID.FromBytes(pm.Uid)
+			userIDStr := userID.String()
+
 			// Check if the message is a command
 			if cmd, args, isCmd := commands.IsCommand(pm.Msg.Message); isCmd {
+				// Mark welcome as sent when user sends any command
+				welcomeSent[userIDStr] = true
+
 				if command, exists := commandRegistry.Get(cmd); exists {
 					if err := command.Handler(context.Background(), bot, cfg, pm, args); err != nil {
 						log.Warnf("Error executing command %s: %v", cmd, err)
@@ -123,6 +132,18 @@ func realMain() error {
 				} else {
 					// Send error message for unknown command
 					bot.SendPM(context.Background(), pm.Nick, "Unknown command. Use !help to see available commands.")
+				}
+			} else if !welcomeSent[userIDStr] {
+				// Send welcome message for non-command messages if not sent before
+				welcomeMsg := "👋 Hi! I'm BraiBot, your AI assistant powered by Decred.\n\n" +
+					"To get started, use !help to see available commands.\n" +
+					"You can also send me a tip to use AI features or check your balance with !balance."
+
+				if err := bot.SendPM(context.Background(), pm.Nick, welcomeMsg); err != nil {
+					log.Warnf("Error sending welcome message: %v", err)
+				} else {
+					// Mark welcome as sent for this user
+					welcomeSent[userIDStr] = true
 				}
 			}
 		}
