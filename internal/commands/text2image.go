@@ -28,7 +28,7 @@ func Text2ImageCommand(debug bool) Command {
 			prompt := strings.Join(args, " ")
 
 			// Create Fal.ai client
-			client := falapi.NewClient(cfg.ExtraConfig["falapikey"])
+			client := falapi.NewClient(cfg.ExtraConfig["falapikey"], debug)
 
 			// Get model configuration
 			modelName, exists := falapi.GetDefaultModel("text2image")

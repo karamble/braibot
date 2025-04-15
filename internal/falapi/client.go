@@ -25,15 +25,17 @@ const (
 type Client struct {
 	apiKey     string
 	httpClient *http.Client
+	debug      bool
 }
 
 // NewClient creates a new Fal.ai API client
-func NewClient(apiKey string) *Client {
+func NewClient(apiKey string, debug bool) *Client {
 	return &Client{
 		apiKey: apiKey,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		debug: debug,
 	}
 }
 
@@ -109,15 +111,15 @@ func (c *Client) SetCurrentModel(commandType, modelName string) error {
 
 // GenerateImageFromImage generates an image from an input image using the specified model
 func (c *Client) GenerateImageFromImage(ctx context.Context, prompt, imageURL, modelName string, bot *kit.Bot, userID string) (*GhiblifyResponse, error) {
-	// Create request body based on Ghiblify API schema
+	// Create request body based on API schema
 	reqBody := map[string]interface{}{
 		"image_url": imageURL,
 	}
 
 	// Make request to the queue API
-	resp, err := c.makeRequest(ctx, "POST", "/ghiblify", reqBody)
+	resp, err := c.makeRequest(ctx, "POST", "/"+modelName, reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make request to Ghiblify API: %v", err)
+		return nil, fmt.Errorf("failed to make request to %s API: %v", modelName, err)
 	}
 	defer resp.Body.Close()
 
@@ -164,19 +166,52 @@ func (c *Client) GenerateImageFromImage(ctx context.Context, prompt, imageURL, m
 	}
 
 	// Debug: Print the raw response
-	fmt.Printf("Raw Ghiblify response: %s\n", string(finalBytes))
-
-	var ghiblifyResp GhiblifyResponse
-	if err := json.Unmarshal(finalBytes, &ghiblifyResp); err != nil {
-		return nil, fmt.Errorf("failed to decode Ghiblify response: %v", err)
+	if c.debug {
+		fmt.Printf("Raw %s response: %s\n", modelName, string(finalBytes))
 	}
 
-	// Debug: Print the parsed response
-	fmt.Printf("Parsed Ghiblify response: %+v\n", ghiblifyResp)
+	// Create a response object based on the model type
+	var ghiblifyResp GhiblifyResponse
 
-	// Validate response
-	if ghiblifyResp.Image.URL == "" {
-		return nil, fmt.Errorf("received empty image URL in Ghiblify response")
+	if modelName == "ghiblify" {
+		// Parse Ghiblify response
+		if err := json.Unmarshal(finalBytes, &ghiblifyResp); err != nil {
+			return nil, fmt.Errorf("failed to decode Ghiblify response: %v", err)
+		}
+
+		// Debug: Print the parsed response
+		if c.debug {
+			fmt.Printf("Parsed Ghiblify response: %+v\n", ghiblifyResp)
+		}
+
+		// Validate response
+		if ghiblifyResp.Image.URL == "" {
+			return nil, fmt.Errorf("received empty image URL in Ghiblify response")
+		}
+	} else if modelName == "cartoonify" {
+		// Parse Cartoonify response
+		var cartoonifyResp CartoonifyResponse
+		if err := json.Unmarshal(finalBytes, &cartoonifyResp); err != nil {
+			return nil, fmt.Errorf("failed to decode Cartoonify response: %v", err)
+		}
+
+		// Debug: Print the parsed response
+		if c.debug {
+			fmt.Printf("Parsed Cartoonify response: %+v\n", cartoonifyResp)
+		}
+
+		// Validate response
+		if len(cartoonifyResp.Images) == 0 || cartoonifyResp.Images[0].URL == "" {
+			return nil, fmt.Errorf("received empty image URL in Cartoonify response")
+		}
+
+		// Convert Cartoonify response to Ghiblify response format
+		ghiblifyResp.Image.URL = cartoonifyResp.Images[0].URL
+		ghiblifyResp.Image.ContentType = cartoonifyResp.Images[0].ContentType
+		ghiblifyResp.Image.Width = cartoonifyResp.Images[0].Width
+		ghiblifyResp.Image.Height = cartoonifyResp.Images[0].Height
+	} else {
+		return nil, fmt.Errorf("unsupported model: %s", modelName)
 	}
 
 	return &ghiblifyResp, nil

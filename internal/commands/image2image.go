@@ -26,22 +26,32 @@ func Image2ImageCommand(debug bool) Command {
 			imageURL := args[0]
 
 			// Create Fal.ai client
-			client := falapi.NewClient(cfg.ExtraConfig["falapikey"])
+			client := falapi.NewClient(cfg.ExtraConfig["falapikey"], debug)
+
+			// Get model configuration
+			modelName, exists := falapi.GetDefaultModel("image2image")
+			if !exists {
+				return fmt.Errorf("no default model found for image2image")
+			}
+			model, exists := falapi.GetModel(modelName, "image2image")
+			if !exists {
+				return fmt.Errorf("model not found: %s", modelName)
+			}
 
 			// Generate image
-			ghiblifyResp, err := client.GenerateImageFromImage(ctx, "", imageURL, "ghiblify", bot, pm.Nick)
+			ghiblifyResp, err := client.GenerateImageFromImage(ctx, "", imageURL, model.Name, bot, pm.Nick)
 			if err != nil {
 				return fmt.Errorf("failed to generate image: %v", err)
 			}
 
 			// Log the response for debugging
 			if debug {
-				fmt.Printf("Ghiblify response: %+v\n", ghiblifyResp)
+				fmt.Printf("Image transformation response: %+v\n", ghiblifyResp)
 			}
 
 			// Check if the image URL is empty
 			if ghiblifyResp.Image.URL == "" {
-				return fmt.Errorf("received empty image URL from Ghiblify API")
+				return fmt.Errorf("received empty image URL from API")
 			}
 
 			// Fetch the image data
@@ -60,7 +70,8 @@ func Image2ImageCommand(debug bool) Command {
 			encodedImage := base64.StdEncoding.EncodeToString(imgData)
 
 			// Create the message with embedded image
-			message := fmt.Sprintf("--embed[alt=Ghibli style transformation,type=%s,data=%s]--",
+			message := fmt.Sprintf("--embed[alt=%s style transformation,type=%s,data=%s]--",
+				model.Name,
 				ghiblifyResp.Image.ContentType,
 				encodedImage)
 			return bot.SendPM(ctx, pm.Nick, message)
