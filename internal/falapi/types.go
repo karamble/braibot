@@ -13,28 +13,20 @@ type Model struct {
 	Price       float64 // Price per picture in USD
 }
 
-// FalResponse represents the response from Fal.ai API
-type FalResponse struct {
-	Status        string `json:"status,omitempty"`
-	RequestID     string `json:"request_id,omitempty"`
-	ResponseURL   string `json:"response_url,omitempty"`
-	StatusURL     string `json:"status_url,omitempty"`
-	CancelURL     string `json:"cancel_url,omitempty"`
-	QueuePosition int    `json:"queue_position,omitempty"`
-	Logs          []struct {
+// QueueResponse represents the response from the queue API
+type QueueResponse struct {
+	Status      string `json:"status"`
+	RequestID   string `json:"request_id"`
+	ResponseURL string `json:"response_url"`
+	StatusURL   string `json:"status_url"`
+	CancelURL   string `json:"cancel_url"`
+	Logs        []struct {
 		Message   string `json:"message"`
 		Level     string `json:"level"`
 		Source    string `json:"source"`
 		Timestamp string `json:"timestamp"`
-	} `json:"logs,omitempty"`
-	Response struct {
-		Images []struct {
-			URL         string `json:"url"`
-			Width       int    `json:"width"`
-			Height      int    `json:"height"`
-			ContentType string `json:"content_type"`
-		} `json:"images"`
-	} `json:"response,omitempty"`
+	} `json:"logs"`
+	QueuePosition int `json:"queue_position"`
 }
 
 // ImageResponse represents the final image generation response
