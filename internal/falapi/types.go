@@ -15,18 +15,18 @@ type Model struct {
 
 // QueueResponse represents the response from the queue API
 type QueueResponse struct {
-	Status      string `json:"status"`
-	RequestID   string `json:"request_id"`
-	ResponseURL string `json:"response_url"`
-	StatusURL   string `json:"status_url"`
-	CancelURL   string `json:"cancel_url"`
-	Logs        []struct {
+	Status        string `json:"status"`
+	RequestID     string `json:"request_id"`
+	ResponseURL   string `json:"response_url"`
+	StatusURL     string `json:"status_url"`
+	CancelURL     string `json:"cancel_url"`
+	QueuePosition int    `json:"queue_position"`
+	Logs          []struct {
 		Message   string `json:"message"`
 		Level     string `json:"level"`
 		Source    string `json:"source"`
 		Timestamp string `json:"timestamp"`
 	} `json:"logs"`
-	QueuePosition int `json:"queue_position"`
 }
 
 // ImageResponse represents the final image generation response
@@ -45,6 +45,18 @@ type ImageResponse struct {
 	Prompt          string      `json:"prompt"`
 }
 
+// GhiblifyResponse represents the response from the Ghiblify image transformation API
+type GhiblifyResponse struct {
+	Image struct {
+		URL         string `json:"url"`
+		ContentType string `json:"content_type"`
+		FileName    string `json:"file_name"`
+		FileSize    int    `json:"file_size"`
+		Width       int    `json:"width"`
+		Height      int    `json:"height"`
+	} `json:"image"`
+}
+
 // AudioResponse represents the final audio generation response
 type AudioResponse struct {
 	Audio struct {
@@ -56,8 +68,7 @@ type AudioResponse struct {
 	DurationMs int `json:"duration_ms"`
 }
 
-// StatusResponse represents the status check response
+// StatusResponse represents the status of a queued job
 type StatusResponse struct {
-	Status        string `json:"status"`
-	QueuePosition int    `json:"queue_position,omitempty"`
+	Status int `json:"status"` // 0: PENDING, 1: COMPLETED, 2: FAILED
 }

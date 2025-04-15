@@ -43,6 +43,15 @@ var Text2ImageModels = map[string]Model{
 	},
 }
 
+// Image2ImageModels contains all available image-to-image models
+var Image2ImageModels = map[string]Model{
+	"ghiblify": {
+		Name:        "ghiblify",
+		Description: "Transforms images into Studio Ghibli style artwork.",
+		Price:       0.15,
+	},
+}
+
 // Text2SpeechModels contains all available text-to-speech models
 var Text2SpeechModels = map[string]Model{
 	"minimax-tts/text-to-speech": {
@@ -56,6 +65,7 @@ var Text2SpeechModels = map[string]Model{
 var DefaultModels = map[string]string{
 	"text2image":  "fast-sdxl",                  // Default model for text2image
 	"text2speech": "minimax-tts/text-to-speech", // Default model for text2speech
+	"image2image": "ghiblify",                   // Default model for image2image
 }
 
 // GetModel returns the model configuration for a given model name and command type
@@ -66,6 +76,8 @@ func GetModel(modelName, commandType string) (Model, bool) {
 		models = Text2ImageModels
 	case "text2speech":
 		models = Text2SpeechModels
+	case "image2image":
+		models = Image2ImageModels
 	default:
 		return Model{}, false
 	}
