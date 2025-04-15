@@ -6,34 +6,52 @@ import (
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/karamble/braibot/internal/database"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
 )
 
 // BalanceCommand returns the balance command
-func BalanceCommand(dbManager *database.DBManager) Command {
+func BalanceCommand(dbManager *database.DBManager, debug bool) Command {
 	return Command{
 		Name:        "balance",
-		Description: "Shows your current balance",
+		Description: "Check your current balance",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
-			// Convert UID to string ID for database, just like in tip handler
+			// Convert UID to string ID for database
 			var userID zkidentity.ShortID
 			userID.FromBytes(pm.Uid)
 			userIDStr := userID.String()
 
-			// Get balance from database using the proper ID
+			// Get current balance in atoms
 			balance, err := dbManager.GetBalance(userIDStr)
 			if err != nil {
 				return fmt.Errorf("failed to get balance: %v", err)
 			}
 
-			// Convert to DCR using dcrutil, same as in tip handler
-			dcrBalance := dcrutil.Amount(balance / 1e3).ToCoin()
+			// Convert balance to DCR for display (1 DCR = 1e11 atoms)
+			balanceDCR := float64(balance) / 1e11
 
-			// Send balance message
-			return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Your current balance is %.8f DCR", dcrBalance))
+			// Debug information
+			if debug {
+				fmt.Printf("DEBUG - Balance command:\n")
+				fmt.Printf("  User ID: %s\n", userIDStr)
+				fmt.Printf("  Balance (atoms): %d\n", balance)
+				fmt.Printf("  Balance in DCR: %.8f\n", balanceDCR)
+			}
+
+			// Get current exchange rate
+			dcrPrice, _, err := GetDCRPrice()
+			if err != nil {
+				return fmt.Errorf("failed to get DCR price: %v", err)
+			}
+
+			// Calculate USD value
+			usdValue := balanceDCR * dcrPrice
+
+			// Send balance information
+			message := fmt.Sprintf("💰 Your Balance:\n• %.8f DCR\n• $%.2f USD",
+				balanceDCR, usdValue)
+			return bot.SendPM(ctx, pm.Nick, message)
 		},
 	}
 }
