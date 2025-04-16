@@ -69,11 +69,8 @@ func Text2SpeechCommand(dbManager *database.DBManager, debug bool) Command {
 				return fmt.Errorf("insufficient balance. Required: %.8f DCR, Current: %.8f DCR", dcrAmount, balanceDCR)
 			}
 
-			// Convert balance to DCR for display
-			balanceDCR := dcrutil.Amount(balance / 1e3).ToCoin()
-
-			// Send confirmation message with remaining balance
-			bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Processing your request. Remaining Balance: %.8f DCR", balanceDCR))
+			// Send confirmation message
+			bot.SendPM(ctx, pm.Nick, "Processing your request.")
 
 			// Create Fal.ai client
 			client := falapi.NewClient(cfg.ExtraConfig["falapikey"], debug)

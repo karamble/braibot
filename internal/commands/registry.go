@@ -63,9 +63,35 @@ func IsCommand(msg string) (string, []string, bool) {
 
 // FormatHelpMessage formats a help message for all registered commands
 func (r *Registry) FormatHelpMessage() string {
-	helpMsg := "| Command | Description |\n| -------- | ----------- |\n"
-	for _, cmd := range r.commands {
-		helpMsg += fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description)
+	// Define command categories
+	universalCommands := []string{"help", "balance", "rate"}
+	modelCommands := []string{"listmodels", "setmodel"}
+	generationCommands := []string{"text2image", "image2image", "image2video", "text2speech"}
+
+	// Create help message with sections
+	helpMsg := "## 🎯 Basic Commands\n"
+	helpMsg += "| Command | Description |\n| -------- | ----------- |\n"
+	for _, cmdName := range universalCommands {
+		if cmd, exists := r.commands[cmdName]; exists {
+			helpMsg += fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description)
+		}
 	}
+
+	helpMsg += "\n## 🔧 Model Configuration\n"
+	helpMsg += "| Command | Description |\n| -------- | ----------- |\n"
+	for _, cmdName := range modelCommands {
+		if cmd, exists := r.commands[cmdName]; exists {
+			helpMsg += fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description)
+		}
+	}
+
+	helpMsg += "\n## 🎨 AI Generation\n"
+	helpMsg += "| Command | Description |\n| -------- | ----------- |\n"
+	for _, cmdName := range generationCommands {
+		if cmd, exists := r.commands[cmdName]; exists {
+			helpMsg += fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description)
+		}
+	}
+
 	return helpMsg
 }

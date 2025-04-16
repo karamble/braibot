@@ -11,6 +11,7 @@ type Model struct {
 	Name        string  // Name of the model
 	Description string  // Description of the model
 	Price       float64 // Price per picture in USD
+	HelpDoc     string  // Detailed help documentation for the model
 }
 
 // QueueResponse represents the response from the queue API
@@ -87,4 +88,12 @@ type AudioResponse struct {
 // StatusResponse represents the status of a queued job
 type StatusResponse struct {
 	Status int `json:"status"` // 0: PENDING, 1: COMPLETED, 2: FAILED
+}
+
+// VideoResponse represents the response from the video generation API
+type VideoResponse struct {
+	Video struct {
+		URL         string `json:"url"`
+		ContentType string `json:"content_type"`
+	} `json:"video"`
 }
