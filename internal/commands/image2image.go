@@ -77,11 +77,8 @@ func Image2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 					balanceDCR, dcrAmount, model.Price))
 			}
 
-			// Convert balance to DCR for display
-			balanceDCR := float64(balance) / 1e11
-
-			// Send confirmation message with remaining balance
-			bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Processing your request. Remaining Balance: %.8f DCR", balanceDCR))
+			// Send confirmation message
+			bot.SendPM(ctx, pm.Nick, "Processing your request.")
 
 			// Generate image
 			ghiblifyResp, err := client.GenerateImageFromImage(ctx, "", imageURL, model.Name, bot, pm.Nick)

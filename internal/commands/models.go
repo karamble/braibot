@@ -18,7 +18,7 @@ func ListModelsCommand() Command {
 		Description: "Lists available models for a specific command. Usage: !listmodels [command]",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) == 0 {
-				return bot.SendPM(ctx, pm.Nick, "Please specify a command (text2image, text2speech, or image2image). Usage: !listmodels [command]")
+				return bot.SendPM(ctx, pm.Nick, "Please specify a command (text2image, text2speech, image2image, or image2video). Usage: !listmodels [command]")
 			}
 
 			commandName := strings.ToLower(args[0])
@@ -36,8 +36,11 @@ func ListModelsCommand() Command {
 			case "image2image":
 				models = falapi.Image2ImageModels
 				modelList = "Available models for image2image:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
+			case "image2video":
+				models = falapi.Image2VideoModels
+				modelList = "Available models for image2video:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
 			default:
-				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', or 'image2image'.")
+				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', or 'image2video'.")
 			}
 
 			for _, model := range models {

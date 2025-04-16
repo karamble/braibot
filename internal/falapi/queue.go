@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -27,8 +28,19 @@ func (c *Client) pollQueueStatus(ctx context.Context, queueResp QueueResponse, b
 			return nil, ctx.Err()
 		case <-ticker.C:
 			// Get status using status_url
-			statusURL := queueResp.StatusURL + "?logs=1"
-			req, err := http.NewRequestWithContext(ctx, "GET", statusURL, nil)
+			statusURL := queueResp.StatusURL
+			if statusURL == "" {
+				return nil, fmt.Errorf("empty status URL received from API")
+			}
+
+			// Try with logs first
+			withLogsURL := statusURL
+			if !strings.Contains(withLogsURL, "?logs=1") {
+				withLogsURL += "?logs=1"
+			}
+
+			// Try the request with logs parameter first
+			req, err := http.NewRequestWithContext(ctx, "GET", withLogsURL, nil)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create status request: %v", err)
 			}
@@ -36,7 +48,21 @@ func (c *Client) pollQueueStatus(ctx context.Context, queueResp QueueResponse, b
 
 			statusResp, err := c.httpClient.Do(req)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get status: %v", err)
+				// If the error is about unsupported protocol scheme, try without logs
+				if strings.Contains(err.Error(), "unsupported protocol scheme") {
+					// Retry without logs parameter using the original status URL
+					req, err = http.NewRequestWithContext(ctx, "GET", statusURL, nil)
+					if err != nil {
+						return nil, fmt.Errorf("failed to create status request on retry: %v", err)
+					}
+					req.Header.Set("Authorization", "Key "+c.apiKey)
+					statusResp, err = c.httpClient.Do(req)
+					if err != nil {
+						return nil, fmt.Errorf("failed to get status on retry: %v", err)
+					}
+				} else {
+					return nil, fmt.Errorf("failed to get status: %v", err)
+				}
 			}
 			defer statusResp.Body.Close()
 

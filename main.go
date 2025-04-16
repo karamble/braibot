@@ -136,8 +136,8 @@ func realMain() error {
 			} else if !welcomeSent[userIDStr] {
 				// Send welcome message for non-command messages if not sent before
 				welcomeMsg := "👋 Hi! I'm BraiBot, your AI assistant powered by Decred.\n\n" +
-					"To get started, use !help to see available commands.\n" +
-					"You can also send me a tip to use AI features or check your balance with !balance."
+					"To get started, use **!help** to see available commands.\n" +
+					"You can also send me a tip to use AI features or\ncheck your balance with **!balance**."
 
 				if err := bot.SendPM(context.Background(), pm.Nick, welcomeMsg); err != nil {
 					log.Warnf("Error sending welcome message: %v", err)

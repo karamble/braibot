@@ -19,6 +19,7 @@ func InitializeCommands(dbManager *database.DBManager, debug bool) *Registry {
 	registry.Register(Text2ImageCommand(dbManager, debug))
 	registry.Register(Text2SpeechCommand(dbManager, debug))
 	registry.Register(Image2ImageCommand(dbManager, debug))
+	registry.Register(Image2VideoCommand(dbManager, debug))
 
 	// Register balance and rate commands
 	registry.Register(BalanceCommand(dbManager, debug))
