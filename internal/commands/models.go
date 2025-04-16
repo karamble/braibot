@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
-	"github.com/karamble/braibot/internal/falapi"
+	"github.com/karamble/braibot/internal/faladapter"
+	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
 )
@@ -24,27 +25,32 @@ func ListModelsCommand() Command {
 			commandName := strings.ToLower(args[0])
 
 			var modelList string
-			var models map[string]falapi.Model
+			var models map[string]fal.Model
+			var exists bool
 
 			switch commandName {
 			case "text2image":
-				models = falapi.Text2ImageModels
+				models, exists = faladapter.GetModels("text2image")
 				modelList = "Available models for text2image:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
 			case "text2speech":
-				models = falapi.Text2SpeechModels
+				models, exists = faladapter.GetModels("text2speech")
 				modelList = "Available models for text2speech:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
 			case "image2image":
-				models = falapi.Image2ImageModels
+				models, exists = faladapter.GetModels("image2image")
 				modelList = "Available models for image2image:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
 			case "image2video":
-				models = falapi.Image2VideoModels
+				models, exists = faladapter.GetModels("image2video")
 				modelList = "Available models for image2video:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
 			default:
 				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', or 'image2video'.")
 			}
 
+			if !exists {
+				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("No models found for command: %s", commandName))
+			}
+
 			for _, model := range models {
-				modelList += fmt.Sprintf("| %s | %s | $%.2f |\n", model.Name, model.Description, model.Price)
+				modelList += fmt.Sprintf("| %s | %s | $%.2f |\n", model.Name, model.Description, model.PriceUSD)
 			}
 
 			return bot.SendPM(ctx, pm.Nick, modelList)
@@ -70,20 +76,28 @@ func SetModelCommand(registry *Registry) Command {
 			}
 
 			// Check if the model is valid for the specific command
-			var models map[string]falapi.Model
+			var models map[string]fal.Model
+			var exists bool
 			switch commandName {
 			case "text2image":
-				models = falapi.Text2ImageModels
+				models, exists = faladapter.GetModels("text2image")
 			case "text2speech":
-				models = falapi.Text2SpeechModels
+				models, exists = faladapter.GetModels("text2speech")
 			case "image2image":
-				models = falapi.Image2ImageModels
+				models, exists = faladapter.GetModels("image2image")
 			default:
 				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', or 'image2image'.")
 			}
 
+			if !exists {
+				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("No models found for command: %s", commandName))
+			}
+
 			if _, exists := models[modelName]; exists {
-				falapi.SetDefaultModel(commandName, modelName)
+				err := faladapter.SetCurrentModel(commandName, modelName)
+				if err != nil {
+					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Error setting model: %v", err))
+				}
 				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Model for %s set to: %s", commandName, modelName))
 			}
 

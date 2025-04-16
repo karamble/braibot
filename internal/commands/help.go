@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
-	"github.com/karamble/braibot/internal/falapi"
+	"github.com/karamble/braibot/internal/faladapter"
+	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
 )
@@ -31,18 +32,23 @@ func HelpCommand(registry *Registry) Command {
 				}
 
 				// Get models for this command
-				var models map[string]falapi.Model
+				var models map[string]fal.Model
+				var modelExists bool
 				switch commandName {
 				case "text2image":
-					models = falapi.Text2ImageModels
+					models, modelExists = faladapter.GetModels("text2image")
 				case "text2speech":
-					models = falapi.Text2SpeechModels
+					models, modelExists = faladapter.GetModels("text2speech")
 				case "image2image":
-					models = falapi.Image2ImageModels
+					models, modelExists = faladapter.GetModels("image2image")
 				case "image2video":
-					models = falapi.Image2VideoModels
+					models, modelExists = faladapter.GetModels("image2video")
 				default:
 					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Command: !%s\nDescription: %s", cmd.Name, cmd.Description))
+				}
+
+				if !modelExists {
+					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("No models found for command: %s", commandName))
 				}
 
 				// Format command help with model list
@@ -51,7 +57,7 @@ func HelpCommand(registry *Registry) Command {
 					cmd.Description)
 
 				for _, model := range models {
-					helpMsg += fmt.Sprintf("| %s | %s | $%.2f |\n", model.Name, model.Description, model.Price)
+					helpMsg += fmt.Sprintf("| %s | %s | $%.2f |\n", model.Name, model.Description, model.PriceUSD)
 				}
 
 				helpMsg += "\nUse !help " + commandName + " <model_name> for detailed information about a specific model."
@@ -64,7 +70,7 @@ func HelpCommand(registry *Registry) Command {
 				modelName := strings.ToLower(args[1])
 
 				// Get the model information
-				model, exists := falapi.GetModel(modelName, commandName)
+				model, exists := faladapter.GetModel(modelName, commandName)
 				if !exists {
 					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Unknown model: %s for command: %s. Use !help %s to see available models.", modelName, commandName, commandName))
 				}
@@ -73,7 +79,7 @@ func HelpCommand(registry *Registry) Command {
 				helpMsg := fmt.Sprintf("Model: %s\nDescription: %s\nPrice: $%.2f USD\n\n%s",
 					model.Name,
 					model.Description,
-					model.Price,
+					model.PriceUSD,
 					model.HelpDoc)
 
 				return bot.SendPM(ctx, pm.Nick, helpMsg)

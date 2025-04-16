@@ -12,7 +12,8 @@ import (
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/database"
-	"github.com/karamble/braibot/internal/falapi"
+	"github.com/karamble/braibot/internal/faladapter"
+	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
 )
@@ -30,20 +31,16 @@ func Text2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 			prompt := strings.Join(args, " ")
 
 			// Create Fal.ai client
-			client := falapi.NewClient(cfg.ExtraConfig["falapikey"], debug)
+			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
 
 			// Get model configuration
-			modelName, exists := falapi.GetDefaultModel("text2image")
+			model, exists := faladapter.GetCurrentModel("text2image")
 			if !exists {
 				return fmt.Errorf("no default model found for text2image")
 			}
-			model, exists := falapi.GetModel(modelName, "text2image")
-			if !exists {
-				return fmt.Errorf("model not found: %s", modelName)
-			}
 
 			// Convert model's USD price to DCR using current exchange rate
-			dcrAmount, err := USDToDCR(model.Price)
+			dcrAmount, err := USDToDCR(model.PriceUSD)
 			if err != nil {
 				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Error: %v", err))
 			}
@@ -65,7 +62,7 @@ func Text2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 				fmt.Printf("DEBUG - Text2Image command:\n")
 				fmt.Printf("  User ID: %s\n", userIDStr)
 				fmt.Printf("  Current balance (atoms): %d\n", balance)
-				fmt.Printf("  Cost in USD: $%.2f\n", model.Price)
+				fmt.Printf("  Cost in USD: $%.2f\n", model.PriceUSD)
 				fmt.Printf("  Cost in DCR: %.8f\n", dcrAmount)
 				fmt.Printf("  Cost in atoms: %d\n", dcrAtoms)
 				fmt.Printf("  Balance in DCR: %.8f\n", float64(balance)/1e11)
@@ -76,21 +73,32 @@ func Text2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 				// Convert balance to DCR for display
 				balanceDCR := float64(balance) / 1e11
 				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Insufficient balance. You have %.8f DCR, but this operation requires %.8f DCR (%.2f USD). Please send a tip to use this feature.",
-					balanceDCR, dcrAmount, model.Price))
+					balanceDCR, dcrAmount, model.PriceUSD))
 			}
 
 			// Send confirmation message
 			bot.SendPM(ctx, pm.Nick, "Processing your request.")
 
+			// Create progress callback
+			progress := faladapter.NewBotProgressCallback(bot, pm.Nick)
+
+			// Create image request
+			req := fal.ImageRequest{
+				Prompt:   prompt,
+				Model:    model.Name,
+				Options:  map[string]interface{}{"num_images": 1},
+				Progress: progress,
+			}
+
 			// Generate image
-			imageResp, err := client.GenerateImage(ctx, prompt, model.Name, bot, pm.Nick)
+			resp, err := client.GenerateImage(ctx, req)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to generate image: %v", err)
 			}
 
 			// Assuming the first image is the one we want to send
-			if len(imageResp.Images) > 0 {
-				imageURL := imageResp.Images[0].URL
+			if len(resp.Images) > 0 {
+				imageURL := resp.Images[0].URL
 				// Fetch the image data
 				imgResp, err := http.Get(imageURL)
 				if err != nil {
@@ -108,7 +116,7 @@ func Text2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 
 				// Determine the image type from ContentType
 				var imageType string
-				switch imageResp.Images[0].ContentType {
+				switch resp.Images[0].ContentType {
 				case "image/jpeg":
 					imageType = "image/jpeg"
 				case "image/png":
@@ -126,7 +134,7 @@ func Text2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 				}
 
 				// Deduct balance using CheckAndDeductBalance after successful delivery
-				hasBalance, err := dbManager.CheckAndDeductBalance(pm.Uid, model.Price, debug)
+				hasBalance, err := dbManager.CheckAndDeductBalance(pm.Uid, model.PriceUSD, debug)
 				if err != nil {
 					return fmt.Errorf("failed to deduct balance: %v", err)
 				}
@@ -148,7 +156,7 @@ func Text2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 
 				// Send billing information with model's USD price and converted DCR amount
 				billingMsg := fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• Remaining Balance: %.8f DCR",
-					dcrAmount, model.Price, newBalance)
+					dcrAmount, model.PriceUSD, newBalance)
 				if err := bot.SendPM(ctx, pm.Nick, billingMsg); err != nil {
 					return fmt.Errorf("failed to send billing information: %v", err)
 				}
