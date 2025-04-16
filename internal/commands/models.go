@@ -85,8 +85,10 @@ func SetModelCommand(registry *Registry) Command {
 				models, exists = faladapter.GetModels("text2speech")
 			case "image2image":
 				models, exists = faladapter.GetModels("image2image")
+			case "image2video":
+				models, exists = faladapter.GetModels("image2video")
 			default:
-				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', or 'image2image'.")
+				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', or 'image2video'.")
 			}
 
 			if !exists {

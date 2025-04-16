@@ -67,6 +67,7 @@ type AudioResponse struct {
 type VideoRequest struct {
 	Prompt         string                 `json:"prompt"`
 	ImageURL       string                 `json:"image_url"`
+	Model          string                 `json:"-"`
 	Duration       string                 `json:"duration,omitempty"`
 	AspectRatio    string                 `json:"aspect_ratio,omitempty"`
 	NegativePrompt string                 `json:"negative_prompt,omitempty"`

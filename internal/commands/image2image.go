@@ -19,11 +19,36 @@ import (
 
 // Image2ImageCommand returns the image2image command
 func Image2ImageCommand(dbManager *database.DBManager, debug bool) Command {
+	// Get the current model to use its description
+	model, exists := faladapter.GetCurrentModel("image2image")
+	if !exists {
+		// Fallback to a default description if no model is found
+		model = fal.Model{
+			Name:        "image2image",
+			Description: "Transforms an image using AI",
+		}
+	}
+
+	// Create the command description using the model's description
+	description := fmt.Sprintf("%s. Usage: !image2image [image_url]", model.Description)
+
 	return Command{
 		Name:        "image2image",
-		Description: "Transforms an image using AI. Usage: !image2image [image_url]",
+		Description: description,
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
+				// Get the current model to use its help documentation
+				model, exists := faladapter.GetCurrentModel("image2image")
+				if !exists {
+					return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2image [image_url]")
+				}
+
+				// Use the model's help documentation if available
+				if model.HelpDoc != "" {
+					return bot.SendPM(ctx, pm.Nick, model.HelpDoc)
+				}
+
+				// Fallback to default help message
 				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2image [image_url]")
 			}
 
@@ -31,12 +56,6 @@ func Image2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 
 			// Create Fal.ai client
 			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
-
-			// Get model configuration
-			model, exists := faladapter.GetCurrentModel("image2image")
-			if !exists {
-				return fmt.Errorf("no default model found for image2image")
-			}
 
 			// Convert model's USD price to DCR using current exchange rate
 			dcrAmount, err := USDToDCR(model.PriceUSD)

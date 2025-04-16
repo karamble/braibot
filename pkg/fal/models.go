@@ -88,6 +88,13 @@ var Text2SpeechModels = map[string]Model{
 
 // Image2VideoModels contains all available image-to-video models
 var Image2VideoModels = map[string]Model{
+	"veo2": {
+		Name:        "veo2",
+		Description: "Creates videos from images with realistic motion using Google's Veo 2 model. Base price: $2.50 for 5 seconds, $0.50 per additional second",
+		PriceUSD:    3.50,
+		Type:        "image2video",
+		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --aspect 16:9 --duration 5s\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --aspect: Aspect ratio (auto, auto_prefer_portrait, 16:9, 9:16)\n• --duration: Video duration (5s, 6s, 7s, 8s)\n\nPricing:\n• Base price: $2.50 for 5 seconds\n• Additional cost: $0.50 per second beyond 5 seconds",
+	},
 	"kling-video": {
 		Name:        "kling-video",
 		Description: "Convert images to video using Kling 2.0 Master. Base price: $2.0 for 5 seconds, $0.4 per additional second",
@@ -101,7 +108,7 @@ var Image2VideoModels = map[string]Model{
 var DefaultModels = map[string]string{
 	"text2image":  "fast-sdxl",
 	"image2image": "ghiblify",
-	"image2video": "kling-video",
+	"image2video": "veo2",
 	"text2speech": "minimax-tts/text-to-speech",
 }
 
