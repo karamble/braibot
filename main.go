@@ -29,7 +29,7 @@ import (
 
 var (
 	flagAppRoot = flag.String("approot", "~/.braibot", "Path to application data directory")
-	flagDebug   = flag.Bool("debug", false, "Enable debug mode")
+	flagDebug   = flag.Bool("debug", true, "Enable debug mode")
 	dbManager   *database.DBManager     // Database manager for user balances
 	debug       bool                    // Debug mode flag
 	welcomeSent = make(map[string]bool) // Track users who have received welcome message
