@@ -2,10 +2,10 @@ package commands
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -20,12 +20,37 @@ import (
 
 // Image2VideoCommand returns the image2video command
 func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
+	// Get the current model to use its description
+	model, exists := faladapter.GetCurrentModel("image2video")
+	if !exists {
+		// Fallback to a default description if no model is found
+		model = fal.Model{
+			Name:        "image2video",
+			Description: "Convert an image to video using AI",
+		}
+	}
+
+	// Create the command description using the model's description
+	description := fmt.Sprintf("%s. Usage: !image2video [image_url] [prompt] [--model name] [--duration seconds] [--aspect 16:9|9:16|1:1] [--negative-prompt text] [--cfg-scale value]", model.Description)
+
 	return Command{
 		Name:        "image2video",
-		Description: "Convert an image to video using AI. Usage: !image2video [image_url] [prompt] [--duration seconds] [--aspect ratio] [--negative-prompt text] [--cfg-scale value]",
+		Description: description,
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 2 {
-				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL and prompt. Usage: !image2video [image_url] [prompt] [--duration seconds] [--aspect ratio] [--negative-prompt text] [--cfg-scale value]")
+				// Get the current model to use its help documentation
+				model, exists := faladapter.GetCurrentModel("image2video")
+				if !exists {
+					return bot.SendPM(ctx, pm.Nick, "Please provide an image URL and prompt. Usage: !image2video [image_url] [prompt] [--model name] [--duration seconds] [--aspect 16:9|9:16|1:1] [--negative-prompt text] [--cfg-scale value]")
+				}
+
+				// Use the model's help documentation if available
+				if model.HelpDoc != "" {
+					return bot.SendPM(ctx, pm.Nick, model.HelpDoc)
+				}
+
+				// Fallback to default help message
+				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL and prompt. Usage: !image2video [image_url] [prompt] [--model name] [--duration seconds] [--aspect 16:9|9:16|1:1] [--negative-prompt text] [--cfg-scale value]")
 			}
 
 			// Parse arguments
@@ -38,21 +63,35 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			}
 
 			var prompt string
-			var duration int = 5                                         // Default duration
-			var aspectRatio string = "16:9"                              // Default aspect ratio
-			var negativePrompt string = "blur, distort, and low quality" // Default negative prompt
-			var cfgScale float64 = 0.5                                   // Default CFG scale
+			var modelName string
+			var duration string = "5"                                    // Default duration for Veo2
+			var aspectRatio string = "16:9"                              // Default aspect ratio for Veo2
+			var negativePrompt string = "blur, distort, and low quality" // Default negative prompt for Kling
+			var cfgScale float64 = 0.5                                   // Default CFG scale for Kling
 
 			// Process arguments
 			for i := 1; i < len(args); i++ {
-				if args[i] == "--duration" && i+1 < len(args) {
-					dur, err := strconv.Atoi(args[i+1])
-					if err == nil && dur >= 5 {
+				if args[i] == "--model" && i+1 < len(args) {
+					modelName = args[i+1]
+					i++ // Skip the next argument
+				} else if args[i] == "--duration" && i+1 < len(args) {
+					// Remove 's' suffix if present and ensure it's a valid number
+					dur := strings.TrimSuffix(args[i+1], "s")
+					// Validate that it's a number
+					if _, err := strconv.Atoi(dur); err == nil {
 						duration = dur
-						i++ // Skip the next argument
 					}
+					i++ // Skip the next argument
 				} else if args[i] == "--aspect" && i+1 < len(args) {
-					aspectRatio = args[i+1]
+					// Validate aspect ratio
+					ratio := args[i+1]
+					if ratio == "auto" {
+						ratio = "16:9" // Default to 16:9 if auto is specified
+					}
+					// Check if it's one of the allowed values
+					if ratio == "16:9" || ratio == "9:16" || ratio == "1:1" {
+						aspectRatio = ratio
+					}
 					i++ // Skip the next argument
 				} else if args[i] == "--negative-prompt" && i+1 < len(args) {
 					negativePrompt = args[i+1]
@@ -73,14 +112,6 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				}
 			}
 
-			// Calculate price based on duration
-			basePrice := 2.0 // Base price for 5 seconds
-			additionalSeconds := 0
-			if duration > 5 {
-				additionalSeconds = duration - 5
-			}
-			totalPrice := basePrice + (float64(additionalSeconds) * 0.4)
-
 			// Create Fal.ai client
 			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
 
@@ -88,6 +119,46 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			model, exists := faladapter.GetCurrentModel("image2video")
 			if !exists {
 				return fmt.Errorf("no default model found for image2video")
+			}
+
+			// If model name is provided, override the default
+			if modelName != "" {
+				newModel, exists := faladapter.GetModel(modelName, "image2video")
+				if !exists {
+					return fmt.Errorf("model not found: %s", modelName)
+				}
+				model = newModel
+			}
+
+			// Calculate price based on model
+			var totalPrice float64
+			if model.Name == "kling-video" {
+				// Parse duration for Kling
+				dur, err := strconv.Atoi(duration)
+				if err != nil {
+					dur = 5 // Default to 5 seconds if parsing fails
+				}
+				basePrice := model.PriceUSD // Base price for 5 seconds
+				additionalSeconds := 0
+				if dur > 5 {
+					additionalSeconds = dur - 5
+				}
+				totalPrice = basePrice + (float64(additionalSeconds) * 0.4)
+			} else if model.Name == "veo2" {
+				// Parse duration for Veo2
+				dur, err := strconv.Atoi(duration)
+				if err != nil {
+					dur = 5 // Default to 5 seconds if parsing fails
+				}
+				basePrice := model.PriceUSD // Base price for 5 seconds
+				additionalSeconds := 0
+				if dur > 5 {
+					additionalSeconds = dur - 5
+				}
+				totalPrice = basePrice + (float64(additionalSeconds) * 0.50)
+			} else {
+				// Fallback to model's base price
+				totalPrice = model.PriceUSD
 			}
 
 			// Override the model price with the calculated price
@@ -124,20 +195,29 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			// Create progress callback
 			progress := faladapter.NewBotProgressCallback(bot, pm.Nick)
 
-			// Create video request
-			req := fal.VideoRequest{
+			// Create video request based on the model
+			var req *fal.VideoRequest
+
+			// Create a map for the options
+			options := make(map[string]interface{})
+			options["duration"] = duration
+			options["aspect_ratio"] = aspectRatio
+			options["negative_prompt"] = negativePrompt
+			options["cfg_scale"] = cfgScale
+
+			req = &fal.VideoRequest{
 				Prompt:         prompt,
 				ImageURL:       imageURL,
-				Duration:       strconv.Itoa(duration),
+				Duration:       duration,
 				AspectRatio:    aspectRatio,
 				NegativePrompt: negativePrompt,
 				CFGScale:       cfgScale,
+				Options:        options,
 				Progress:       progress,
-				Options:        make(map[string]interface{}),
 			}
 
 			// Generate video
-			resp, err := client.GenerateVideo(ctx, req)
+			resp, err := client.GenerateVideo(ctx, *req)
 			if err != nil {
 				return fmt.Errorf("failed to generate video: %v", err)
 			}
@@ -145,35 +225,9 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			// Get the video URL from any of the possible fields
 			videoURL := resp.GetURL()
 
-			// Send the video URL to the user immediately
-			if err := bot.SendPM(ctx, pm.Nick, fmt.Sprintf("🎥 Your video is ready! Here's the direct URL: %s", videoURL)); err != nil {
-				return fmt.Errorf("failed to send video URL: %v", err)
-			}
-
-			// Try to fetch and embed the video
-			videoResp, err := http.Get(videoURL)
-			if err != nil {
-				// Log the error but don't return it since we already sent the URL
-				fmt.Printf("Warning: failed to fetch video for embedding: %v\n", err)
-			} else {
-				defer videoResp.Body.Close()
-
-				videoData, err := io.ReadAll(videoResp.Body)
-				if err != nil {
-					fmt.Printf("Warning: failed to read video data for embedding: %v\n", err)
-				} else {
-					// Encode the video data to base64
-					encodedVideo := base64.StdEncoding.EncodeToString(videoData)
-
-					// Create the message with embedded video
-					message := fmt.Sprintf("--embed[alt=%s,type=%s,data=%s]--",
-						"Generated video",
-						"video/mp4", // Default content type for MP4 videos
-						encodedVideo)
-					if err := bot.SendPM(ctx, pm.Nick, message); err != nil {
-						fmt.Printf("Warning: failed to send embedded video: %v\n", err)
-					}
-				}
+			// Download and send the video file directly to the user
+			if err := downloadAndSendVideo(ctx, bot, pm.Nick, videoURL); err != nil {
+				return fmt.Errorf("failed to send video file: %v", err)
 			}
 
 			// Deduct balance using CheckAndDeductBalance after successful delivery
@@ -201,4 +255,38 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			return nil
 		},
 	}
+}
+
+// downloadAndSendVideo downloads a video from a URL, sends it to the user, and cleans up
+func downloadAndSendVideo(ctx context.Context, bot *kit.Bot, userNick string, videoURL string) error {
+	// Create a temporary file
+	tmpFile, err := os.CreateTemp("", "video-*.mp4")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name()) // Clean up the temp file when done
+
+	// Download the video
+	resp, err := http.Get(videoURL)
+	if err != nil {
+		return fmt.Errorf("failed to download video: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Copy the video data to the temp file
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		return fmt.Errorf("failed to save video: %v", err)
+	}
+
+	// Close the file before sending
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %v", err)
+	}
+
+	// Send the file to the user
+	if err := bot.SendFile(ctx, userNick, tmpFile.Name()); err != nil {
+		return fmt.Errorf("failed to send video file: %v", err)
+	}
+
+	return nil
 }
