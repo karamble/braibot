@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
-	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
+	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
@@ -60,22 +60,22 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 		// Fallback to a default description if no model is found
 		model = fal.Model{
 			Name:        "image2video",
-			Description: "Convert an image to video using AI",
+			Description: "Generate a video from an image using AI",
 		}
 	}
 
 	// Create the command description using the model's description
-	description := fmt.Sprintf("%s. Usage: !image2video [image_url] [prompt] [--model name] [--duration seconds] [--aspect ratio] [--negative-prompt text] [--cfg-scale value]", model.Description)
+	description := fmt.Sprintf("%s. Usage: !image2video [image_url] [duration] [aspect_ratio] [negative_prompt] [cfg_scale]", model.Description)
 
 	return Command{
 		Name:        "image2video",
 		Description: description,
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
-			if len(args) < 2 {
+			if len(args) < 1 {
 				// Get the current model to use its help documentation
 				model, exists := faladapter.GetCurrentModel("image2video")
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, "Please provide an image URL and prompt. Usage: !image2video [image_url] [prompt] [--model name] [--duration seconds] [--aspect ratio] [--negative-prompt text] [--cfg-scale value]")
+					return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [duration] [aspect_ratio] [negative_prompt] [cfg_scale]")
 				}
 
 				// Use the model's help documentation if available
@@ -84,52 +84,28 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				}
 
 				// Fallback to default help message
-				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL and prompt. Usage: !image2video [image_url] [prompt] [--model name] [--duration seconds] [--aspect ratio] [--negative-prompt text] [--cfg-scale value]")
+				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [duration] [aspect_ratio] [negative_prompt] [cfg_scale]")
 			}
 
 			// Parse arguments
 			imageURL := args[0]
+			duration := "5s"      // Default duration
+			aspectRatio := "16:9" // Default aspect ratio
+			negativePrompt := ""  // Default negative prompt
+			cfgScale := 7.5       // Default CFG scale
 
-			// Validate image URL
-			if !strings.HasPrefix(imageURL, "http://") && !strings.HasPrefix(imageURL, "https://") && !strings.HasPrefix(imageURL, "data:") {
-				// Try to add https:// if no scheme is provided
-				imageURL = "https://" + imageURL
+			if len(args) > 1 {
+				duration = args[1]
 			}
-
-			var prompt string
-			var modelName string
-			var duration string = "5s"                                   // Default duration for Veo2
-			var aspectRatio string = "auto"                              // Default aspect ratio for Veo2
-			var negativePrompt string = "blur, distort, and low quality" // Default negative prompt for Kling
-			var cfgScale float64 = 0.5                                   // Default CFG scale for Kling
-
-			// Process arguments
-			for i := 1; i < len(args); i++ {
-				if args[i] == "--model" && i+1 < len(args) {
-					modelName = args[i+1]
-					i++ // Skip the next argument
-				} else if args[i] == "--duration" && i+1 < len(args) {
-					duration = args[i+1]
-					i++ // Skip the next argument
-				} else if args[i] == "--aspect" && i+1 < len(args) {
-					aspectRatio = args[i+1]
-					i++ // Skip the next argument
-				} else if args[i] == "--negative-prompt" && i+1 < len(args) {
-					negativePrompt = args[i+1]
-					i++ // Skip the next argument
-				} else if args[i] == "--cfg-scale" && i+1 < len(args) {
-					scale, err := strconv.ParseFloat(args[i+1], 64)
-					if err == nil {
-						cfgScale = scale
-						i++ // Skip the next argument
-					}
-				} else {
-					// If not a flag, add to prompt
-					if prompt == "" {
-						prompt = args[i]
-					} else {
-						prompt += " " + args[i]
-					}
+			if len(args) > 2 {
+				aspectRatio = args[2]
+			}
+			if len(args) > 3 {
+				negativePrompt = args[3]
+			}
+			if len(args) > 4 {
+				if scale, err := strconv.ParseFloat(args[4], 64); err == nil {
+					cfgScale = scale
 				}
 			}
 
@@ -142,16 +118,7 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				return fmt.Errorf("no default model found for image2video")
 			}
 
-			// If model name is provided, override the default
-			if modelName != "" {
-				newModel, exists := faladapter.GetModel(modelName, "image2video")
-				if !exists {
-					return fmt.Errorf("model not found: %s", modelName)
-				}
-				model = newModel
-			}
-
-			// Calculate price based on model
+			// Calculate total price based on model and duration
 			var totalPrice float64
 			if model.Name == "kling-video" {
 				// Parse duration for Kling
@@ -185,36 +152,20 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			// Override the model price with the calculated price
 			model.PriceUSD = totalPrice
 
-			// Convert model's USD price to DCR using current exchange rate
-			dcrAmount, err := USDToDCR(model.PriceUSD)
+			// Process billing
+			billingResult, err := utils.CheckAndProcessBilling(ctx, bot, dbManager, pm, model.PriceUSD, debug)
 			if err != nil {
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Error: %v", err))
+				return fmt.Errorf("billing error: %v", err)
 			}
-
-			// Convert DCR amount to atoms for comparison (1 DCR = 1e11 atoms)
-			dcrAtoms := int64(dcrAmount * 1e11)
-
-			// Get user balance in atoms
-			var userID zkidentity.ShortID
-			userID.FromBytes(pm.Uid)
-			userIDStr := userID.String()
-			balance, err := dbManager.GetBalance(userIDStr)
-			if err != nil {
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Error: %v", err))
-			}
-
-			// Check if user has sufficient balance
-			if balance < dcrAtoms {
-				// Convert balance to DCR for display
-				balanceDCR := float64(balance) / 1e11
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Insufficient balance. Required: %.8f DCR, Current: %.8f DCR", dcrAmount, balanceDCR))
+			if !billingResult.Success {
+				return bot.SendPM(ctx, pm.Nick, billingResult.ErrorMessage)
 			}
 
 			// Send confirmation message
 			bot.SendPM(ctx, pm.Nick, "Processing your request.")
 
 			// Create progress callback
-			progress := faladapter.NewBotProgressCallback(bot, pm.Nick)
+			progress := NewCommandProgressCallback(bot, pm.Nick, "image2video")
 
 			// Create video request based on model type
 			var req interface{}
@@ -222,7 +173,7 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			case "veo2":
 				req = &fal.Veo2Request{
 					BaseVideoRequest: fal.BaseVideoRequest{
-						Prompt:   prompt,
+						Prompt:   "",
 						ImageURL: imageURL,
 						Model:    model.Name,
 						Progress: progress,
@@ -234,7 +185,7 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			case "kling-video":
 				req = &fal.KlingVideoRequest{
 					BaseVideoRequest: fal.BaseVideoRequest{
-						Prompt:   prompt,
+						Prompt:   "",
 						ImageURL: imageURL,
 						Model:    model.Name,
 						Progress: progress,
@@ -257,35 +208,17 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 
 			// Get the video URL from any of the possible fields
 			videoURL := resp.GetURL()
-
-			// Download and send the video file to the user
-			if err := downloadAndSendVideo(ctx, bot, pm.Nick, videoURL); err != nil {
-				return fmt.Errorf("failed to download and send video: %v", err)
+			if videoURL == "" {
+				return fmt.Errorf("received empty video URL from API")
 			}
 
-			// Deduct balance using CheckAndDeductBalance after successful delivery
-			hasBalance, err := dbManager.CheckAndDeductBalance(pm.Uid, model.PriceUSD, debug)
-			if err != nil {
-				return fmt.Errorf("failed to deduct balance: %v", err)
-			}
-			if !hasBalance {
-				return fmt.Errorf("failed to deduct balance. Please try again.")
+			// Send the video file to the user using the utility function
+			if err := utils.SendFileToUser(ctx, bot, pm.Nick, videoURL, "video", "video/mp4"); err != nil {
+				return fmt.Errorf("failed to send video file: %v", err)
 			}
 
-			// Get updated balance for billing message
-			newBalance, err := dbManager.GetUserBalance(pm.Uid)
-			if err != nil {
-				return fmt.Errorf("failed to get updated balance: %v", err)
-			}
-
-			// Send billing information with model's USD price and converted DCR amount
-			billingMsg := fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• Remaining Balance: %.8f DCR",
-				dcrAmount, model.PriceUSD, newBalance)
-			if err := bot.SendPM(ctx, pm.Nick, billingMsg); err != nil {
-				return fmt.Errorf("failed to send billing information: %v", err)
-			}
-
-			return nil
+			// Send billing information
+			return utils.SendBillingMessage(ctx, bot, pm, billingResult)
 		},
 	}
 }

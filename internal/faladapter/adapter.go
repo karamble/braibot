@@ -219,16 +219,14 @@ func SetCurrentModel(commandType, modelName string) error {
 }
 
 // GenerateImageFromImage generates an image from an existing image using the fal package.
-func GenerateImageFromImage(ctx context.Context, client *fal.Client, prompt, imageURL, modelName string, bot *kit.Bot, userNick string) (*fal.ImageResponse, error) {
-	callback := NewBotProgressCallback(bot, userNick)
-
+func GenerateImageFromImage(ctx context.Context, client *fal.Client, prompt, imageURL, modelName string, progress fal.ProgressCallback) (*fal.ImageResponse, error) {
 	req := fal.ImageRequest{
 		Prompt: prompt,
 		Model:  modelName,
 		Options: map[string]interface{}{
 			"image_url": imageURL,
 		},
-		Progress: callback,
+		Progress: progress,
 	}
 
 	return client.GenerateImage(ctx, req)

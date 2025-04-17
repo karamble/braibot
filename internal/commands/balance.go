@@ -7,6 +7,7 @@ import (
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/database"
+	"github.com/karamble/braibot/internal/utils"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
 )
@@ -45,12 +46,8 @@ func BalanceCommand(dbManager *database.DBManager, debug bool) Command {
 				return fmt.Errorf("failed to get DCR price: %v", err)
 			}
 
-			// Calculate USD value
-			usdValue := balanceDCR * dcrPrice
-
 			// Send balance information
-			message := fmt.Sprintf("💰 Your Balance:\n• %.8f DCR\n• $%.2f USD",
-				balanceDCR, usdValue)
+			message := utils.FormatBalanceMessage(balanceDCR, dcrPrice)
 			return bot.SendPM(ctx, pm.Nick, message)
 		},
 	}

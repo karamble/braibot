@@ -7,11 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
-	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
+	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
@@ -25,7 +26,7 @@ func Image2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 		// Fallback to a default description if no model is found
 		model = fal.Model{
 			Name:        "image2image",
-			Description: "Transforms an image using AI",
+			Description: "Transform an image using AI",
 		}
 	}
 
@@ -54,112 +55,95 @@ func Image2ImageCommand(dbManager *database.DBManager, debug bool) Command {
 
 			imageURL := args[0]
 
+			// Validate URL
+			parsedURL, err := url.Parse(imageURL)
+			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+				return bot.SendPM(ctx, pm.Nick, "Please provide a valid http:// or https:// URL for the image.")
+			}
+
+			// Validate that URL points to an image by making a HEAD request
+			httpResp, err := http.Head(imageURL)
+			if err != nil {
+				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Failed to access the URL: %v", err))
+			}
+			defer httpResp.Body.Close()
+
+			inputContentType := httpResp.Header.Get("Content-Type")
+			if !strings.HasPrefix(inputContentType, "image/") {
+				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("The URL does not point to an image (Content-Type: %s). Please provide a valid image URL.", inputContentType))
+			}
+
 			// Create Fal.ai client
 			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
 
-			// Convert model's USD price to DCR using current exchange rate
-			dcrAmount, err := USDToDCR(model.PriceUSD)
-			if err != nil {
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Error: %v", err))
+			// Get model configuration
+			model, exists := faladapter.GetCurrentModel("image2image")
+			if !exists {
+				return fmt.Errorf("no default model found for image2image")
 			}
 
-			// Convert DCR amount to atoms for comparison (1 DCR = 1e11 atoms)
-			dcrAtoms := int64(dcrAmount * 1e11)
-
-			// Get user balance in atoms
-			var userID zkidentity.ShortID
-			userID.FromBytes(pm.Uid)
-			userIDStr := userID.String()
-			balance, err := dbManager.GetBalance(userIDStr)
+			// Process billing
+			billingResult, err := utils.CheckAndProcessBilling(ctx, bot, dbManager, pm, model.PriceUSD, debug)
 			if err != nil {
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Error: %v", err))
+				return fmt.Errorf("billing error: %v", err)
 			}
-
-			// Check if user has sufficient balance
-			if balance < dcrAtoms {
-				// Convert balance to DCR for display
-				balanceDCR := float64(balance) / 1e11
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Insufficient balance. Required: %.8f DCR, Current: %.8f DCR", dcrAmount, balanceDCR))
+			if !billingResult.Success {
+				return bot.SendPM(ctx, pm.Nick, billingResult.ErrorMessage)
 			}
 
 			// Send confirmation message
 			bot.SendPM(ctx, pm.Nick, "Processing your request.")
 
 			// Create progress callback
-			progress := faladapter.NewBotProgressCallback(bot, pm.Nick)
+			progress := NewCommandProgressCallback(bot, pm.Nick, "image2image")
 
-			// Create image request
-			req := fal.ImageRequest{
-				Model: model.Name,
-				Options: map[string]interface{}{
-					"image_url": imageURL,
-				},
-				Progress: progress,
-			}
-
-			// Generate image
-			resp, err := client.GenerateImage(ctx, req)
+			// Generate image using the faladapter
+			imageResp, err := faladapter.GenerateImageFromImage(ctx, client, "", imageURL, model.Name, progress)
 			if err != nil {
 				return fmt.Errorf("failed to generate image: %v", err)
 			}
 
-			// Log the response for debugging
-			if debug {
-				fmt.Printf("Image generation response: %+v\n", resp)
-			}
-
 			// Check if the image URL is empty
-			if len(resp.Images) == 0 || resp.Images[0].URL == "" {
+			if len(imageResp.Images) == 0 || imageResp.Images[0].URL == "" {
 				return fmt.Errorf("received empty image URL from API")
 			}
 
-			// Fetch the image data
-			imgResp, err := http.Get(resp.Images[0].URL)
-			if err != nil {
-				return fmt.Errorf("failed to fetch image: %v", err)
-			}
-			defer imgResp.Body.Close()
+			// Check if the content type is SVG or another non-standard image format
+			outputContentType := imageResp.Images[0].ContentType
+			if strings.Contains(outputContentType, "svg") || !strings.HasPrefix(outputContentType, "image/") {
+				// For SVG or non-standard image formats, use SendFile
+				if err := utils.SendFileToUser(ctx, bot, pm.Nick, imageResp.Images[0].URL, "image", outputContentType); err != nil {
+					return fmt.Errorf("failed to send image file: %v", err)
+				}
+			} else {
+				// For standard image formats, use PM embed
+				// Fetch the image data
+				finalResp, err := http.Get(imageResp.Images[0].URL)
+				if err != nil {
+					return fmt.Errorf("failed to fetch image: %v", err)
+				}
+				defer finalResp.Body.Close()
 
-			imgData, err := io.ReadAll(imgResp.Body)
-			if err != nil {
-				return fmt.Errorf("failed to read image data: %v", err)
-			}
+				imageData, err := io.ReadAll(finalResp.Body)
+				if err != nil {
+					return fmt.Errorf("failed to read image data: %v", err)
+				}
 
-			// Encode the image data to base64
-			encodedImage := base64.StdEncoding.EncodeToString(imgData)
+				// Encode the image data to base64
+				encodedImage := base64.StdEncoding.EncodeToString(imageData)
 
-			// Create the message with embedded image
-			message := fmt.Sprintf("--embed[alt=%s,type=%s,data=%s]--",
-				url.QueryEscape("Transformed image"),
-				resp.Images[0].ContentType,
-				encodedImage)
-			if err := bot.SendPM(ctx, pm.Nick, message); err != nil {
-				return fmt.Errorf("failed to send image: %v", err)
-			}
-
-			// Deduct balance using CheckAndDeductBalance after successful delivery
-			hasBalance, err := dbManager.CheckAndDeductBalance(pm.Uid, model.PriceUSD, debug)
-			if err != nil {
-				return fmt.Errorf("failed to deduct balance: %v", err)
-			}
-			if !hasBalance {
-				return fmt.Errorf("failed to deduct balance. Please try again.")
-			}
-
-			// Get updated balance for billing message
-			newBalance, err := dbManager.GetUserBalance(pm.Uid)
-			if err != nil {
-				return fmt.Errorf("failed to get updated balance: %v", err)
+				// Create the message with embedded image
+				message := fmt.Sprintf("--embed[alt=%s image,type=%s,data=%s]--",
+					model.Name,
+					outputContentType,
+					encodedImage)
+				if err := bot.SendPM(ctx, pm.Nick, message); err != nil {
+					return fmt.Errorf("failed to send image: %v", err)
+				}
 			}
 
-			// Send billing information with model's USD price and converted DCR amount
-			billingMsg := fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• Remaining Balance: %.8f DCR",
-				dcrAmount, model.PriceUSD, newBalance)
-			if err := bot.SendPM(ctx, pm.Nick, billingMsg); err != nil {
-				return fmt.Errorf("failed to send billing information: %v", err)
-			}
-
-			return nil
+			// Send billing information
+			return utils.SendBillingMessage(ctx, bot, pm, billingResult)
 		},
 	}
 }

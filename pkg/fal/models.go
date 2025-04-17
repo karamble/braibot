@@ -4,6 +4,10 @@
 
 package fal
 
+import (
+	"fmt"
+)
+
 // Text2ImageModels contains all available text-to-image models
 var Text2ImageModels = map[string]Model{
 	"fast-sdxl": {
@@ -73,6 +77,13 @@ var Image2ImageModels = map[string]Model{
 		Type:        "image2image",
 		HelpDoc:     "Usage: !image2image [image_url]\nExample: !image2image https://example.com/image.jpg\n\nParameters:\n• image_url: URL of the image to transform",
 	},
+	"star-vector": {
+		Name:        "star-vector",
+		Description: "Convert images to SVG using AI vectorization",
+		PriceUSD:    1.0,
+		Type:        "image2image",
+		HelpDoc:     "Usage: !image2image [image_url]\nExample: !image2image https://example.com/image.jpg\n\nTo use this model, first set it as the default model:\n!setmodel image2image star-vector\n\nParameters:\n• image_url: URL of the source image\n\nPricing:\n• Base price: $1.0 per image",
+	},
 }
 
 // Text2SpeechModels contains all available text-to-speech models
@@ -114,69 +125,82 @@ var Image2VideoModels = map[string]Model{
 	},
 }
 
-// DefaultModels specifies the default model for each command type
-var DefaultModels = map[string]string{
-	"text2image":  "fast-sdxl",
-	"image2image": "ghiblify",
-	"image2video": "veo2",
-	"text2speech": "minimax-tts/text-to-speech",
+var (
+	// allModels stores all registered models
+	allModels = make(map[string]Model)
+	// defaultModels stores the default model for each type
+	defaultModels = make(map[string]string)
+)
+
+// registerModel registers a model with the given name
+func registerModel(name string, model Model) {
+	allModels[name] = model
+}
+
+// setDefaultModel sets the default model for a given type
+func setDefaultModel(modelType, modelName string) {
+	defaultModels[modelType] = modelName
 }
 
 // GetModel returns a model by name and type
 func GetModel(name, modelType string) (Model, bool) {
-	var models map[string]Model
-	switch modelType {
-	case "text2image":
-		models = Text2ImageModels
-	case "text2speech":
-		models = Text2SpeechModels
-	case "image2image":
-		models = Image2ImageModels
-	case "image2video":
-		models = Image2VideoModels
-	default:
+	model, exists := allModels[name]
+	if !exists {
 		return Model{}, false
 	}
-
-	model, exists := models[name]
-	return model, exists
+	if model.Type != modelType {
+		return Model{}, false
+	}
+	return model, true
 }
 
 // GetModels returns all available models for a command type
 func GetModels(commandType string) (map[string]Model, bool) {
-	switch commandType {
-	case "text2image":
-		return Text2ImageModels, true
-	case "text2speech":
-		return Text2SpeechModels, true
-	case "image2image":
-		return Image2ImageModels, true
-	case "image2video":
-		return Image2VideoModels, true
-	default:
-		return nil, false
+	models := make(map[string]Model)
+	for name, model := range allModels {
+		if model.Type == commandType {
+			models[name] = model
+		}
 	}
+	return models, len(models) > 0
 }
 
 // GetCurrentModel returns the current model for a command type
 func GetCurrentModel(commandType string) (Model, bool) {
-	modelName, exists := DefaultModels[commandType]
+	modelName, exists := defaultModels[commandType]
 	if !exists {
 		return Model{}, false
 	}
-
 	return GetModel(modelName, commandType)
 }
 
 // SetCurrentModel sets the current model for a command type
 func SetCurrentModel(commandType, modelName string) error {
-	if _, exists := GetModel(modelName, commandType); !exists {
-		return &Error{
-			Code:    "INVALID_MODEL",
-			Message: "model not found: " + modelName,
-		}
+	if _, exists := allModels[modelName]; !exists {
+		return fmt.Errorf("model not found: %s", modelName)
+	}
+	defaultModels[commandType] = modelName
+	return nil
+}
+
+func init() {
+	// Register all models
+	for name, model := range Text2ImageModels {
+		registerModel(name, model)
+	}
+	for name, model := range Image2ImageModels {
+		registerModel(name, model)
+	}
+	for name, model := range Text2SpeechModels {
+		registerModel(name, model)
+	}
+	for name, model := range Image2VideoModels {
+		registerModel(name, model)
 	}
 
-	DefaultModels[commandType] = modelName
-	return nil
+	// Set default models
+	setDefaultModel("text2image", "fast-sdxl")
+	setDefaultModel("image2image", "ghiblify")
+	setDefaultModel("text2speech", "minimax-tts/text-to-speech")
+	setDefaultModel("image2video", "veo2")
 }

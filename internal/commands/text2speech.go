@@ -86,7 +86,7 @@ func Text2SpeechCommand(dbManager *database.DBManager, debug bool) Command {
 			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
 
 			// Create progress callback
-			progress := faladapter.NewBotProgressCallback(bot, pm.Nick)
+			progress := NewCommandProgressCallback(bot, pm.Nick, "text2speech")
 
 			// Create speech request
 			req := fal.SpeechRequest{
