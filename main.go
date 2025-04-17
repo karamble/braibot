@@ -131,13 +131,14 @@ func realMain() error {
 					}
 				} else {
 					// Send error message for unknown command
-					bot.SendPM(context.Background(), pm.Nick, "Unknown command. Use !help to see available commands.")
+					bot.SendPM(context.Background(), pm.Nick, fmt.Sprintf("👋 Hi %s!\n\nI don't recognize that command. Use **!help** to see available commands.", pm.Nick))
 				}
 			} else if !welcomeSent[userIDStr] {
 				// Send welcome message for non-command messages if not sent before
-				welcomeMsg := "👋 Hi! I'm BraiBot, your AI assistant powered by Decred.\n\n" +
-					"To get started, use **!help** to see available commands.\n" +
-					"You can also send me a tip to use AI features or\ncheck your balance with **!balance**."
+				welcomeMsg := fmt.Sprintf("👋 Hi %s! I'm BraiBot, your AI assistant powered by Decred.\n\n"+
+					"To get started, use **!help** to see available commands.\n"+
+					"You can also send me a tip to use AI features or\ncheck your balance with **!balance**.",
+					pm.Nick)
 
 				if err := bot.SendPM(context.Background(), pm.Nick, welcomeMsg); err != nil {
 					log.Warnf("Error sending welcome message: %v", err)
