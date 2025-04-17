@@ -6,6 +6,10 @@ This package provides command handlers for the Braibot, a chatbot for the Bison 
 
 The commands package contains handlers for different bot commands that users can invoke through private messages. Each command is implemented as a function that returns a `Command` struct with a name, description, and handler function.
 
+## Features
+
+- **Debug Mode**: Built-in debugging capabilities for development and troubleshooting
+
 ## Integration Guide
 
 ### Package Structure
@@ -17,9 +21,14 @@ braibot/
 ├── pkg/
 │   └── fal/           # Core Fal.ai API client
 ├── internal/
+│   ├── audio/         # Audio processing and generation
 │   ├── commands/      # Command handlers
-│   ├── faladapter/    # Adapter for Fal.ai integration
-│   └── database/      # User balance management
+│   ├── config/        # Configuration management
+│   ├── database/      # Database operations
+│   ├── faladapter/    # Fal.ai API integration
+│   ├── image/         # Image processing
+│   ├── video/         # Video processing
+│   └── utils/         # Utility functions
 ```
 
 ### Prerequisites
@@ -32,7 +41,8 @@ braibot/
 2. **Required Dependencies**
    - Fal.ai API key
    - A Bison Relay Client running with json rpc interface enabled
-
+   - Go 1.16 or higher
+   - SQLite3
 
 ### Quick Start
 
@@ -64,7 +74,7 @@ braibot/
 
    // Initialize logging
    logBackend, err := logging.NewLogBackend(logging.LogConfig{
-       LogFile:        filepath.Join(appRoot, "logs", "bot.log"),
+       LogFile:        filepath.Join(appRoot, "logs", "braibot.log"),
        DebugLevel:     "info",
        MaxLogFiles:    5,
        MaxBufferLines: 1000,
@@ -75,7 +85,7 @@ braibot/
    defer logBackend.Close()
 
    // Load bot configuration
-   cfg, err := botkitconfig.LoadBotConfig(appRoot, "bot.conf")
+   cfg, err := botkitconfig.LoadBotConfig(appRoot, "braibot.conf")
    if err != nil {
        log.Fatal(err)
    }
@@ -93,15 +103,26 @@ braibot/
    // This automatically registers all available commands:
    // - Basic commands: help, balance, rate
    // - Model configuration: listmodels, setmodel
-   // - AI commands: text2image, text2speech, image2image, image2video
+   // - AI commands: text2image, text2speech, image2image, image2video, text2video
    commandRegistry := commands.InitializeCommands(dbManager, debug)
    ```
 
 4. **Set Up Message Handler**
    ```go
-   // Create a channel for receiving messages
+   // Create channels for receiving messages and tips
    pmChan := make(chan types.ReceivedPM)
+   tipChan := make(chan types.ReceivedTip)
+   tipProgressChan := make(chan types.TipProgressEvent)
+
+   // Set up PM channels/log
    cfg.PMChan = pmChan
+   cfg.PMLog = logBackend.Logger("PM")
+
+   // Set up tip channels/logs
+   cfg.TipLog = logBackend.Logger("TIP")
+   cfg.TipProgressChan = tipProgressChan
+   cfg.TipReceivedLog = logBackend.Logger("TIP_RECEIVED")
+   cfg.TipReceivedChan = tipChan
 
    // Add a goroutine to handle messages
    go func() {
@@ -120,15 +141,23 @@ braibot/
 
 ### Configuration
 
-Add the following to your bot's configuration:
+The bot requires the following configuration:
 
-```go
-cfg := &config.BotConfig{
-    ExtraConfig: map[string]string{
-        "falapikey": "your-fal-ai-api-key",
-    },
-}
-```
+1. **Bison Relay Configuration**
+   Edit your Bison Relay configuration to activate the [clientrpc] functions:
+   ```
+   jsonrpclisten=<your-rpc-listen-address>
+   rpccertpath=<path-to-rpc-cert>
+   rpckeypath=<path-to-rpc-key>
+   rpcclientcapath=<path-to-client-ca>
+   rpcissueclientcert=1
+   ```
+
+2. **Bot Configuration**
+   The bot automatically creates its configuration file in `~/.braibot/braibot.conf` and will prompt for the fal.ai API key if not present. Add:
+   ```
+   falapikey=<your-fal-ai-api-key>
+   ```
 
 ### Database Setup
 
@@ -305,17 +334,26 @@ Generates images from text prompts using AI.
 
 **Example:** `!text2image a beautiful sunset over mountains`
 
+Available models:
+- fast-sdxl
+- hidream-i1-full
+- hidream-i1-dev
+- hidream-i1-fast
+- flux-pro/v1.1
+- flux-pro/v1.1-ultra
+- flux/schnell
+
 #### Image2Image
 Transforms images using AI models.
 
-**Usage:** `!image2image <image_url>`
+**Usage:** `!image2image <image_url> <prompt>`
 
-**Example:** `!image2image https://example.com/image.jpg`
+**Example:** `!image2image https://example.com/image.jpg transform into anime style`
 
-Available transformations:
-- Ghibli style (ghiblify)
-- Cartoon style (cartoonify)
-- SVG vectorization (star-vector)
+Available models:
+- ghiblify - Transforms images into Studio Ghibli style artwork
+- cartoonify - Transforms images into Pixar like 3d cartoon-style artwork
+- star-vector - Convert images to SVG using AI vectorization
 
 #### Image2Video
 Converts images to videos using AI.
@@ -326,7 +364,7 @@ Converts images to videos using AI.
 
 Available models:
 - veo2
-- kling-video
+- kling-video-image
 
 **Parameters:**
 - `image_url`: URL of the source image
@@ -335,10 +373,6 @@ Available models:
 - `aspect_ratio`: Aspect ratio (must be one of: "auto", "auto_prefer_portrait", "16:9", "9:16")
 - `negative_prompt`: (Optional) Text describing what to avoid (default: blur, distort, and low quality)
 - `cfg_scale`: (Optional) Configuration scale (default: 0.5)
-
-**Pricing:**
-- veo2: Base price $2.50 for 5 seconds, $0.50 per additional second
-- kling-video: Base price $2.0 for 5 seconds, $0.4 per additional second
 
 #### Text2Speech
 Converts text to speech using AI.
@@ -365,6 +399,8 @@ Available voices:
 - Abbess
 - Sweet_Girl_2
 - Exuberant_Girl
+
+Note: To check current prices for AI services, use the `!listmodels` command followed by the service type (e.g., `!listmodels text2image`). Prices are subject to change and are automatically converted from USD to DCR at the current exchange rate.
 
 ## Implementation Details
 
@@ -399,3 +435,20 @@ The commands require:
 - Fal.ai API key in the bot's configuration under `ExtraConfig["falapikey"]`
 - Sufficient user balance for AI operations
 - Proper model selection for AI generation commands 
+
+## Project Structure
+
+```
+braibot/
+├── pkg/
+│   └── fal/           # Core Fal.ai API client
+├── internal/
+│   ├── audio/         # Audio processing and generation
+│   ├── commands/      # Command handlers
+│   ├── config/        # Configuration management
+│   ├── database/      # Database operations
+│   ├── faladapter/    # Fal.ai API integration
+│   ├── image/         # Image processing
+│   ├── video/         # Video processing
+│   └── utils/         # Utility functions
+``` 
