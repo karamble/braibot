@@ -1,16 +1,31 @@
 # Fal.ai API Client
 
-A standalone Go client for interacting with the [Fal.ai](https://fal.ai) API, providing AI-powered image and video generation capabilities.
+A standalone Go client for interacting with the [Fal.ai](https://fal.ai) API, providing AI-powered image, video, and speech generation capabilities.
 
 ## Features
 
-- Text-to-Image generation with multiple model options
-- Image-to-Image transformation (Ghibli style and cartoon style)
-- Image-to-Video conversion
-- Text-to-Speech generation with voice selection
-- Queue management and progress tracking
-- Model management and configuration
-- Debug mode for troubleshooting
+- **Text-to-Image Generation**
+  - Multiple model options with different quality levels
+  - Customizable parameters
+  - Progress tracking
+  - Queue management
+
+- **Image-to-Image Transformation**
+  - Ghibli style conversion
+  - Cartoon style conversion
+  - SVG vectorization
+  - Customizable parameters
+
+- **Image-to-Video Conversion**
+  - Multiple video models (Veo2, Kling-video)
+  - Customizable duration and aspect ratio
+  - Progress tracking
+  - Queue management
+
+- **Text-to-Speech Generation**
+  - Multiple voice options
+  - Customizable parameters
+  - Progress tracking
 
 ## Installation
 
@@ -36,6 +51,37 @@ client := fal.NewClient("your-api-key", fal.WithHTTPClient(&http.Client{
     Timeout: 60 * time.Second,
 }))
 ```
+
+### Available Models
+
+#### Text-to-Image Models
+- `fast-sdxl` - Fast model for quick image generation
+- `hidream-i1-full` - High-quality model for detailed images
+- `hidream-i1-dev` - Development version of HiDream
+- `hidream-i1-fast` - Faster version of HiDream
+- `flux-pro/v1.1` - Professional model
+- `flux-pro/v1.1-ultra` - Ultra version of professional model
+- `flux/schnell` - Quick model for rapid generation
+
+#### Image-to-Image Models
+- `ghiblify` - Transforms images into Studio Ghibli style
+- `cartoonify` - Transforms images into Pixar-like 3D cartoon style
+- `star-vector` - Converts images to SVG using AI vectorization
+
+#### Text-to-Speech Models
+- `minimax-tts/text-to-speech`
+  - Multiple voice options available
+  - High-quality speech synthesis
+
+#### Image-to-Video Models
+- `veo2`
+  - Creates videos from images with realistic motion
+  - Supports multiple aspect ratios
+  - Duration options: 5-8 seconds
+- `kling-video`
+  - Advanced video generation
+  - Customizable parameters
+  - Negative prompt support
 
 ### Generating Images from Text
 
@@ -92,19 +138,16 @@ imageURL := resp.Images[0].URL
 // Create a progress callback
 progress := &MyProgressCallback{}
 
-// Create a video request
-req := fal.KlingVideoRequest{
+// Create a video request with Veo2
+req := fal.Veo2Request{
     BaseVideoRequest: fal.BaseVideoRequest{
         Prompt:   "a cinematic scene",
         ImageURL:  "https://example.com/image.jpg",
-        Model:     "kling-video",
+        Model:     "veo2",
         Progress:  progress,
-        Options:   make(map[string]interface{}),
     },
-    Duration:       "5",
-    AspectRatio:    "16:9",
-    NegativePrompt: "blur, distort, and low quality",
-    CFGScale:       0.5,
+    Duration:    "5",
+    AspectRatio: "16:9",
 }
 
 // Generate the video
@@ -114,10 +157,10 @@ if err != nil {
 }
 
 // Access the generated video
-videoURL := resp.Video.URL
+videoURL := resp.GetURL()
 ```
 
-### Generating Speech
+### Generating Speech from Text
 
 ```go
 // Create a progress callback
@@ -125,9 +168,8 @@ progress := &MyProgressCallback{}
 
 // Create a speech request
 req := fal.SpeechRequest{
-    Text:     "Hello, world!",
-    VoiceID:  "minimax-tts/text-to-speech",
-    Options:  map[string]interface{}{"speed": 1.0},
+    Text:     "Hello, how are you today?",
+    VoiceID:  "Wise_Woman",
     Progress: progress,
 }
 
@@ -141,127 +183,30 @@ if err != nil {
 audioURL := resp.AudioURL
 ```
 
-### Progress Tracking
+## Progress Tracking
 
-Implement the `ProgressCallback` interface to track progress:
-
-```go
-type MyProgressCallback struct{}
-
-func (c *MyProgressCallback) OnQueueUpdate(position int, estimatedTime time.Duration) {
-    fmt.Printf("Queue position: %d, ETA: %v\n", position, estimatedTime)
-}
-
-func (c *MyProgressCallback) OnProgress(percentage int, status string) {
-    fmt.Printf("Progress: %d%%, Status: %s\n", percentage, status)
-}
-
-func (c *MyProgressCallback) OnError(err error) {
-    fmt.Printf("Error: %v\n", err)
-}
-
-func (c *MyProgressCallback) OnLogMessage(message string) {
-    fmt.Printf("Log: %s\n", message)
-}
-```
-
-### Model Management
+The client supports progress tracking through the `ProgressCallback` interface:
 
 ```go
-// Get available models
-models, exists := fal.GetModels("text2image")
-if !exists {
-    log.Fatal("text2image models not found")
-}
-
-// Get current model
-model, exists := fal.GetCurrentModel("text2image")
-if !exists {
-    log.Fatal("current model not found")
-}
-
-// Set current model
-err := fal.SetCurrentModel("text2image", "fast-sdxl")
-if err != nil {
-    log.Fatal(err)
+type ProgressCallback interface {
+    OnQueueUpdate(position int, eta time.Duration)
+    OnLogMessage(message string)
+    OnProgress(status string)
+    OnError(err error)
 }
 ```
-
-## Available Models
-
-### Text-to-Image Models
-
-| Model Name | Description | Price (USD) |
-|------------|-------------|-------------|
-| fast-sdxl | Fast model for generating images quickly | $0.02 |
-| hidream-i1-full | High-quality model for detailed images | $0.10 |
-| hidream-i1-dev | Development version of the HiDream model | $0.06 |
-| hidream-i1-fast | Faster version of the HiDream model | $0.03 |
-| flux-pro/v1.1 | Professional model for high-end image generation | $0.08 |
-| flux-pro/v1.1-ultra | Ultra version of the professional model | $0.12 |
-| flux/schnell | Quick model for rapid image generation | $0.02 |
-
-### Image-to-Image Models
-
-| Model Name | Description | Price (USD) |
-|------------|-------------|-------------|
-| ghiblify | Transforms images into Studio Ghibli style artwork | $0.02 |
-| cartoonify | Transforms images into cartoon style artwork | $0.02 |
-
-### Image-to-Video Models
-
-| Model Name | Description | Price (USD) |
-|------------|-------------|-------------|
-| kling-video/v2 | Convert images to videos with motion | $2.00 base + $0.40 per additional second |
-
-### Text-to-Speech Models
-
-| Model Name | Description | Price |
-|------------|-------------|--------|
-| minimax-tts/text-to-speech | Text-to-speech model with multiple voices | $0.10 per 1000 characters |
-
-Available Voices:
-- Wise_Woman
-- Friendly_Person
-- Inspirational_girl
-- Deep_Voice_Man
-- Calm_Woman
-- Casual_Guy
-- Lively_Girl
-- Patient_Man
-- Young_Knight
-- Determined_Man
-- Lovely_Girl
-- Decent_Boy
-- Imposing_Manner
-- Elegant_Man
-- Abbess
-- Sweet_Girl_2
-- Exuberant_Girl
 
 ## Error Handling
 
-The package provides detailed error information through the `Error` type:
+The client provides detailed error information through the `Error` type:
 
 ```go
 type Error struct {
-    Code    string
-    Message string
+    Code    string `json:"code"`
+    Message string `json:"message"`
 }
 ```
 
-Common error codes:
-- `INVALID_MODEL`: The specified model does not exist
-- `GENERATION_FAILED`: The generation process failed
-- `NO_IMAGES`: No images were generated
-- `NO_AUDIO`: No audio was generated
-- `NO_VIDEO`: No video was generated
-- `INVALID_REQUEST`: The request parameters are invalid
-
-## Thread Safety
-
-The client is designed to be thread-safe and can handle concurrent requests. All methods are safe to call from multiple goroutines.
-
 ## License
 
-ISC License 
+This package is licensed under the ISC License - see the [LICENSE](../../LICENSE) file for details. 

@@ -26,7 +26,7 @@ type ModelOptions interface {
 
 // Veo2Options represents the options available for the Veo2 model
 type Veo2Options struct {
-	AspectRatio string `json:"aspect_ratio,omitempty"` // 16:9, 9:16, 1:1
+	AspectRatio string `json:"aspect_ratio,omitempty"` // auto, auto_prefer_portrait, 16:9, 9:16
 	Duration    string `json:"duration,omitempty"`     // 5, 6, 7, 8
 }
 
@@ -41,9 +41,10 @@ func (o *Veo2Options) GetDefaultValues() map[string]interface{} {
 // Validate validates the Veo2 options
 func (o *Veo2Options) Validate() error {
 	validAspectRatios := map[string]bool{
-		"16:9": true,
-		"9:16": true,
-		"1:1":  true,
+		"auto":                 true,
+		"auto_prefer_portrait": true,
+		"16:9":                 true,
+		"9:16":                 true,
 	}
 	validDurations := map[string]bool{
 		"5": true,
@@ -53,7 +54,7 @@ func (o *Veo2Options) Validate() error {
 	}
 
 	if o.AspectRatio != "" && !validAspectRatios[o.AspectRatio] {
-		return fmt.Errorf("invalid aspect ratio: %s (must be one of: 16:9, 9:16, 1:1)", o.AspectRatio)
+		return fmt.Errorf("invalid aspect ratio: %s (must be one of: auto, auto_prefer_portrait, 16:9, 9:16)", o.AspectRatio)
 	}
 	if o.Duration != "" && !validDurations[o.Duration] {
 		return fmt.Errorf("invalid duration: %s (must be one of: 5, 6, 7, 8)", o.Duration)
