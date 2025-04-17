@@ -41,8 +41,11 @@ func ListModelsCommand() Command {
 			case "image2video":
 				models, exists = faladapter.GetModels("image2video")
 				modelList = "Available models for image2video:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
+			case "text2video":
+				models, exists = faladapter.GetModels("text2video")
+				modelList = "Available models for text2video:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
 			default:
-				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', or 'image2video'.")
+				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', 'image2video', or 'text2video'.")
 			}
 
 			if !exists {
@@ -87,8 +90,10 @@ func SetModelCommand(registry *Registry) Command {
 				models, exists = faladapter.GetModels("image2image")
 			case "image2video":
 				models, exists = faladapter.GetModels("image2video")
+			case "text2video":
+				models, exists = faladapter.GetModels("text2video")
 			default:
-				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', or 'image2video'.")
+				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', 'image2video', or 'text2video'.")
 			}
 
 			if !exists {
