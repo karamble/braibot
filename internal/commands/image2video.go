@@ -65,7 +65,7 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 	}
 
 	// Create the command description using the model's description
-	description := fmt.Sprintf("%s. Usage: !image2video [image_url] [duration] [aspect_ratio] [negative_prompt] [cfg_scale]", model.Description)
+	description := fmt.Sprintf("%s. Usage: !image2video [image_url] [prompt] [--duration 5] [--aspect 16:9]", model.Description)
 
 	return Command{
 		Name:        "image2video",
@@ -75,7 +75,7 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				// Get the current model to use its help documentation
 				model, exists := faladapter.GetCurrentModel("image2video")
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [duration] [aspect_ratio] [negative_prompt] [cfg_scale]")
+					return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [prompt] [--duration 5] [--aspect 16:9]")
 				}
 
 				// Use the model's help documentation if available
@@ -84,28 +84,47 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				}
 
 				// Fallback to default help message
-				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [duration] [aspect_ratio] [negative_prompt] [cfg_scale]")
+				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [prompt] [--duration 5] [--aspect 16:9]")
 			}
 
 			// Parse arguments
 			imageURL := args[0]
-			duration := "5s"      // Default duration
+			prompt := ""
+			rawDuration := "5"    // Default duration without suffix
 			aspectRatio := "16:9" // Default aspect ratio
 			negativePrompt := ""  // Default negative prompt
-			cfgScale := 7.5       // Default CFG scale
+			cfgScale := 0.5       // Default CFG scale (changed to 0.5 to be within 0-1 range)
 
-			if len(args) > 1 {
-				duration = args[1]
-			}
-			if len(args) > 2 {
-				aspectRatio = args[2]
-			}
-			if len(args) > 3 {
-				negativePrompt = args[3]
-			}
-			if len(args) > 4 {
-				if scale, err := strconv.ParseFloat(args[4], 64); err == nil {
-					cfgScale = scale
+			// Parse remaining arguments
+			for i := 1; i < len(args); i++ {
+				arg := args[i]
+				if strings.HasPrefix(arg, "--") {
+					// This is an option
+					if i+1 >= len(args) {
+						return fmt.Errorf("missing value for option %s", arg)
+					}
+					value := args[i+1]
+					i++ // Skip the value in next iteration
+
+					switch arg {
+					case "--duration":
+						// Remove 's' suffix if present
+						rawDuration = strings.TrimSuffix(value, "s")
+					case "--aspect":
+						aspectRatio = value
+					case "--negative":
+						negativePrompt = value
+					case "--cfg":
+						if scale, err := strconv.ParseFloat(value, 64); err == nil {
+							cfgScale = scale
+						}
+					}
+				} else if prompt == "" {
+					// First non-option argument after image URL is the prompt
+					prompt = arg
+				} else {
+					// Append to existing prompt
+					prompt += " " + arg
 				}
 			}
 
@@ -120,12 +139,12 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 
 			// Calculate total price based on model and duration
 			var totalPrice float64
+			dur, err := strconv.Atoi(rawDuration)
+			if err != nil {
+				dur = 5 // Default to 5 seconds if parsing fails
+			}
+
 			if model.Name == "kling-video" {
-				// Parse duration for Kling
-				dur, err := strconv.Atoi(strings.TrimSuffix(duration, "s"))
-				if err != nil {
-					dur = 5 // Default to 5 seconds if parsing fails
-				}
 				basePrice := model.PriceUSD // Base price for 5 seconds
 				additionalSeconds := 0
 				if dur > 5 {
@@ -133,11 +152,6 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				}
 				totalPrice = basePrice + (float64(additionalSeconds) * 0.4)
 			} else if model.Name == "veo2" {
-				// Parse duration for Veo2
-				dur, err := strconv.Atoi(strings.TrimSuffix(duration, "s"))
-				if err != nil {
-					dur = 5 // Default to 5 seconds if parsing fails
-				}
 				basePrice := model.PriceUSD // Base price for 5 seconds
 				additionalSeconds := 0
 				if dur > 5 {
@@ -171,27 +185,29 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			var req interface{}
 			switch model.Name {
 			case "veo2":
+				// Veo2 expects duration with 's' suffix
 				req = &fal.Veo2Request{
 					BaseVideoRequest: fal.BaseVideoRequest{
-						Prompt:   "",
+						Prompt:   prompt,
 						ImageURL: imageURL,
 						Model:    model.Name,
 						Progress: progress,
 						Options:  make(map[string]interface{}),
 					},
-					Duration:    duration,
+					Duration:    rawDuration + "s",
 					AspectRatio: aspectRatio,
 				}
 			case "kling-video":
+				// Kling-video expects duration without 's' suffix
 				req = &fal.KlingVideoRequest{
 					BaseVideoRequest: fal.BaseVideoRequest{
-						Prompt:   "",
+						Prompt:   prompt,
 						ImageURL: imageURL,
 						Model:    model.Name,
 						Progress: progress,
 						Options:  make(map[string]interface{}),
 					},
-					Duration:       duration,
+					Duration:       rawDuration,
 					AspectRatio:    aspectRatio,
 					NegativePrompt: negativePrompt,
 					CFGScale:       cfgScale,
