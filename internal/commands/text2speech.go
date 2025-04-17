@@ -40,7 +40,7 @@ func Text2SpeechCommand(dbManager *database.DBManager, debug bool) Command {
 				text = strings.Join(args[1:], " ")
 			} else {
 				// If no voice ID provided, use default and use all args for text
-				voiceID = "minimax-tts/text-to-speech"
+				voiceID = "Wise_Woman" // Default voice ID
 				text = strings.Join(args, " ")
 			}
 
@@ -91,9 +91,11 @@ func Text2SpeechCommand(dbManager *database.DBManager, debug bool) Command {
 			// Create speech request
 			req := fal.SpeechRequest{
 				Text:     text,
-				VoiceID:  voiceID,
+				VoiceID:  model.Name, // Use the model name from configuration
 				Progress: progress,
-				Options:  make(map[string]interface{}),
+				Options: map[string]interface{}{
+					"voice_id": voiceID, // Pass the voice ID as an option
+				},
 			}
 
 			// Generate speech

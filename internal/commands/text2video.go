@@ -3,13 +3,13 @@ package commands
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
+	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
-	"github.com/karamble/braibot/internal/utils"
+	"github.com/karamble/braibot/internal/video"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
@@ -52,63 +52,25 @@ func Text2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 
 			// Parse arguments
 			prompt := ""
-			rawDuration := "5"    // Default duration
-			aspectRatio := "16:9" // Default aspect ratio
-			negativePrompt := ""  // Default negative prompt
-			cfgScale := 0.5       // Default CFG scale
+			parser := video.NewArgumentParser()
+			duration := parser.ParseDuration(args)
+			aspectRatio := parser.ParseAspectRatio(args)
+			negativePrompt := parser.ParseNegativePrompt(args)
+			cfgScale := parser.ParseCFGScale(args)
 
-			// Parse remaining arguments
+			// Collect prompt text
 			for i := 0; i < len(args); i++ {
 				arg := args[i]
-				if strings.HasPrefix(arg, "--") {
-					// Handle flags
-					switch arg {
-					case "--duration":
-						if i+1 < len(args) {
-							rawDuration = args[i+1]
-							i++
-						}
-					case "--aspect":
-						if i+1 < len(args) {
-							aspectRatio = args[i+1]
-							i++
-						}
-					case "--negative_prompt":
-						if i+1 < len(args) {
-							negativePrompt = args[i+1]
-							i++
-						}
-					case "--cfg_scale":
-						if i+1 < len(args) {
-							if scale, err := strconv.ParseFloat(args[i+1], 64); err == nil {
-								cfgScale = scale
-							}
-							i++
-						}
-					}
-				} else {
-					// Collect prompt text
+				if !strings.HasPrefix(arg, "--") {
 					if prompt == "" {
 						prompt = arg
 					} else {
 						prompt += " " + arg
 					}
+				} else {
+					// Skip the value for flags
+					i++
 				}
-			}
-
-			// Validate aspect ratio
-			validAspectRatios := map[string]bool{
-				"16:9": true,
-				"9:16": true,
-				"1:1":  true,
-			}
-			if !validAspectRatios[aspectRatio] {
-				return bot.SendPM(ctx, pm.Nick, "Invalid aspect ratio. Must be one of: 16:9, 9:16, 1:1")
-			}
-
-			// Validate duration
-			if rawDuration != "5" {
-				return bot.SendPM(ctx, pm.Nick, "Invalid duration. Must be 5 seconds")
 			}
 
 			// Create Fal.ai client
@@ -120,52 +82,36 @@ func Text2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				return fmt.Errorf("no default model found for text2video")
 			}
 
-			// Process billing
-			billingResult, err := utils.CheckAndProcessBilling(ctx, bot, dbManager, pm, model.PriceUSD, debug)
-			if err != nil {
-				return fmt.Errorf("billing error: %v", err)
-			}
-			if !billingResult.Success {
-				return bot.SendPM(ctx, pm.Nick, billingResult.ErrorMessage)
-			}
-
-			// Send confirmation message
-			bot.SendPM(ctx, pm.Nick, "Processing your request.")
+			// Create video service
+			videoService := video.NewVideoService(client, dbManager, bot, debug)
 
 			// Create progress callback
 			progress := NewCommandProgressCallback(bot, pm.Nick, "text2video")
 
 			// Create video request
-			req := &fal.TextToVideoRequest{
+			var userID zkidentity.ShortID
+			userID.FromBytes(pm.Uid)
+			req := &video.VideoRequest{
 				Prompt:         prompt,
-				Duration:       rawDuration,
+				Duration:       duration,
 				AspectRatio:    aspectRatio,
 				NegativePrompt: negativePrompt,
 				CFGScale:       cfgScale,
+				ModelType:      "text2video",
 				Progress:       progress,
+				UserNick:       pm.Nick,
+				UserID:         userID,
+				PriceUSD:       model.PriceUSD,
 			}
 
 			// Generate video
-			resp, err := client.GenerateVideo(ctx, req)
+			result, err := videoService.GenerateVideo(ctx, req)
 			if err != nil {
 				return fmt.Errorf("failed to generate video: %v", err)
 			}
 
-			// Get video URL
-			videoURL := resp.Video.URL
-			if videoURL == "" {
-				videoURL = resp.URL
-			}
-			if videoURL == "" {
-				videoURL = resp.VideoURL
-			}
-			if videoURL == "" {
-				return fmt.Errorf("no video URL found in response")
-			}
-
-			// Download and send video
-			if err := downloadAndSendVideo(ctx, bot, pm.Nick, videoURL); err != nil {
-				return fmt.Errorf("failed to send video: %v", err)
+			if !result.Success {
+				return fmt.Errorf("video generation failed: %v", result.Error)
 			}
 
 			return nil
