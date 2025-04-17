@@ -45,7 +45,7 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 
 				// Get current model selections
 				helpMsg += "🎯 **Your Current Model Selections:**\n"
-				for _, cmdType := range []string{"text2image", "text2speech", "image2image", "image2video"} {
+				for _, cmdType := range []string{"text2image", "text2speech", "image2image", "image2video", "text2video"} {
 					if model, exists := faladapter.GetCurrentModel(cmdType); exists {
 						helpMsg += fmt.Sprintf("• %s: %s ($%.2f USD)\n", cmdType, model.Name, model.PriceUSD)
 					}
@@ -84,6 +84,7 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 					"text2image":  "Generate images from text descriptions",
 					"image2image": "Transform images using AI",
 					"image2video": "Convert images to videos with AI",
+					"text2video":  "Generate videos from text descriptions",
 					"text2speech": "Convert text to speech with AI",
 				}
 

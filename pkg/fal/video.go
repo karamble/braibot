@@ -46,7 +46,7 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			"duration":     r.Duration,
 		}
 	case *KlingVideoRequest:
-		modelName = "kling-video"
+		modelName = "kling-video-image"
 		// Get model options
 		model, exists := GetModel(modelName, "image2video")
 		if !exists {
@@ -91,6 +91,34 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			"prompt":    r.Prompt,
 			"image_url": r.ImageURL,
 		}
+	case *TextToVideoRequest:
+		modelName = "kling-video-text"
+		// Check if model exists
+		if _, exists := GetModel(modelName, "text2video"); !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+
+		// Set default values if not provided
+		if r.Duration == "" {
+			r.Duration = "5" // Default duration for text-to-video
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = "16:9" // Default aspect ratio
+		}
+		if r.NegativePrompt == "" {
+			r.NegativePrompt = "blur, distort, and low quality"
+		}
+		if r.CFGScale == 0 {
+			r.CFGScale = 0.5
+		}
+
+		reqBody = map[string]interface{}{
+			"prompt":          r.Prompt,
+			"duration":        r.Duration,
+			"aspect_ratio":    r.AspectRatio,
+			"negative_prompt": r.NegativePrompt,
+			"cfg_scale":       r.CFGScale,
+		}
 	default:
 		return nil, fmt.Errorf("unsupported request type: %T", req)
 	}
@@ -98,15 +126,21 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 	// Get the model to determine which endpoint to use
 	model, exists := GetModel(modelName, "image2video")
 	if !exists {
-		return nil, fmt.Errorf("model not found: %s", modelName)
+		// Try text2video if image2video fails
+		model, exists = GetModel(modelName, "text2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
 	}
 
 	var endpoint string
 	switch model.Name {
 	case "veo2":
 		endpoint = "/veo2/image-to-video"
-	case "kling-video":
+	case "kling-video-image":
 		endpoint = "/kling-video/v2/master/image-to-video"
+	case "kling-video-text":
+		endpoint = "/kling-video/v2/master/text-to-video"
 	default:
 		return nil, fmt.Errorf("unsupported model: %s", model.Name)
 	}
@@ -185,4 +219,14 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 	}
 
 	return &videoResp, nil
+}
+
+// TextToVideoRequest represents a request to generate a video from text
+type TextToVideoRequest struct {
+	Prompt         string  `json:"prompt"`
+	Duration       string  `json:"duration"`        // enum: "5"
+	AspectRatio    string  `json:"aspect_ratio"`    // enum: "16:9", "9:16", "1:1"
+	NegativePrompt string  `json:"negative_prompt"` // default: "blur, distort, and low quality"
+	CFGScale       float64 `json:"cfg_scale"`       // default: 0.5
+	Progress       ProgressCallback
 }
