@@ -93,7 +93,11 @@ var Image2VideoModels = map[string]Model{
 		Description: "Creates videos from images with realistic motion using Google's Veo 2 model. Base price: $2.50 for 5 seconds, $0.50 per additional second",
 		PriceUSD:    3.50,
 		Type:        "image2video",
-		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --aspect 16:9 --duration 5s\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --aspect: Aspect ratio (auto, auto_prefer_portrait, 16:9, 9:16)\n• --duration: Video duration (5s, 6s, 7s, 8s)\n\nPricing:\n• Base price: $2.50 for 5 seconds\n• Additional cost: $0.50 per second beyond 5 seconds",
+		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --aspect 16:9 --duration 5\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --aspect: Aspect ratio (16:9, 9:16, 1:1)\n• --duration: Video duration (5, 6, 7, 8)\n\nPricing:\n• Base price: $2.50 for 5 seconds\n• Additional cost: $0.50 per second beyond 5 seconds",
+		Options: &Veo2Options{
+			AspectRatio: "16:9",
+			Duration:    "5",
+		},
 	},
 	"kling-video": {
 		Name:        "kling-video",
@@ -101,6 +105,12 @@ var Image2VideoModels = map[string]Model{
 		PriceUSD:    2.0,
 		Type:        "image2video",
 		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --duration 10 --aspect 16:9\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --duration: Video duration in seconds (default: 5, min: 5)\n• --aspect: Aspect ratio (default: 16:9)\n• --negative-prompt: Text describing what to avoid (default: blur, distort, and low quality)\n• --cfg-scale: Configuration scale (default: 0.5)\n\nPricing:\n• Base price: $2.0 for 5 seconds\n• Additional cost: $0.4 per second beyond 5 seconds",
+		Options: &KlingVideoOptions{
+			Duration:       "5",
+			AspectRatio:    "16:9",
+			NegativePrompt: "blur, distort, and low quality",
+			CFGScale:       0.5,
+		},
 	},
 }
 

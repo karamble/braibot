@@ -2,10 +2,10 @@ package commands
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -17,6 +17,40 @@ import (
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
 )
+
+// downloadAndSendVideo downloads a video from a URL, sends it to the user, and cleans up
+func downloadAndSendVideo(ctx context.Context, bot *kit.Bot, userNick string, videoURL string) error {
+	// Create a temporary file
+	tmpFile, err := os.CreateTemp("", "video-*.mp4")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name()) // Clean up the temp file when done
+
+	// Download the video
+	resp, err := http.Get(videoURL)
+	if err != nil {
+		return fmt.Errorf("failed to download video: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Copy the video data to the temp file
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		return fmt.Errorf("failed to save video: %v", err)
+	}
+
+	// Close the file before sending
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %v", err)
+	}
+
+	// Send the file to the user
+	if err := bot.SendFile(ctx, userNick, tmpFile.Name()); err != nil {
+		return fmt.Errorf("failed to send video file: %v", err)
+	}
+
+	return nil
+}
 
 // Image2VideoCommand returns the image2video command
 func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
@@ -182,17 +216,37 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			// Create progress callback
 			progress := faladapter.NewBotProgressCallback(bot, pm.Nick)
 
-			// Create video request
-			req := fal.VideoRequest{
-				Prompt:         prompt,
-				ImageURL:       imageURL,
-				Model:          model.Name,
-				Duration:       duration,
-				AspectRatio:    aspectRatio,
-				NegativePrompt: negativePrompt,
-				CFGScale:       cfgScale,
-				Progress:       progress,
-				Options:        make(map[string]interface{}),
+			// Create video request based on model type
+			var req interface{}
+			switch model.Name {
+			case "veo2":
+				req = &fal.Veo2Request{
+					BaseVideoRequest: fal.BaseVideoRequest{
+						Prompt:   prompt,
+						ImageURL: imageURL,
+						Model:    model.Name,
+						Progress: progress,
+						Options:  make(map[string]interface{}),
+					},
+					Duration:    duration,
+					AspectRatio: aspectRatio,
+				}
+			case "kling-video":
+				req = &fal.KlingVideoRequest{
+					BaseVideoRequest: fal.BaseVideoRequest{
+						Prompt:   prompt,
+						ImageURL: imageURL,
+						Model:    model.Name,
+						Progress: progress,
+						Options:  make(map[string]interface{}),
+					},
+					Duration:       duration,
+					AspectRatio:    aspectRatio,
+					NegativePrompt: negativePrompt,
+					CFGScale:       cfgScale,
+				}
+			default:
+				return fmt.Errorf("unsupported model: %s", model.Name)
 			}
 
 			// Generate video
@@ -204,35 +258,9 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 			// Get the video URL from any of the possible fields
 			videoURL := resp.GetURL()
 
-			// Send the video URL to the user immediately
-			if err := bot.SendPM(ctx, pm.Nick, fmt.Sprintf("🎥 Your video is ready! Here's the direct URL: %s", videoURL)); err != nil {
-				return fmt.Errorf("failed to send video URL: %v", err)
-			}
-
-			// Try to fetch and embed the video
-			videoResp, err := http.Get(videoURL)
-			if err != nil {
-				// Log the error but don't return it since we already sent the URL
-				fmt.Printf("Warning: failed to fetch video for embedding: %v\n", err)
-			} else {
-				defer videoResp.Body.Close()
-
-				videoData, err := io.ReadAll(videoResp.Body)
-				if err != nil {
-					fmt.Printf("Warning: failed to read video data for embedding: %v\n", err)
-				} else {
-					// Encode the video data to base64
-					encodedVideo := base64.StdEncoding.EncodeToString(videoData)
-
-					// Create the message with embedded video
-					message := fmt.Sprintf("--embed[alt=%s,type=%s,data=%s]--",
-						"Generated video",
-						"video/mp4", // Default content type for MP4 videos
-						encodedVideo)
-					if err := bot.SendPM(ctx, pm.Nick, message); err != nil {
-						fmt.Printf("Warning: failed to send embedded video: %v\n", err)
-					}
-				}
+			// Download and send the video file to the user
+			if err := downloadAndSendVideo(ctx, bot, pm.Nick, videoURL); err != nil {
+				return fmt.Errorf("failed to download and send video: %v", err)
 			}
 
 			// Deduct balance using CheckAndDeductBalance after successful delivery

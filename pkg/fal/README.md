@@ -93,15 +93,18 @@ imageURL := resp.Images[0].URL
 progress := &MyProgressCallback{}
 
 // Create a video request
-req := fal.VideoRequest{
-    Prompt:         "a cinematic scene",
-    ImageURL:       "https://example.com/image.jpg",
+req := fal.KlingVideoRequest{
+    BaseVideoRequest: fal.BaseVideoRequest{
+        Prompt:   "a cinematic scene",
+        ImageURL:  "https://example.com/image.jpg",
+        Model:     "kling-video",
+        Progress:  progress,
+        Options:   make(map[string]interface{}),
+    },
     Duration:       "5",
     AspectRatio:    "16:9",
     NegativePrompt: "blur, distort, and low quality",
     CFGScale:       0.5,
-    Progress:       progress,
-    Options:        make(map[string]interface{}),
 }
 
 // Generate the video

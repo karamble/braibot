@@ -8,62 +8,114 @@ import (
 )
 
 // GenerateVideo sends a request to the video model and returns the video URL
-func (c *Client) GenerateVideo(ctx context.Context, req VideoRequest) (*VideoResponse, error) {
-	// Get the model to determine which endpoint and parameters to use
-	model, exists := GetModel(req.Model, "image2video")
+func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResponse, error) {
+	var modelName string
+	var reqBody map[string]interface{}
+
+	// Determine model name and create request body based on request type
+	switch r := req.(type) {
+	case *Veo2Request:
+		modelName = "veo2"
+		// Get model options
+		model, exists := GetModel(modelName, "image2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*Veo2Options)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Set default values from model options if not provided
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+		if r.Duration == "" {
+			r.Duration = options.Duration
+		}
+
+		// Validate options
+		if err := options.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options: %v", err)
+		}
+
+		reqBody = map[string]interface{}{
+			"prompt":       r.Prompt,
+			"image_url":    r.ImageURL,
+			"aspect_ratio": r.AspectRatio,
+			"duration":     r.Duration,
+		}
+	case *KlingVideoRequest:
+		modelName = "kling-video"
+		// Get model options
+		model, exists := GetModel(modelName, "image2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*KlingVideoOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Set default values from model options if not provided
+		if r.Duration == "" {
+			r.Duration = options.Duration
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+		if r.NegativePrompt == "" {
+			r.NegativePrompt = options.NegativePrompt
+		}
+		if r.CFGScale == 0 {
+			r.CFGScale = options.CFGScale
+		}
+
+		// Validate options
+		if err := options.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options: %v", err)
+		}
+
+		reqBody = map[string]interface{}{
+			"prompt":          r.Prompt,
+			"image_url":       r.ImageURL,
+			"duration":        r.Duration,
+			"aspect_ratio":    r.AspectRatio,
+			"negative_prompt": r.NegativePrompt,
+			"cfg_scale":       r.CFGScale,
+		}
+	case *BaseVideoRequest:
+		// Handle legacy VideoRequest type
+		modelName = r.Model
+		reqBody = map[string]interface{}{
+			"prompt":    r.Prompt,
+			"image_url": r.ImageURL,
+		}
+	default:
+		return nil, fmt.Errorf("unsupported request type: %T", req)
+	}
+
+	// Get the model to determine which endpoint to use
+	model, exists := GetModel(modelName, "image2video")
 	if !exists {
-		return nil, fmt.Errorf("model not found: %s", req.Model)
+		return nil, fmt.Errorf("model not found: %s", modelName)
 	}
 
 	var endpoint string
-	var reqBody map[string]interface{}
-
 	switch model.Name {
 	case "veo2":
 		endpoint = "/veo2/image-to-video"
-		// Set default values for Veo2
-		if req.AspectRatio == "" {
-			req.AspectRatio = "16:9"
-		}
-		if req.Duration == "" {
-			req.Duration = "5s"
-		}
-		reqBody = map[string]interface{}{
-			"prompt":       req.Prompt,
-			"image_url":    req.ImageURL,
-			"aspect_ratio": req.AspectRatio,
-			"duration":     req.Duration,
-		}
 	case "kling-video":
 		endpoint = "/kling-video/v2/master/image-to-video"
-		// Set default values for Kling
-		if req.Duration == "" {
-			req.Duration = "5"
-		}
-		if req.AspectRatio == "" {
-			req.AspectRatio = "16:9"
-		}
-		if req.NegativePrompt == "" {
-			req.NegativePrompt = "blur, distort, and low quality"
-		}
-		if req.CFGScale == 0 {
-			req.CFGScale = 0.5
-		}
-		reqBody = map[string]interface{}{
-			"prompt":          req.Prompt,
-			"image_url":       req.ImageURL,
-			"duration":        req.Duration,
-			"aspect_ratio":    req.AspectRatio,
-			"negative_prompt": req.NegativePrompt,
-			"cfg_scale":       req.CFGScale,
-		}
 	default:
 		return nil, fmt.Errorf("unsupported model: %s", model.Name)
 	}
 
 	// Add any additional options
-	for k, v := range req.Options {
-		reqBody[k] = v
+	if baseReq, ok := req.(interface{ GetOptions() map[string]interface{} }); ok {
+		for k, v := range baseReq.GetOptions() {
+			reqBody[k] = v
+		}
 	}
 
 	// Make initial request to queue
@@ -89,10 +141,16 @@ func (c *Client) GenerateVideo(ctx context.Context, req VideoRequest) (*VideoRes
 	}
 
 	// Notify about queue position
-	c.notifyQueuePosition(ctx, queueResp, req.Progress)
+	if progressable, ok := req.(Progressable); ok {
+		c.notifyQueuePosition(ctx, queueResp, progressable.GetProgress())
+	}
 
 	// Poll for completion
-	_, err = c.pollQueueStatus(ctx, queueResp, req.Progress)
+	if progressable, ok := req.(Progressable); ok {
+		_, err = c.pollQueueStatus(ctx, queueResp, progressable.GetProgress())
+	} else {
+		_, err = c.pollQueueStatus(ctx, queueResp, nil)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to poll queue status: %v", err)
 	}
