@@ -9,7 +9,7 @@ func InitializeCommands(dbManager *database.DBManager, debug bool) *Registry {
 	registry := NewRegistry()
 
 	// Register help command
-	registry.Register(HelpCommand(registry))
+	registry.Register(HelpCommand(registry, dbManager))
 
 	// Register model-related commands
 	registry.Register(ListModelsCommand())
