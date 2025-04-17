@@ -67,9 +67,9 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				helpMsg += "| ------- | ----------- | ----- |\n"
 				for _, cmdName := range []string{"listmodels", "setmodel"} {
 					if cmd, exists := registry.Get(cmdName); exists {
-						usage := "!%s [command]"
+						usage := "!%s [task]"
 						if cmdName == "setmodel" {
-							usage = "!%s [command] [model]"
+							usage = "!%s [task] [model]"
 						}
 						helpMsg += fmt.Sprintf("| !%s | %s | "+usage+" |\n", cmd.Name, cmd.Description, cmd.Name)
 					}

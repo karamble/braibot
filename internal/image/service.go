@@ -61,20 +61,26 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	var imageResp *fal.ImageResponse
 	var genErr error
 
-	if req.ModelType == "text2image" {
-		// Create text2image request
-		imageReq := fal.ImageRequest{
-			Prompt:   req.Prompt,
-			Model:    req.ModelName,
-			Options:  map[string]interface{}{"num_images": 1},
-			Progress: req.Progress,
-		}
-		imageResp, genErr = s.client.GenerateImage(ctx, imageReq)
-	} else {
-		// Create image2image request
-		imageResp, genErr = faladapter.GenerateImageFromImage(ctx, s.client, req.Prompt, req.ImageURL, req.ModelName, req.Progress)
+	// Create the unified image request for the fal client
+	imageReq := fal.ImageRequest{
+		Model:    req.ModelName,
+		Prompt:   req.Prompt, // Prompt might be empty for image2image
+		Progress: req.Progress,
+		Options:  make(map[string]interface{}), // Initialize options map
 	}
 
+	// Add image_url specifically for image2image types
+	if req.ModelType == "image2image" {
+		imageReq.Options["image_url"] = req.ImageURL
+	}
+	// Add other options if needed (e.g., num_images for text2image)
+	// Currently defaulting to 1 image in the example, could make this configurable
+	if req.ModelType == "text2image" {
+		imageReq.Options["num_images"] = 1
+	}
+
+	// Call the unified GenerateImage method on the fal client
+	imageResp, genErr = s.client.GenerateImage(ctx, imageReq)
 	if genErr != nil {
 		return &ImageResult{Success: false, Error: genErr}, genErr
 	}

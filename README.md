@@ -1,187 +1,103 @@
 # Braibot
 
-**Braibot** is a chatbot for the [Bison Relay](https://bisonrelay.org/) platform, you can find [Bison Relay on Github](https://github.com/companyzero/bisonrelay/). It is using the [fal.ai API](https://fal.ai/) to generate AI-powered images and speech from text prompts. Payments are processed via microtransactions on [Decred's lightning network](https://docs.decred.org/lightning-network/overview/).
+**Braibot** is an AI-powered assistant for the **[Bison Relay](https://bisonrelay.org/)** private messaging platform.
 
-This bot is based on the [BisonBotKit](https://github.com/vctt94/bisonbotkit) by @vctt94
+It connects to the **[Fal.ai](https://fal.ai/)** service to let you generate images, videos, and audio directly within your private chats. To pay for the AI services, Braibot uses small, private payments over the **[Decred](https://decred.org/)** Lightning Network.
 
-## Features
+*(Braibot is built using the helpful [BisonBotKit](https://github.com/vctt94/bisonbotkit) framework).*
 
-- **AI Content Generation**: 
-  - Create images using various AI models via fal.ai
-  - Generate speech from text using AI models
-  - Customizable model selection for both image and speech generation
-- **Lightning Network Payments**: 
-  - Users can send tips to the Bot on Bison Relay using Decred's lightning network
-  - Balances are stored in a SQLite3 database
-  - Real-time balance tracking and updates
-- **Bison Relay Integration**: 
-  - Seamless private messaging interface
-  - Command-based interaction system
-  - Welcome messages for new users
-- **Model Management**: 
-  - List available AI models
-  - Check current rates
-  - Switch between different models
-- **Help System**:
-  - Comprehensive command documentation
-  - Context-aware help for specific commands
-  - Model-specific help information
-  - Current balance and model selection status
-- **Debug Mode**: Built-in debugging capabilities for development and troubleshooting
+## What Can Braibot Do?
 
-## Project Structure
+*   **AI Image Generation:** Create unique images from text descriptions using various AI models.
+*   **AI Image Transformation:** Modify existing images using AI (e.g., apply artistic styles).
+*   **AI Video Generation:** Create short video clips from text descriptions or existing images.
+*   **AI Text-to-Speech:** Convert your text messages into spoken audio clips using different voices.
+*   **Decred Lightning Payments:** Add funds to your bot balance by sending tips via Bison Relay's built-in Decred Lightning Network feature. The bot automatically uses your balance to pay for AI tasks.
+*   **Easy Model Selection:** List available AI models for different tasks and choose the one you prefer.
+*   **Balance Checking:** Check your current DCR balance with the bot at any time.
+*   **Simple Commands:** Interact with the bot using straightforward commands in your private chat.
+*   **Helpful Guidance:** Get general help or specific details about commands and AI models.
 
-```
-braibot/
-├── internal/
-│   ├── audio/         # Audio processing and generation
-│   ├── commands/      # Bot command implementations
-│   ├── config/        # Configuration management
-│   ├── database/      # Database operations
-│   ├── faladapter/    # fal.ai API integration
-│   └── utils/         # Utility functions
-├── pkg/
-│   └── fal/           # fal.ai API package
-├── main.go            # Main application entry point
-├── go.mod             # Go module definition
-├── go.sum             # Go module checksums
-└── README.md          # Project documentation
-```
+## What You Need to Use Braibot
 
-## Prerequisites
+1.  **Bison Relay:** You need to have Bison Relay installed and an active account.
+2.  **Fal.ai Account & API Key:** Sign up at [Fal.ai](https://fal.ai/), get an API key, and add some credits to pay for the AI generation.
+3.  **Decred:** You'll need some Decred (DCR) if you want users (or yourself) to be able to add funds to the bot by sending tips over the Lightning Network.
 
-- **Go**: [Download Go](https://go.dev/dl/) (version 1.16 or higher recommended)
-- **Bison Relay Account**: Active account and installation of Bison Relay
-- **fal.ai API Key**: Get one at [fal.ai](https://fal.ai/) and fund your account balance for AI usage
-- **Decred**: Find out where to get Decred on [Decred's Exchange website](https://decred.org/exchanges/)
-- **SQLite3**: Required for database operations
+## Setting Up Braibot
 
-## Installation
+*(These steps are for the person running the bot server).*
 
-1. **Clone Repository**  
-   ```bash
-   git clone https://github.com/karamble/braibot.git
-   ```
+1.  **Get the Code:** Download or clone the Braibot code from its repository.
+    ```bash
+    git clone https://github.com/karamble/braibot.git
+    cd braibot
+    ```
+2.  **Build the Bot:** Compile the bot application.
+    ```bash
+    go build
+    ```
+3.  **Configure Bison Relay:** Ensure your Bison Relay client is configured to allow external programs (like Braibot) to connect to it via its RPC interface. This usually involves editing your `brclient.conf` file to enable the `clientrpc` settings (like `jsonrpclisten`, `rpccertpath`, etc.). Refer to Bison Relay documentation for details.
+4.  **Configure Braibot:**
+    *   The first time you run Braibot, it will try to find your Bison Relay configuration and create its own configuration directory (usually `~/.braibot/`).
+    *   It will create a `braibot.conf` file inside that directory.
+    *   The bot will likely ask you for your Fal.ai API key during this first run if it's not already in the config file.
+    *   You can also manually edit `~/.braibot/braibot.conf` and add your key like this:
+        `falapikey=your-fal-ai-api-key`
 
-2. **Enter Directory**  
-   ```bash
-   cd braibot
-   ```
+## Running Braibot
 
-3. **Install Dependencies**
-   ```bash
-   go mod tidy
-   ```
+1.  **Start Bison Relay:** Make sure your Bison Relay client is running.
+2.  **Start Braibot:** Run the compiled program.
+    ```bash
+    ./braibot
+    ```
+    *(You might need to run it from the directory containing the code or provide the full path).*
 
-4. **Build Project**
-   ```bash
-   go build
-   ```
+## Using Braibot (Commands)
 
-## Configuration
+Once the bot is running and you've added it as a contact in Bison Relay, send it these commands in a private chat:
 
-1. **Bison Relay Configuration**
-   Edit your Bison Relay configuration to activate the [clientrpc] functions. Set the following parameters:
-   ```
-   jsonrpclisten=<your-rpc-listen-address>
-   rpccertpath=<path-to-rpc-cert>
-   rpckeypath=<path-to-rpc-key>
-   rpcclientcapath=<path-to-client-ca>
-   rpcissueclientcert=1
-   ```
+*   **`!help`**: Shows the main help message, including your current balance and selected models.
+*   **`!help [command]`**: Shows detailed help for a specific command (e.g., `!help text2image`).
+*   **`!help [command] [model]`**: Shows details about a specific AI model for a command (e.g., `!help text2image fast-sdxl`).
+*   **`!balance`**: Shows your current DCR balance held by the bot. (Add funds by sending tips!).
+*   **`!rate`**: Shows the current DCR/USD exchange rate used for pricing AI tasks.
+*   **`!listmodels [task]`**: Lists available AI models for a task. Tasks are: `text2image`, `image2image`, `text2speech`, `image2video`, `text2video`.
+    *   Example: `!listmodels text2image`
+*   **`!setmodel [task] [model_name]`**: Sets the default AI model you want to use for a specific task. Use a model name from `!listmodels`.
+    *   Example: `!setmodel text2image fast-sdxl`
+*   **`!text2image [your text prompt]`**: Creates an image from your text description using your currently selected text-to-image model.
+    *   Example: `!text2image a photo of an astronaut riding a horse on the moon`
+*   **`!image2image [image URL] [optional prompt]`**: Transforms the image at the URL using your selected image-to-image model. Some models might use the optional text prompt.
+    *   Example: `!image2image https://example.com/photo.jpg turn this into a van gogh painting`
+*   **`!image2video [image URL] [optional prompt]`**: Creates a video from the image at the URL using your selected image-to-video model.
+    *   Example: `!image2video https://example.com/cat.jpg make the cat slowly blink`
+*   **`!text2video [your text prompt]`**: Creates a video from your text description using your selected text-to-video model.
+    *   Example: `!text2video cinematic drone shot flying over a futuristic city`
+*   **`!text2speech [optional voice ID] [text to speak]`**: Creates an audio clip of the text being spoken. If you don't specify a voice ID, a default voice is used. Check `!help text2speech` for available voice IDs.
+    *   Example: `!text2speech Hello from BraiBot!`
+    *   Example: `!text2speech Friendly_Person How are you today?`
 
-2. **Bot Configuration**
-   On first launch, the bot automatically:
-   - Looks for the BisonRelay configuration
-   - Creates its configuration file in `~/.braibot/braibot.conf`
-   - Sets up necessary directories and database
-   - Will ask for the fal-api key if not present
+## Troubleshooting Tips
 
-   Edit `~/.braibot/braibot.conf` and add:
-   ```
-   falapikey=<your-fal-ai-api-key>
-   ```
-
-## Running the Bot
-
-1. **Start Bison Relay Client**
-   Make sure your Bison Relay client is running first.
-
-2. **Launch the Bot**
-   ```bash
-   # Option 1: Run directly
-   go run .
-
-   # Option 2: Run built binary
-   ./braibot
-
-   # Option 3: Run with custom app root
-   ./braibot -approot /path/to/custom/dir
-   ```
-
-## Using the Bot
-
-Send private messages on Bison Relay to the Bot:
-
-- **`!rate`**  
-  Shows exchange rates for DCR/BTC and DCR/USD provided by Bison Relay
-
-- **`!listmodels <text2image/text2speech/image2video/image2image>`**  
-  Lists available AI models.
-
-- **`!setmodel <text2image/text2speech/image2video/image2image> <model_name>`**  
-  Sets model to use for any of the supported AI commands (use model from `!listmodels`).  
-  Examples: 
-  - `!setmodel text2image fast-sdxl`
-  - `!setmodel image2video stable-video-diffusion`
-  - `!setmodel image2image stable-diffusion`
-
-- **`!text2image <prompt>`**  
-  Generates an image with the AI model previously specified with the setmodel command.  
-  Example: `!text2image a starry night`
-
-- **`!text2speech <prompt>`**  
-  Generates an AI audio clip from text prompt.  
-  Example: `!text2speech "Hello world"`
-
-- **`!help`**  
-  Lists available commands.
-
-- **`!balance`**
-  Users can query their current debit balance
-
-## Troubleshooting
-
-1. **Bot Won't Start**
-   - Ensure Bison Relay client is running
-   - Check configuration files exist and are properly formatted
-   - Verify fal.ai API key is valid and has sufficient balance
-
-2. **Commands Not Working**
-   - Check if you have sufficient balance
-   - Verify the selected model is available
-   - Ensure proper command syntax
-
-3. **Database Issues**
-   - Check permissions on the app root directory
-   - Verify SQLite3 is installed
-   - Check log files for specific errors
+*   **Bot not responding?** Make sure your Bison Relay client is running and that Braibot is running and connected to it. Check the Braibot logs for connection errors.
+*   **Commands failing?**
+    *   Check your balance using `!balance`. You might need to send the bot a tip.
+    *   Make sure you've entered the command correctly (`!help` is your friend!).
+    *   Ensure your Fal.ai account has credits.
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+(Standard contributing guidelines - Fork, Branch, Commit, Push, Pull Request)
 
 ## License
 
-This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
+This project uses the ISC License. See the LICENSE file for details.
 
 ## Acknowledgments
 
-- [Bison Relay](https://github.com/companyzero/bisonrelay/) for the messaging platform
-- [BisonBotKit](https://github.com/vctt94/bisonbotkit) for the bot framework
-- [fal.ai](https://fal.ai/) for AI capabilities
-- [Decred](https://decred.org/) for the Lightning Network implementation
+*   [Bison Relay](https://github.com/companyzero/bisonrelay/)
+*   [BisonBotKit](https://github.com/vctt94/bisonbotkit)
+*   [Fal.ai](https://fal.ai/)
+*   [Decred](https://decred.org/)

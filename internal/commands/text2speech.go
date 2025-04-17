@@ -88,18 +88,17 @@ func Text2SpeechCommand(dbManager *database.DBManager, debug bool) Command {
 			// Create progress callback
 			progress := NewCommandProgressCallback(bot, pm.Nick, "text2speech")
 
-			// Create speech request
+			// Create speech request, populating the new Model field
 			req := fal.SpeechRequest{
+				Model:    model.Name, // Set the target model name
 				Text:     text,
-				VoiceID:  model.Name, // Use the model name from configuration
+				VoiceID:  voiceID, // Use the selected or default voice ID
 				Progress: progress,
-				Options: map[string]interface{}{
-					"voice_id": voiceID, // Pass the voice ID as an option
-				},
+				Options:  map[string]interface{}{}, // Options can be added here if needed later
 			}
 
-			// Generate speech
-			resp, err := client.GenerateSpeech(ctx, req)
+			// Generate speech using the adapter function with the request struct
+			resp, err := faladapter.GenerateSpeech(ctx, client, req, bot, pm.Nick)
 			if err != nil {
 				return fmt.Errorf("failed to generate speech: %v", err)
 			}

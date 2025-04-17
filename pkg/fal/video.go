@@ -4,20 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+	// "io" // No longer needed directly here
 )
 
 // GenerateVideo sends a request to the video model and returns the video URL
 func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResponse, error) {
 	var modelName string
+	var endpoint string
 	var reqBody map[string]interface{}
+	var progress ProgressCallback
 
-	// Determine model name and create request body based on request type
+	// Extract progress callback if available
+	if progressable, ok := req.(Progressable); ok {
+		progress = progressable.GetProgress()
+	}
+
+	// Determine model name, endpoint and create request body based on request type
 	switch r := req.(type) {
 	case *Veo2Request:
 		modelName = "veo2"
+		endpoint = "/veo2/image-to-video"
 		// Get model options
-		model, exists := GetModel(modelName, "image2video")
+		model, exists := GetModel(modelName, "image2video") // Veo2 is image2video
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
@@ -25,7 +33,6 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
 		}
-
 		// Set default values from model options if not provided
 		if r.AspectRatio == "" {
 			r.AspectRatio = options.AspectRatio
@@ -33,12 +40,10 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if r.Duration == "" {
 			r.Duration = options.Duration
 		}
-
 		// Validate options
 		if err := options.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid options: %v", err)
 		}
-
 		reqBody = map[string]interface{}{
 			"prompt":       r.Prompt,
 			"image_url":    r.ImageURL,
@@ -46,17 +51,30 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			"duration":     r.Duration,
 		}
 	case *KlingVideoRequest:
-		modelName = "kling-video-image"
-		// Get model options
-		model, exists := GetModel(modelName, "image2video")
+		// Kling can be image2video or text2video, need to check model registry
+		// Let's assume the specific type (image or text) is handled by caller setting r.Model correctly if BaseVideoRequest is embedded
+		if r.ImageURL != "" { // Likely Image-to-Video
+			modelName = "kling-video-image"
+			endpoint = "/kling-video/v2/master/image-to-video"
+		} else if r.Prompt != "" { // Likely Text-to-Video
+			modelName = "kling-video-text"
+			endpoint = "/kling-video/v2/master/text-to-video"
+		} else {
+			return nil, fmt.Errorf("kling request must have either image_url or prompt")
+		}
+
+		// Get model options (assuming KlingVideoOptions is used for both)
+		model, exists := GetModel(modelName, "image2video") // Check image2video first
 		if !exists {
-			return nil, fmt.Errorf("model not found: %s", modelName)
+			model, exists = GetModel(modelName, "text2video") // Check text2video if not found
+			if !exists {
+				return nil, fmt.Errorf("model not found: %s", modelName)
+			}
 		}
 		options, ok := model.Options.(*KlingVideoOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
 		}
-
 		// Set default values from model options if not provided
 		if r.Duration == "" {
 			r.Duration = options.Duration
@@ -70,163 +88,92 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if r.CFGScale == 0 {
 			r.CFGScale = options.CFGScale
 		}
-
 		// Validate options
 		if err := options.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid options: %v", err)
 		}
-
 		reqBody = map[string]interface{}{
-			"prompt":          r.Prompt,
-			"image_url":       r.ImageURL,
+			"prompt":          r.Prompt,   // May be empty for image2video
+			"image_url":       r.ImageURL, // May be empty for text2video
 			"duration":        r.Duration,
 			"aspect_ratio":    r.AspectRatio,
 			"negative_prompt": r.NegativePrompt,
 			"cfg_scale":       r.CFGScale,
 		}
-	case *BaseVideoRequest:
-		// Handle legacy VideoRequest type
+		// Remove empty fields that are not applicable
+		if r.ImageURL == "" {
+			delete(reqBody, "image_url")
+		}
+		if r.Prompt == "" {
+			delete(reqBody, "prompt")
+		}
+	case *BaseVideoRequest: // Handle potentially ambiguous base request
 		modelName = r.Model
-		reqBody = map[string]interface{}{
+		model, exists := GetModel(modelName, "image2video")
+		if !exists {
+			model, exists = GetModel(modelName, "text2video")
+			if !exists {
+				return nil, fmt.Errorf("model not found: %s", modelName)
+			}
+		}
+		// Determine endpoint based on retrieved model
+		switch model.Name {
+		case "veo2":
+			endpoint = "/veo2/image-to-video"
+		case "kling-video-image":
+			endpoint = "/kling-video/v2/master/image-to-video"
+		case "kling-video-text":
+			endpoint = "/kling-video/v2/master/text-to-video"
+		default:
+			return nil, fmt.Errorf("unsupported model: %s", model.Name)
+		}
+		reqBody = map[string]interface{}{ // Assume base fields
 			"prompt":    r.Prompt,
 			"image_url": r.ImageURL,
 		}
-	case *TextToVideoRequest:
-		modelName = "kling-video-text"
-		// Check if model exists
-		if _, exists := GetModel(modelName, "text2video"); !exists {
-			return nil, fmt.Errorf("model not found: %s", modelName)
+		// Remove empty fields
+		if r.ImageURL == "" {
+			delete(reqBody, "image_url")
+		}
+		if r.Prompt == "" {
+			delete(reqBody, "prompt")
 		}
 
-		// Set default values if not provided
-		if r.Duration == "" {
-			r.Duration = "5" // Default duration for text-to-video
-		}
-		if r.AspectRatio == "" {
-			r.AspectRatio = "16:9" // Default aspect ratio
-		}
-		if r.NegativePrompt == "" {
-			r.NegativePrompt = "blur, distort, and low quality"
-		}
-		if r.CFGScale == 0 {
-			r.CFGScale = 0.5
-		}
+	// Deprecated: TextToVideoRequest is handled by KlingVideoRequest case now
+	// case *TextToVideoRequest: ...
 
-		reqBody = map[string]interface{}{
-			"prompt":          r.Prompt,
-			"duration":        r.Duration,
-			"aspect_ratio":    r.AspectRatio,
-			"negative_prompt": r.NegativePrompt,
-			"cfg_scale":       r.CFGScale,
-		}
 	default:
 		return nil, fmt.Errorf("unsupported request type: %T", req)
 	}
 
-	// Get the model to determine which endpoint to use
-	model, exists := GetModel(modelName, "image2video")
-	if !exists {
-		// Try text2video if image2video fails
-		model, exists = GetModel(modelName, "text2video")
-		if !exists {
-			return nil, fmt.Errorf("model not found: %s", modelName)
+	// Add any additional generic options from the request
+	if optionsGetter, ok := req.(interface{ GetOptions() map[string]interface{} }); ok {
+		for k, v := range optionsGetter.GetOptions() {
+			// Avoid overwriting fields already set by specific request types
+			if _, exists := reqBody[k]; !exists {
+				reqBody[k] = v
+			}
 		}
 	}
 
-	var endpoint string
-	switch model.Name {
-	case "veo2":
-		endpoint = "/veo2/image-to-video"
-	case "kling-video-image":
-		endpoint = "/kling-video/v2/master/image-to-video"
-	case "kling-video-text":
-		endpoint = "/kling-video/v2/master/text-to-video"
-	default:
-		return nil, fmt.Errorf("unsupported model: %s", model.Name)
-	}
-
-	// Add any additional options
-	if baseReq, ok := req.(interface{ GetOptions() map[string]interface{} }); ok {
-		for k, v := range baseReq.GetOptions() {
-			reqBody[k] = v
+	// Define the decoder for the final video response
+	decodeFunc := func(data []byte) (interface{}, error) {
+		var videoResp VideoResponse
+		if err := json.Unmarshal(data, &videoResp); err != nil {
+			return nil, fmt.Errorf("failed to parse final video response: %w, body: %s", err, string(data))
 		}
+		// Check if any of the video URL fields are populated
+		if videoResp.GetURL() == "" {
+			return nil, fmt.Errorf("no video URL found in the response: %s", string(data))
+		}
+		return &videoResp, nil
 	}
 
-	// Make initial request to queue
-	resp, err := c.makeRequest(ctx, "POST", endpoint, reqBody)
+	// Execute the workflow
+	result, err := c.executeAsyncWorkflow(ctx, endpoint, reqBody, progress, decodeFunc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Parse the initial queue response
-	var queueResp QueueResponse
-	if err := json.NewDecoder(resp.Body).Decode(&queueResp); err != nil {
-		return nil, fmt.Errorf("failed to decode queue response: %v", err)
+		return nil, err // Error already wrapped
 	}
 
-	if c.debug {
-		fmt.Printf("DEBUG - Queue Response:\n")
-		fmt.Printf("  Queue ID: %s\n", queueResp.QueueID)
-		fmt.Printf("  Status: %s\n", queueResp.Status)
-		fmt.Printf("  Position: %d\n", queueResp.Position)
-		fmt.Printf("  ETA: %d seconds\n", queueResp.ETA)
-		fmt.Printf("  Response URL: %s\n", queueResp.ResponseURL)
-	}
-
-	// Notify about queue position
-	if progressable, ok := req.(Progressable); ok {
-		c.notifyQueuePosition(ctx, queueResp, progressable.GetProgress())
-	}
-
-	// Poll for completion
-	if progressable, ok := req.(Progressable); ok {
-		_, err = c.pollQueueStatus(ctx, queueResp, progressable.GetProgress())
-	} else {
-		_, err = c.pollQueueStatus(ctx, queueResp, nil)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to poll queue status: %v", err)
-	}
-
-	// Get final response using the response URL
-	finalResp, err := c.makeRequest(ctx, "GET", queueResp.ResponseURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get final response: %v", err)
-	}
-	defer finalResp.Body.Close()
-
-	// Read final response body
-	finalBytes, err := io.ReadAll(finalResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read final response: %v", err)
-	}
-
-	// Debug log the response
-	if c.debug {
-		fmt.Printf("DEBUG - Final response body: %s\n", string(finalBytes))
-	}
-
-	// Parse the response
-	var videoResp VideoResponse
-	if err := json.Unmarshal(finalBytes, &videoResp); err != nil {
-		return nil, fmt.Errorf("failed to parse final response: %v, body: %s", err, string(finalBytes))
-	}
-
-	// Check if any of the video URL fields are populated
-	if videoResp.Video.URL == "" && videoResp.URL == "" && videoResp.VideoURL == "" {
-		return nil, fmt.Errorf("no video URL found in the response: %s", string(finalBytes))
-	}
-
-	return &videoResp, nil
-}
-
-// TextToVideoRequest represents a request to generate a video from text
-type TextToVideoRequest struct {
-	Prompt         string  `json:"prompt"`
-	Duration       string  `json:"duration"`        // enum: "5"
-	AspectRatio    string  `json:"aspect_ratio"`    // enum: "16:9", "9:16", "1:1"
-	NegativePrompt string  `json:"negative_prompt"` // default: "blur, distort, and low quality"
-	CFGScale       float64 `json:"cfg_scale"`       // default: 0.5
-	Progress       ProgressCallback
+	return result.(*VideoResponse), nil
 }

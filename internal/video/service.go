@@ -58,33 +58,31 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 
 	// 4. Generate video
 	var videoResp *fal.VideoResponse
-	var videoReq interface{}
 
-	if req.ModelType == "text2video" {
-		videoReq = &fal.TextToVideoRequest{
-			Prompt:         req.Prompt,
-			Duration:       req.Duration,
-			AspectRatio:    req.AspectRatio,
-			NegativePrompt: req.NegativePrompt,
-			CFGScale:       req.CFGScale,
-			Progress:       req.Progress,
-		}
-	} else {
-		videoReq = &fal.KlingVideoRequest{
-			BaseVideoRequest: fal.BaseVideoRequest{
-				Prompt:   req.Prompt,
-				ImageURL: req.ImageURL,
-				Model:    "kling-video-image",
-				Progress: req.Progress,
-				Options:  make(map[string]interface{}),
-			},
-			Duration:       req.Duration,
-			AspectRatio:    req.AspectRatio,
-			NegativePrompt: req.NegativePrompt,
-			CFGScale:       req.CFGScale,
-		}
+	// Always use KlingVideoRequest, setting appropriate fields based on type
+	// The underlying fal.GenerateVideo distinguishes model by name.
+	videoReq := &fal.KlingVideoRequest{
+		BaseVideoRequest: fal.BaseVideoRequest{
+			Progress: req.Progress,                 // Pass progress callback
+			Options:  make(map[string]interface{}), // Initialize options map
+		},
+		Duration:       req.Duration,
+		AspectRatio:    req.AspectRatio,
+		NegativePrompt: req.NegativePrompt,
+		CFGScale:       req.CFGScale,
 	}
 
+	// Set fields based on ModelType
+	if req.ModelType == "text2video" {
+		videoReq.BaseVideoRequest.Model = "kling-video-text" // Specify the text model
+		videoReq.BaseVideoRequest.Prompt = req.Prompt
+	} else { // Assume image2video
+		videoReq.BaseVideoRequest.Model = "kling-video-image" // Specify the image model (or could be veo2 later)
+		videoReq.BaseVideoRequest.Prompt = req.Prompt         // Prompt might be used
+		videoReq.BaseVideoRequest.ImageURL = req.ImageURL
+	}
+
+	// Generate video using the unified request type
 	videoResp, err = s.client.GenerateVideo(ctx, videoReq)
 	if err != nil {
 		return &VideoResult{Success: false, Error: err}, err
