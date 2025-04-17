@@ -144,7 +144,7 @@ func (c *Client) pollQueueStatus(ctx context.Context, queueResp QueueResponse, p
 }
 
 // notifyQueuePosition sends a queue position update through the progress callback
-func (c *Client) notifyQueuePosition(ctx context.Context, queueResp QueueResponse, progress ProgressCallback) {
+func (c *Client) notifyQueuePosition(_ context.Context, queueResp QueueResponse, progress ProgressCallback) {
 	if progress != nil {
 		progress.OnQueueUpdate(queueResp.Position, time.Duration(queueResp.ETA)*time.Second)
 	}

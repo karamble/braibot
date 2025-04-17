@@ -171,25 +171,14 @@ func (c *BotProgressCallback) OnLogMessage(message string) {
 	c.lastSentMessage = c.latestLogMessage
 }
 
-// GenerateImage generates an image using the fal package.
-func GenerateImage(ctx context.Context, client *fal.Client, req fal.ImageRequest) (*fal.ImageResponse, error) {
-	return client.GenerateImage(ctx, req)
-}
-
 // GenerateSpeech generates speech using the fal package.
-func GenerateSpeech(ctx context.Context, client *fal.Client, text, voiceID string, bot *kit.Bot, userNick string) (*fal.AudioResponse, error) {
-	// Create progress callback
-	progress := NewBotProgressCallback(bot, userNick)
-
-	// Create speech request
-	req := fal.SpeechRequest{
-		Text:     text,
-		VoiceID:  voiceID,
-		Options:  map[string]interface{}{},
-		Progress: progress,
+func GenerateSpeech(ctx context.Context, client *fal.Client, req fal.SpeechRequest, bot *kit.Bot, userNick string) (*fal.AudioResponse, error) {
+	// Ensure progress callback is set, creating one if necessary
+	if req.Progress == nil {
+		req.Progress = NewBotProgressCallback(bot, userNick)
 	}
 
-	// Generate speech
+	// Generate speech by calling the underlying fal client method
 	resp, err := client.GenerateSpeech(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate speech: %v", err)
@@ -216,18 +205,4 @@ func GetCurrentModel(commandType string) (fal.Model, bool) {
 // SetCurrentModel sets the current model for a command type.
 func SetCurrentModel(commandType, modelName string) error {
 	return fal.SetCurrentModel(commandType, modelName)
-}
-
-// GenerateImageFromImage generates an image from an existing image using the fal package.
-func GenerateImageFromImage(ctx context.Context, client *fal.Client, prompt, imageURL, modelName string, progress fal.ProgressCallback) (*fal.ImageResponse, error) {
-	req := fal.ImageRequest{
-		Prompt: prompt,
-		Model:  modelName,
-		Options: map[string]interface{}{
-			"image_url": imageURL,
-		},
-		Progress: progress,
-	}
-
-	return client.GenerateImage(ctx, req)
 }

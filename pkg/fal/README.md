@@ -1,212 +1,221 @@
-# Fal.ai API Client
+# Fal Go Client Package (`pkg/fal`)
 
-A standalone Go client for interacting with the [Fal.ai](https://fal.ai) API, providing AI-powered image, video, and speech generation capabilities.
+This Go package provides a client for interacting with the [Fal.ai](https://fal.ai) API, focusing on AI-powered image, video, and speech generation tasks. It's designed to be a reusable, standalone component.
 
 ## Features
 
-- **Text-to-Image Generation**
-  - Multiple model options with different quality levels
-  - Customizable parameters
-  - Progress tracking
-  - Queue management
-
-- **Image-to-Image Transformation**
-  - Ghibli style conversion
-  - Cartoon style conversion
-  - SVG vectorization
-  - Customizable parameters
-
-- **Image-to-Video Conversion**
-  - Multiple video models (Veo2, Kling-video)
-  - Customizable duration and aspect ratio
-  - Progress tracking
-  - Queue management
-
-- **Text-to-Speech Generation**
-  - Multiple voice options
-  - Customizable parameters
-  - Progress tracking
+*   **Asynchronous Task Handling:** Manages the typical Fal.ai workflow (submit -> poll -> get result) for long-running generation tasks.
+*   **Model Generation:**
+    *   Text-to-Image (`GenerateImage`)
+    *   Image-to-Image (`GenerateImage`)
+    *   Image-to-Video (`GenerateVideo`)
+    *   Text-to-Video (`GenerateVideo`)
+    *   Text-to-Speech (`GenerateSpeech`)
+*   **Dynamic Model Registration:**
+    *   Models are defined in separate files (e.g., `text_image_models.go`).
+    *   Models self-register using Go's `init()` mechanism.
+    *   Easily add new models by creating a new file implementing the `ModelDefinition` interface.
+*   **Model Management:**
+    *   Retrieve specific models (`GetModel`).
+    *   List available models by type (`GetModels`).
+    *   Manage the currently active default model per type (`GetCurrentModel`, `SetCurrentModel`).
+*   **Progress Tracking:** Provides a `ProgressCallback` interface for monitoring task status (queue position, logs, progress updates, errors).
+*   **Extensible:** Designed with interfaces and clear separation for potential future enhancements.
 
 ## Installation
 
 ```bash
-go get github.com/karamble/braibot/pkg/fal
+# Assuming this package is part of a larger project
+# Go modules will handle vendoring/dependencies
+go get <your-project-module-path>/pkg/fal 
 ```
+*(Adjust the module path as needed)*
 
 ## Usage
 
-### Creating a Client
+### 1. Creating a Client
 
 ```go
-import "github.com/karamble/braibot/pkg/fal"
+import "<your-project-module-path>/pkg/fal"
 
-// Create a new client with default options
-client := fal.NewClient("your-api-key")
+// Create a new client with your API key
+client := fal.NewClient("your-fal-api-key")
 
-// Create a client with debug mode
-client := fal.NewClient("your-api-key", fal.WithDebug(true))
+// Optionally enable debug logging
+clientWithDebug := fal.NewClient("your-fal-api-key", fal.WithDebug(true))
 
-// Create a client with custom HTTP client
-client := fal.NewClient("your-api-key", fal.WithHTTPClient(&http.Client{
-    Timeout: 60 * time.Second,
-}))
+// Optionally provide a custom HTTP client
+customHTTPClient := &http.Client{ Timeout: 60 * time.Second }
+clientWithCustomHTTP := fal.NewClient("your-fal-api-key", fal.WithHTTPClient(customHTTPClient))
 ```
 
-### Available Models
+### 2. Defining a Progress Callback (Optional)
 
-#### Text-to-Image Models
-- `fast-sdxl` - Fast model for quick image generation
-- `hidream-i1-full` - High-quality model for detailed images
-- `hidream-i1-dev` - Development version of HiDream
-- `hidream-i1-fast` - Faster version of HiDream
-- `flux-pro/v1.1` - Professional model
-- `flux-pro/v1.1-ultra` - Ultra version of professional model
-- `flux/schnell` - Quick model for rapid generation
-
-#### Image-to-Image Models
-- `ghiblify` - Transforms images into Studio Ghibli style
-- `cartoonify` - Transforms images into Pixar-like 3D cartoon style
-- `star-vector` - Converts images to SVG using AI vectorization
-
-#### Text-to-Speech Models
-- `minimax-tts/text-to-speech`
-  - Multiple voice options available
-  - High-quality speech synthesis
-
-#### Image-to-Video Models
-- `veo2`
-  - Creates videos from images with realistic motion
-  - Supports multiple aspect ratios
-  - Duration options: 5-8 seconds
-- `kling-video`
-  - Advanced video generation
-  - Customizable parameters
-  - Negative prompt support
-
-### Generating Images from Text
+Implement the `fal.ProgressCallback` interface to receive updates.
 
 ```go
-// Create a progress callback
-progress := &MyProgressCallback{}
-
-// Create an image request
-req := fal.ImageRequest{
-    Prompt:   "a beautiful sunset over mountains",
-    Model:    "fast-sdxl",
-    Options:  map[string]interface{}{"num_images": 1},
-    Progress: progress,
+type MyProgressTracker struct {
+    // ... your fields (e.g., logger, channel)
 }
 
-// Generate the image
-resp, err := client.GenerateImage(ctx, req)
-if err != nil {
-    log.Fatal(err)
+func (t *MyProgressTracker) OnQueueUpdate(position int, eta time.Duration) {
+    fmt.Printf("Queue Position: %d, ETA: %v\n", position, eta)
+}
+func (t *MyProgressTracker) OnLogMessage(message string) {
+    fmt.Printf("Log: %s\n", message)
+}
+func (t *MyProgressTracker) OnProgress(status string) {
+    fmt.Printf("Status: %s\n", status)
+}
+func (t *MyProgressTracker) OnError(err error) {
+    fmt.Printf("Error: %v\n", err)
 }
 
-// Access the generated image
-imageURL := resp.Images[0].URL
+// Instantiate your callback
+var progressCallback fal.ProgressCallback = &MyProgressTracker{} 
 ```
 
-### Transforming Images
+### 3. Performing Generation Tasks
+
+**Text-to-Image:**
 
 ```go
-// Create a progress callback
-progress := &MyProgressCallback{}
-
-// Create an image request
 req := fal.ImageRequest{
-    Model:    "ghiblify",
-    Options:  map[string]interface{}{
-        "image_url": "https://example.com/image.jpg",
+    Model:    "fast-sdxl", // Or another registered text2image model
+    Prompt:   "a futuristic cityscape at dusk",
+    Progress: progressCallback, // Optional
+    Options:  map[string]interface{}{"num_images": 1}, // Optional extra params
+}
+resp, err := client.GenerateImage(context.Background(), req)
+if err == nil {
+    fmt.Println("Image URL:", resp.Images[0].URL)
+}
+```
+
+**Image-to-Image (e.g., Ghiblify):**
+
+```go
+req := fal.ImageRequest{
+    Model:    "ghiblify", // Or another registered image2image model
+    Progress: progressCallback, // Optional
+    Options: map[string]interface{}{
+        "image_url": "https://example.com/input.jpg",
+        // Other model-specific options can go here
     },
-    Progress: progress,
 }
-
-// Transform the image
-resp, err := client.GenerateImage(ctx, req)
-if err != nil {
-    log.Fatal(err)
-}
-
-// Access the transformed image
-imageURL := resp.Images[0].URL
+resp, err := client.GenerateImage(context.Background(), req)
+// ... handle response ...
 ```
 
-### Converting Images to Video
+**Image-to-Video (e.g., Veo2):**
 
 ```go
-// Create a progress callback
-progress := &MyProgressCallback{}
-
-// Create a video request with Veo2
-req := fal.Veo2Request{
+// Use the specific request struct for type safety and defaults
+veo2Req := fal.Veo2Request{
     BaseVideoRequest: fal.BaseVideoRequest{
-        Prompt:   "a cinematic scene",
-        ImageURL:  "https://example.com/image.jpg",
-        Model:     "veo2",
-        Progress:  progress,
+        Prompt:   "make the cat dance",
+        ImageURL:  "https://example.com/cat.jpg",
+        Progress:  progressCallback, // Attach progress here
     },
-    Duration:    "5",
-    AspectRatio: "16:9",
+    // Specific Veo2 options (will use defaults defined in model if empty)
+    Duration:    "8", 
+    AspectRatio: "16:9", 
 }
 
-// Generate the video
-resp, err := client.GenerateVideo(ctx, req)
-if err != nil {
-    log.Fatal(err)
+// Pass the specific request struct to GenerateVideo
+resp, err := client.GenerateVideo(context.Background(), &veo2Req) 
+if err == nil {
+    fmt.Println("Video URL:", resp.GetURL())
 }
-
-// Access the generated video
-videoURL := resp.GetURL()
 ```
 
-### Generating Speech from Text
+**Text-to-Speech (e.g., Minimax TTS):**
 
 ```go
-// Create a progress callback
-progress := &MyProgressCallback{}
-
-// Create a speech request
 req := fal.SpeechRequest{
-    Text:     "Hello, how are you today?",
-    VoiceID:  "Wise_Woman",
-    Progress: progress,
+    Model:    "minimax-tts/text-to-speech", // The registered model name
+    Text:     "The quick brown fox jumps over the lazy dog.",
+    VoiceID:  "Friendly_Person", // Parameter specific to this model
+    Progress: progressCallback, // Optional
+    Options:  map[string]interface{}{}, // Optional extra params
 }
-
-// Generate the speech
-resp, err := client.GenerateSpeech(ctx, req)
-if err != nil {
-    log.Fatal(err)
+resp, err := client.GenerateSpeech(context.Background(), req)
+if err == nil {
+    fmt.Println("Audio URL:", resp.AudioURL)
 }
-
-// Access the generated audio
-audioURL := resp.AudioURL
 ```
 
-## Progress Tracking
-
-The client supports progress tracking through the `ProgressCallback` interface:
+### 4. Managing Models
 
 ```go
-type ProgressCallback interface {
-    OnQueueUpdate(position int, eta time.Duration)
-    OnLogMessage(message string)
-    OnProgress(status string)
-    OnError(err error)
+// Get a specific model's details
+model, exists := fal.GetModel("fast-sdxl", "text2image")
+if exists {
+    fmt.Printf("Model: %s, Price: $%.2f\n", model.Name, model.PriceUSD)
+}
+
+// List all text-to-image models
+t2iModels, _ := fal.GetModels("text2image")
+for name, model := range t2iModels {
+    fmt.Println("- ", name, model.Description)
+}
+
+// Get the currently set default model for text-to-image
+currentModel, exists := fal.GetCurrentModel("text2image")
+if exists {
+   fmt.Println("Current default t2i model:", currentModel.Name) 
+}
+
+// Set a new default model for text-to-image
+err := fal.SetCurrentModel("text2image", "hidream-i1-full")
+if err != nil {
+    fmt.Println("Error setting default model:", err)
 }
 ```
+
+## Adding New Models
+
+1.  Create a new Go file in the `pkg/fal` directory (e.g., `my_new_model.go`).
+2.  Define a struct for your model (it can be empty: `type myNewModelDefinition struct{}`).
+3.  Implement the `fal.ModelDefinition` interface for your struct:
+    ```go
+    func (m *myNewModelDefinition) Define() fal.Model {
+        return fal.Model{
+            Name:        "your-model-id", // The ID fal.ai uses
+            Description: "Description of your model",
+            PriceUSD:    0.05, // Cost per run
+            Type:        "text2image", // or image2image, text2speech, etc.
+            HelpDoc:     "Usage instructions...",
+            Options:     &YourModelOptions{}, // Optional: Define and link options struct
+        }
+    }
+    ```
+4.  In the same file, add an `init()` function to register your model definition:
+    ```go
+    func init() {
+        fal.registerModel(&myNewModelDefinition{})
+    }
+    ```
+5.  If your model requires specific options, define a struct for them (e.g., `YourModelOptions`) and implement the `fal.ModelOptions` interface (`GetDefaultValues()`, `Validate()`).
+
+The model will now be available via `GetModel`, `GetModels`, and can be used in generation requests by its `Name`.
 
 ## Error Handling
 
-The client provides detailed error information through the `Error` type:
+API errors are typically returned as `*fal.Error`:
 
 ```go
 type Error struct {
     Code    string `json:"code"`
     Message string `json:"message"`
 }
+
+func (e *Error) Error() string {
+    return e.Message
+}
 ```
+Check for this type to handle API-specific issues gracefully. Other standard Go errors may be returned for network issues, decoding problems, etc.
 
 ## License
 
-This package is licensed under the ISC License - see the [LICENSE](../../LICENSE) file for details. 
+This package is licensed under the ISC License - see the [LICENSE](../../LICENSE) file for details.

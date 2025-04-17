@@ -1,10 +1,39 @@
-# Commands Package
+# Internal Commands Package (`internal/commands`)
 
-This package provides command handlers for the Braibot, a chatbot for the Bison Relay platform. The commands package implements various AI-powered features using the Fal.ai API.
+This package defines and registers the chat commands available within Braibot. It translates user input (like `!help` or `!text2image`) into actions performed by the bot, often interacting with other internal packages (`database`, `faladapter`, `image`, `video`, `audio`, `utils`) and the underlying `pkg/fal` library.
 
-## Overview
+## Core Components
 
-The commands package contains handlers for different bot commands that users can invoke through private messages. Each command is implemented as a function that returns a `Command` struct with a name, description, and handler function.
+*   **Command Struct:** Defines the structure for a command (Name, Description, Handler).
+*   **Registry:** A central registry (`Registry`) to hold and retrieve all registered `Command` structs.
+*   **Initialization:** The `InitializeCommands` function creates the registry and registers all standard Braibot commands.
+*   **Command Parsing:** The `IsCommand` function checks if an incoming message is a valid command and extracts the command name and arguments.
+*   **Command Handlers:** Individual files (e.g., `text2image.go`, `help.go`, `balance.go`) contain the specific logic executed when a command is invoked.
+
+## Available Commands
+
+This package implements the handlers for the following user-facing commands:
+
+### Basic & Informational
+
+*   **`!help`**: Shows general or command/model-specific help.
+*   **`!balance`**: Displays the user's current DCR balance.
+*   **`!rate`**: Shows current DCR exchange rates.
+
+### Model Management
+
+*   **`!listmodels [task]`**: Lists available AI models for a task (`text2image`, `image2image`, `text2speech`, `image2video`, `text2video`).
+*   **`!setmodel [task] [model_name]`**: Sets the default AI model for a specific task.
+
+### AI Generation
+
+*   **`!text2image [prompt]`**: Generates an image from text.
+*   **`!image2image [image_url] [optional prompt]`**: Transforms an image using AI.
+*   **`!image2video [image_url] [optional prompt]`**: Generates a video from an image.
+*   **`!text2video [prompt]`**: Generates a video from text.
+*   **`!text2speech [optional_voice_id] [text]`**: Generates speech audio from text.
+
+Refer to the specific handler files (e.g., `text2image.go`) for the detailed implementation logic of each command. Interactions with external APIs (Fal.ai) are typically mediated through the `internal/faladapter` package, and balance checks utilize the `internal/database` and `internal/utils` packages.
 
 ## Features
 
@@ -282,125 +311,6 @@ err := dbManager.AddBalance(userID, amount)
 // Deduct balance
 err := dbManager.DeductBalance(userID, amount)
 ```
-
-### Available Commands
-
-### Basic Commands
-
-#### Help
-Shows help information about available commands and models.
-
-**Usage:** `!help [command] [model]`
-
-**Examples:**
-- `!help` - Shows general help with current balance and model selections
-- `!help text2image` - Shows help for text2image command with available models
-- `!help text2image fast-sdxl` - Shows detailed help for the fast-sdxl model
-
-#### Balance
-Shows the user's current balance.
-
-**Usage:** `!balance`
-
-#### Rate
-Shows current exchange rates for DCR/BTC and DCR/USD.
-
-**Usage:** `!rate`
-
-### Model Configuration
-
-#### ListModels
-Lists available models for a specific command type.
-
-**Usage:** `!listmodels <text2image/text2speech/image2image/image2video>`
-
-**Example:** `!listmodels text2image`
-
-#### SetModel
-Sets the model to use for a specific command type.
-
-**Usage:** `!setmodel <text2image/text2speech/image2image/image2video> <model_name>`
-
-**Examples:**
-- `!setmodel text2image fast-sdxl`
-- `!setmodel image2video veo2`
-
-### AI Generation Commands
-
-#### Text2Image
-Generates images from text prompts using AI.
-
-**Usage:** `!text2image <prompt>`
-
-**Example:** `!text2image a beautiful sunset over mountains`
-
-Available models:
-- fast-sdxl
-- hidream-i1-full
-- hidream-i1-dev
-- hidream-i1-fast
-- flux-pro/v1.1
-- flux-pro/v1.1-ultra
-- flux/schnell
-
-#### Image2Image
-Transforms images using AI models.
-
-**Usage:** `!image2image <image_url> <prompt>`
-
-**Example:** `!image2image https://example.com/image.jpg transform into anime style`
-
-Available models:
-- ghiblify - Transforms images into Studio Ghibli style artwork
-- cartoonify - Transforms images into Pixar like 3d cartoon-style artwork
-- star-vector - Convert images to SVG using AI vectorization
-
-#### Image2Video
-Converts images to videos using AI.
-
-**Usage:** `!image2video <image_url> <prompt> [options]`
-
-**Example:** `!image2video https://example.com/image.jpg a cinematic scene --aspect 16:9 --duration 5s`
-
-Available models:
-- veo2
-- kling-video-image
-
-**Parameters:**
-- `image_url`: URL of the source image
-- `prompt`: Description of the desired video animation
-- `duration`: Video duration (must be one of: "5s", "6s", "7s", "8s")
-- `aspect_ratio`: Aspect ratio (must be one of: "auto", "auto_prefer_portrait", "16:9", "9:16")
-- `negative_prompt`: (Optional) Text describing what to avoid (default: blur, distort, and low quality)
-- `cfg_scale`: (Optional) Configuration scale (default: 0.5)
-
-#### Text2Speech
-Converts text to speech using AI.
-
-**Usage:** `!text2speech [voice_id] <text>`
-
-**Example:** `!text2speech Wise_Woman Hello, how are you today?`
-
-Available voices:
-- Wise_Woman
-- Friendly_Person
-- Inspirational_girl
-- Deep_Voice_Man
-- Calm_Woman
-- Casual_Guy
-- Lively_Girl
-- Patient_Man
-- Young_Knight
-- Determined_Man
-- Lovely_Girl
-- Decent_Boy
-- Imposing_Manner
-- Elegant_Man
-- Abbess
-- Sweet_Girl_2
-- Exuberant_Girl
-
-Note: To check current prices for AI services, use the `!listmodels` command followed by the service type (e.g., `!listmodels text2image`). Prices are subject to change and are automatically converted from USD to DCR at the current exchange rate.
 
 ## Implementation Details
 

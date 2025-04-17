@@ -8,99 +8,83 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 )
 
-// GenerateSpeech generates speech from text
+// GenerateSpeech generates speech from text using the specified model
 func (c *Client) GenerateSpeech(ctx context.Context, req SpeechRequest) (*AudioResponse, error) {
-	// Validate model
-	if _, exists := GetModel(req.VoiceID, "text2speech"); !exists {
+	// Validate the requested model
+	if _, exists := GetModel(req.Model, "text2speech"); !exists {
 		return nil, &Error{
 			Code:    "INVALID_MODEL",
-			Message: "invalid model for text2speech: " + req.VoiceID,
+			Message: "invalid or unsupported model for text2speech: " + req.Model,
 		}
 	}
 
-	// Create request body
+	// Use the model name to form the endpoint path
+	// Assumes the endpoint path directly corresponds to the model name for now.
+	// More complex routing might be needed if this assumption changes.
+	endpoint := "/" + req.Model
+
+	// Base request body
 	reqBody := map[string]interface{}{
 		"text": req.Text,
 	}
 
-	// Add any additional options
+	// Add model-specific parameters. Currently handling voice_id for minimax.
+	if req.Model == "minimax-tts/text-to-speech" && req.VoiceID != "" {
+		reqBody["voice_id"] = req.VoiceID
+	}
+
+	// Add any additional options from the request
 	for k, v := range req.Options {
-		reqBody[k] = v
-	}
-
-	// Make initial request to queue
-	resp, err := c.makeRequest(ctx, "POST", "/"+req.VoiceID, reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Parse the initial queue response
-	var queueResp QueueResponse
-	if err := json.NewDecoder(resp.Body).Decode(&queueResp); err != nil {
-		return nil, fmt.Errorf("failed to decode queue response: %v", err)
-	}
-
-	// Notify about queue position
-	c.notifyQueuePosition(ctx, queueResp, req.Progress)
-
-	// Poll for completion
-	_, err = c.pollQueueStatus(ctx, queueResp, req.Progress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to poll queue status: %v", err)
-	}
-
-	// Get final response
-	finalResp, err := c.makeRequest(ctx, "GET", queueResp.ResponseURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get final response: %v", err)
-	}
-	defer finalResp.Body.Close()
-
-	// Read final response body
-	finalBytes, err := io.ReadAll(finalResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read final response: %v", err)
-	}
-
-	// Debug log the response
-	if c.debug {
-		fmt.Printf("DEBUG - Final response body: %s\n", string(finalBytes))
-	}
-
-	// Parse the response
-	var response struct {
-		Audio struct {
-			URL         string `json:"url"`
-			ContentType string `json:"content_type"`
-			FileName    string `json:"file_name"`
-			FileSize    int    `json:"file_size"`
-		} `json:"audio"`
-		DurationMs int `json:"duration_ms"`
-	}
-
-	if err := json.Unmarshal(finalBytes, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse final response: %v", err)
-	}
-
-	if response.Audio.URL == "" {
-		return nil, &Error{
-			Code:    "NO_AUDIO",
-			Message: "no audio URL in response",
+		// Avoid overwriting fields already set (text, voice_id for minimax)
+		if _, exists := reqBody[k]; !exists {
+			reqBody[k] = v
 		}
 	}
 
-	// Set default content type if not provided
-	contentType := response.Audio.ContentType
-	if contentType == "" {
-		contentType = "audio/mpeg"
+	// Define the decoder for the final audio response
+	decodeFunc := func(data []byte) (interface{}, error) {
+		var response struct {
+			Audio struct {
+				URL         string `json:"url"`
+				ContentType string `json:"content_type"`
+				FileName    string `json:"file_name"`
+				FileSize    int    `json:"file_size"`
+			} `json:"audio"`
+			Duration float64 `json:"duration"` // Fal uses duration now
+		}
+
+		if err := json.Unmarshal(data, &response); err != nil {
+			return nil, fmt.Errorf("failed to parse final audio response: %w. Body: %s", err, string(data))
+		}
+
+		if response.Audio.URL == "" {
+			return nil, &Error{
+				Code:    "NO_AUDIO_URL",
+				Message: "no audio URL found in response",
+			}
+		}
+
+		contentType := response.Audio.ContentType
+		if contentType == "" {
+			contentType = "audio/mpeg" // Default if missing
+		}
+
+		return &AudioResponse{
+			AudioURL:    response.Audio.URL,
+			ContentType: contentType,
+			FileName:    response.Audio.FileName,
+			FileSize:    response.Audio.FileSize,
+			Duration:    response.Duration, // Use the float duration
+		}, nil
 	}
 
-	return &AudioResponse{
-		AudioURL:    response.Audio.URL,
-		ContentType: contentType,
-	}, nil
+	// Execute the workflow
+	result, err := c.executeAsyncWorkflow(ctx, endpoint, reqBody, req.Progress, decodeFunc)
+	if err != nil {
+		return nil, err // Error already wrapped
+	}
+
+	return result.(*AudioResponse), nil
 }

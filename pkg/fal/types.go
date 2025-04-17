@@ -102,6 +102,13 @@ func (o *KlingVideoOptions) Validate() error {
 	return nil
 }
 
+// ModelDefinition is an interface for types that define a Fal.ai model.
+// Implementations of this interface are expected to register themselves
+// using the registerModel function in their init() function.
+type ModelDefinition interface {
+	Define() Model
+}
+
 // Model represents a Fal.ai model
 type Model struct {
 	Name        string
@@ -135,8 +142,9 @@ type ImageResponse struct {
 
 // SpeechRequest represents a request to generate speech
 type SpeechRequest struct {
+	Model    string // Name of the text-to-speech model to use
 	Text     string
-	VoiceID  string
+	VoiceID  string // Specific to models like minimax-tts
 	Options  map[string]interface{}
 	Progress ProgressCallback
 }
@@ -232,31 +240,4 @@ type Error struct {
 
 func (e *Error) Error() string {
 	return e.Message
-}
-
-// StarVectorRequest represents a request to generate an SVG using the star-vector model
-type StarVectorRequest struct {
-	ImageURL string                 `json:"image_url"`
-	Options  map[string]interface{} `json:"-"`
-	Progress ProgressCallback
-}
-
-// GetProgress returns the progress callback
-func (r *StarVectorRequest) GetProgress() ProgressCallback {
-	return r.Progress
-}
-
-// GetOptions returns the options map
-func (r *StarVectorRequest) GetOptions() map[string]interface{} {
-	return r.Options
-}
-
-// StarVectorResponse represents the response from the star-vector model
-type StarVectorResponse struct {
-	SVG struct {
-		URL         string `json:"url"`
-		ContentType string `json:"content_type"`
-		FileName    string `json:"file_name"`
-		FileSize    int    `json:"file_size"`
-	} `json:"svg"`
 }
