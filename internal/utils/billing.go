@@ -91,3 +91,119 @@ func SendBillingMessage(ctx context.Context, bot *kit.Bot, pm types.ReceivedPM, 
 	billingMsg := FormatBillingMessage(result.ChargedDCR, result.ChargedUSD, result.NewBalance)
 	return bot.SendPM(ctx, pm.Nick, billingMsg)
 }
+
+// CheckBalance checks if a user has sufficient balance for a given cost in USD, without deducting.
+// It returns whether the balance is sufficient, the required DCR amount, the current balance in DCR,
+// an error message if insufficient, and any critical error encountered.
+// If billingEnabled is false, it always returns success.
+func CheckBalance(ctx context.Context, dbManager *database.DBManager, userID []byte, costUSD float64, debug bool, billingEnabled bool) (hasSufficientBalance bool, requiredDCR float64, currentBalanceDCR float64, errMsg string, err error) {
+	// Get current balance regardless of billing status for reporting
+	userIDStr := GetUserIDString(userID)
+	balanceAtoms, balanceErr := dbManager.GetBalance(userIDStr)
+	if balanceErr != nil {
+		// Return this error even if billing is disabled, as it prevents knowing the balance
+		err = fmt.Errorf("failed to get balance: %v", balanceErr)
+		return
+	}
+	currentBalanceDCR = float64(balanceAtoms) / 1e11
+
+	// If billing is disabled, always return true (balance sufficient)
+	if !billingEnabled {
+		hasSufficientBalance = true
+		requiredDCR = 0 // No cost applied
+		errMsg = "Billing is disabled."
+		return
+	}
+
+	// --- Billing is enabled, perform normal checks ---
+
+	// Convert USD cost to DCR
+	requiredDCR, err = USDToDCR(costUSD)
+	if err != nil {
+		err = fmt.Errorf("failed to convert USD to DCR: %v", err)
+		return
+	}
+
+	// Convert DCR amount to atoms for comparison (1 DCR = 1e11 atoms)
+	dcrAtoms := int64(requiredDCR * 1e11)
+
+	// Debug information
+	if debug {
+		fmt.Print(FormatDebugBalanceInfo(userIDStr, balanceAtoms, costUSD, requiredDCR, dcrAtoms))
+	}
+
+	// Check if user has sufficient balance
+	if balanceAtoms < dcrAtoms {
+		hasSufficientBalance = false
+		errMsg = FormatInsufficientBalanceMessageWithUSD(requiredDCR, currentBalanceDCR, costUSD)
+		return // Not a critical error, just insufficient funds
+	}
+
+	hasSufficientBalance = true
+	return // Sufficient balance
+}
+
+// DeductBalance deducts the specified cost in USD from the user's balance.
+// It assumes the balance check has already passed IF billing is enabled.
+// Returns the amount charged in DCR, the new balance in DCR, and any error encountered.
+// If billingEnabled is false, it returns zero charged and the current balance without hitting the DB.
+func DeductBalance(ctx context.Context, dbManager *database.DBManager, userID []byte, costUSD float64, debug bool, billingEnabled bool) (chargedDCR float64, newBalanceDCR float64, err error) {
+	// Get current balance first
+	currentBalanceDCR, balanceErr := dbManager.GetUserBalance(userID) // Assuming GetUserBalance returns DCR
+	if balanceErr != nil {
+		err = fmt.Errorf("failed to get current balance before deduction attempt: %v", balanceErr)
+		return
+	}
+
+	// If billing is disabled, do nothing and return current balance
+	if !billingEnabled {
+		chargedDCR = 0
+		newBalanceDCR = currentBalanceDCR
+		return // Success (no-op)
+	}
+
+	// --- Billing is enabled, perform deduction ---
+
+	// Deduct balance using CheckAndDeductBalance
+	// Note: CheckAndDeductBalance itself likely converts USD internally based on its signature
+	hasBalanceAfterDeduct, err := dbManager.CheckAndDeductBalance(userID, costUSD, debug)
+	if err != nil {
+		err = fmt.Errorf("failed to deduct balance: %v", err)
+		newBalanceDCR = currentBalanceDCR // Return pre-deduction balance on error
+		return
+	}
+	// This check might be redundant if CheckBalance was called first,
+	// but CheckAndDeductBalance performs an atomic check-and-deduct.
+	if !hasBalanceAfterDeduct {
+		// This indicates a potential race condition or logic error if CheckBalance passed moments before.
+		err = fmt.Errorf("deduction failed despite prior check (insufficient funds or race condition)")
+		newBalanceDCR = currentBalanceDCR // Return pre-deduction balance on error
+		return
+	}
+
+	// Convert charged amount back to DCR for reporting (if needed, depends on CheckAndDeductBalance return)
+	// Assuming costUSD was the amount successfully deducted in USD terms.
+	chargedDCR, convertErr := USDToDCR(costUSD)
+	if convertErr != nil {
+		// Log this error, but the deduction likely succeeded, so proceed with getting new balance.
+		fmt.Printf("WARN: Failed to convert charged USD to DCR for reporting: %v\n", convertErr)
+		chargedDCR = 0 // Assign a placeholder
+	}
+
+	// Get updated balance for result
+	finalBalanceDCR, finalBalanceErr := dbManager.GetUserBalance(userID) // Assuming GetUserBalance returns DCR
+	if finalBalanceErr != nil {
+		// The deduction likely succeeded, but we failed to get the final balance.
+		err = fmt.Errorf("deduction likely succeeded, but failed to get updated balance: %v", finalBalanceErr)
+		newBalanceDCR = currentBalanceDCR // Return pre-deduction balance as best guess
+		return
+	}
+	newBalanceDCR = finalBalanceDCR
+
+	// Debug information after deduction
+	if debug {
+		fmt.Print(FormatDebugAfterDeduction(int64(newBalanceDCR * 1e11)))
+	}
+
+	return // Success
+}

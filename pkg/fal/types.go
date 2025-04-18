@@ -344,18 +344,21 @@ type FluxProV1_1Request struct {
 	OutputFormat        string `json:"output_format,omitempty"`
 }
 
+// ImageOutput represents a single image result within an ImageResponse
+type ImageOutput struct {
+	URL         string `json:"url"`
+	ContentType string `json:"content_type"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+}
+
 // ImageResponse represents the response from an image generation request
 type ImageResponse struct {
-	Images []struct {
-		URL         string `json:"url"`
-		ContentType string `json:"content_type"`
-		Width       int    `json:"width"`
-		Height      int    `json:"height"`
-	} `json:"images"`
-	NSFW        bool      `json:"nsfw"`
-	CreatedAt   time.Time `json:"created_at"`
-	CompletedAt time.Time `json:"completed_at"`
-	Seed        int       `json:"seed"` // Seed used for the generation
+	Images      []ImageOutput `json:"images"`
+	NSFW        bool          `json:"nsfw"`
+	CreatedAt   time.Time     `json:"created_at"`
+	CompletedAt time.Time     `json:"completed_at"`
+	Seed        uint64        `json:"seed"`
 }
 
 // BaseSpeechRequest represents the base fields for a speech generation request

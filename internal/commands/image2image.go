@@ -59,17 +59,11 @@ func Image2ImageCommand(dbManager *database.DBManager, imageService *image.Image
 				return bot.SendPM(ctx, pm.Nick, "Please provide a valid http:// or https:// URL for the image.")
 			}
 
-			// Create Fal.ai client
-			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
-
 			// Get model configuration
 			model, exists := faladapter.GetCurrentModel("image2image")
 			if !exists {
 				return fmt.Errorf("no default model found for image2image")
 			}
-
-			// Create image service
-			imageService := image.NewImageService(client, dbManager, bot, debug)
 
 			// Create progress callback
 			progress := NewCommandProgressCallback(bot, pm.Nick, "image2image")
