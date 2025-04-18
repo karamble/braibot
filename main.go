@@ -75,15 +75,20 @@ func realMain() error {
 
 	// Wait for braibot.conf to be created
 	configPath := filepath.Join(appRoot, "braibot.conf")
-	for i := 0; i < 5; i++ { // Try for 5 seconds
+	configFileFound := false
+	for i := 0; i < 30; i++ { // Try for 3 seconds (30 * 100ms)
 		if _, err := os.Stat(configPath); err == nil {
 			// File exists, proceed with checkAndUpdateConfig for braibot specific configuration fields
 			if err := braiconfig.CheckAndUpdateConfig(cfg, appRoot); err != nil {
 				return fmt.Errorf("failed to check and update config: %v", err)
 			}
+			configFileFound = true
 			break
 		}
-		time.Sleep(time.Second)
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !configFileFound {
+		return fmt.Errorf("config file '%s' not found after waiting", configPath)
 	}
 
 	// Create a bidirectional channel for PMs and tips
