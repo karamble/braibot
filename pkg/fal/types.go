@@ -102,6 +102,176 @@ func (o *KlingVideoOptions) Validate() error {
 	return nil
 }
 
+// FluxSchnellOptions represents the options available for the fal-ai/flux/schnell model
+type FluxSchnellOptions struct {
+	ImageSize           string `json:"image_size,omitempty"`            // square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9
+	NumInferenceSteps   int    `json:"num_inference_steps,omitempty"`   // Default: 4
+	Seed                *int   `json:"seed,omitempty"`                  // Optional seed
+	SyncMode            bool   `json:"sync_mode,omitempty"`             // Default: false
+	NumImages           int    `json:"num_images,omitempty"`            // Default: 1
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns the default values for Flux Schnell options
+func (o *FluxSchnellOptions) GetDefaultValues() map[string]interface{} {
+	defaultSafetyChecker := true
+	return map[string]interface{}{
+		"image_size":            "landscape_4_3",
+		"num_inference_steps":   4,
+		"num_images":            1,
+		"enable_safety_checker": &defaultSafetyChecker, // Use pointer for default true bool
+		// seed and sync_mode default to nil/false implicitly
+	}
+}
+
+// Validate validates the Flux Schnell options
+func (o *FluxSchnellOptions) Validate() error {
+	validImageSizes := map[string]bool{
+		"square_hd":      true,
+		"square":         true,
+		"portrait_4_3":   true,
+		"portrait_16_9":  true,
+		"landscape_4_3":  true,
+		"landscape_16_9": true,
+	}
+
+	if o.ImageSize != "" && !validImageSizes[o.ImageSize] {
+		// TODO: Add support for {width, height} object validation if needed
+		return fmt.Errorf("invalid image_size: %s (must be one of: square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9)", o.ImageSize)
+	}
+	if o.NumInferenceSteps < 0 {
+		return fmt.Errorf("num_inference_steps cannot be negative: %d", o.NumInferenceSteps)
+	}
+	if o.NumImages < 0 {
+		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	}
+
+	return nil
+}
+
+// FluxProV1_1Options represents the options available for the fal-ai/flux-pro/v1.1 model
+type FluxProV1_1Options struct {
+	ImageSize           string `json:"image_size,omitempty"`            // square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9
+	Seed                *int   `json:"seed,omitempty"`                  // Optional seed
+	SyncMode            bool   `json:"sync_mode,omitempty"`             // Default: false
+	NumImages           int    `json:"num_images,omitempty"`            // Default: 1
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"` // Default: true
+	SafetyTolerance     string `json:"safety_tolerance,omitempty"`      // Enum: 1, 2, 3, 4, 5, 6. Default: "2"
+	OutputFormat        string `json:"output_format,omitempty"`         // Enum: jpeg, png. Default: "jpeg"
+}
+
+// GetDefaultValues returns the default values for Flux Pro v1.1 options
+func (o *FluxProV1_1Options) GetDefaultValues() map[string]interface{} {
+	defaultSafetyChecker := true
+	return map[string]interface{}{
+		"image_size":            "landscape_4_3",
+		"num_images":            1,
+		"enable_safety_checker": &defaultSafetyChecker,
+		"safety_tolerance":      "2",
+		"output_format":         "jpeg",
+		// seed and sync_mode default to nil/false implicitly
+	}
+}
+
+// Validate validates the Flux Pro v1.1 options
+func (o *FluxProV1_1Options) Validate() error {
+	validImageSizes := map[string]bool{
+		"square_hd":      true,
+		"square":         true,
+		"portrait_4_3":   true,
+		"portrait_16_9":  true,
+		"landscape_4_3":  true,
+		"landscape_16_9": true,
+	}
+	validSafetyTolerances := map[string]bool{
+		"1": true, "2": true, "3": true, "4": true, "5": true, "6": true,
+	}
+	validOutputFormats := map[string]bool{
+		"jpeg": true, "png": true,
+	}
+
+	if o.ImageSize != "" && !validImageSizes[o.ImageSize] {
+		return fmt.Errorf("invalid image_size: %s", o.ImageSize)
+	}
+	if o.NumImages < 0 {
+		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	}
+	if o.SafetyTolerance != "" && !validSafetyTolerances[o.SafetyTolerance] {
+		return fmt.Errorf("invalid safety_tolerance: %s (must be 1-6)", o.SafetyTolerance)
+	}
+	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s (must be jpeg or png)", o.OutputFormat)
+	}
+	return nil
+}
+
+// MinimaxTTSOptions represents options for the minimax-tts model.
+type MinimaxTTSOptions struct {
+	// Voice Settings
+	// VoiceID handled in request struct
+	Speed   *float64 `json:"speed,omitempty"`   // 0.5 - 2.0, default 1.0
+	Vol     *float64 `json:"vol,omitempty"`     // 0 - 10, default 1.0
+	Pitch   *int     `json:"pitch,omitempty"`   // -12 - 12, optional
+	Emotion string   `json:"emotion,omitempty"` // happy, sad, etc. optional
+	// Audio Settings
+	SampleRate string `json:"sample_rate,omitempty"` // 8000, 16000, ..., default 32000
+	Bitrate    string `json:"bitrate,omitempty"`     // 32000, 64000, ..., default 128000
+	Format     string `json:"format,omitempty"`      // mp3, pcm, flac, default mp3
+	Channel    string `json:"channel,omitempty"`     // 1 (mono), 2 (stereo), default 1
+}
+
+// GetDefaultValues returns default values for MinimaxTTSOptions.
+func (o *MinimaxTTSOptions) GetDefaultValues() map[string]interface{} {
+	// Define defaults as pointers where applicable to match struct fields
+	defaultSpeed := 1.0
+	defaultVol := 1.0
+	return map[string]interface{}{
+		"speed":       &defaultSpeed,
+		"vol":         &defaultVol,
+		"sample_rate": "32000",
+		"bitrate":     "128000",
+		"format":      "mp3",
+		"channel":     "1",
+		// Pitch and Emotion default to nil/""
+	}
+}
+
+// Validate validates MinimaxTTSOptions.
+func (o *MinimaxTTSOptions) Validate() error {
+	// Voice Settings Validation
+	if o.Speed != nil && (*o.Speed < 0.5 || *o.Speed > 2.0) {
+		return fmt.Errorf("invalid speed: %f (must be between 0.5 and 2.0)", *o.Speed)
+	}
+	if o.Vol != nil && (*o.Vol < 0 || *o.Vol > 10.0) {
+		return fmt.Errorf("invalid vol: %f (must be between 0 and 10)", *o.Vol)
+	}
+	if o.Pitch != nil && (*o.Pitch < -12 || *o.Pitch > 12) {
+		return fmt.Errorf("invalid pitch: %d (must be between -12 and 12)", *o.Pitch)
+	}
+	validEmotions := map[string]bool{"happy": true, "sad": true, "angry": true, "fearful": true, "disgusted": true, "surprised": true, "neutral": true, "": true}
+	if !validEmotions[o.Emotion] {
+		return fmt.Errorf("invalid emotion: %s", o.Emotion)
+	}
+	// Audio Settings Validation
+	validSampleRates := map[string]bool{"8000": true, "16000": true, "22050": true, "24000": true, "32000": true, "44100": true, "": true}
+	if !validSampleRates[o.SampleRate] {
+		return fmt.Errorf("invalid sample_rate: %s", o.SampleRate)
+	}
+	validBitrates := map[string]bool{"32000": true, "64000": true, "128000": true, "256000": true, "": true}
+	if !validBitrates[o.Bitrate] {
+		return fmt.Errorf("invalid bitrate: %s", o.Bitrate)
+	}
+	validFormats := map[string]bool{"mp3": true, "pcm": true, "flac": true, "": true}
+	if !validFormats[o.Format] {
+		return fmt.Errorf("invalid format: %s", o.Format)
+	}
+	validChannels := map[string]bool{"1": true, "2": true, "": true}
+	if !validChannels[o.Channel] {
+		return fmt.Errorf("invalid channel: %s", o.Channel)
+	}
+	return nil
+}
+
 // ModelDefinition is an interface for types that define a Fal.ai model.
 // Implementations of this interface are expected to register themselves
 // using the registerModel function in their init() function.
@@ -119,12 +289,59 @@ type Model struct {
 	Options     ModelOptions // Model-specific options
 }
 
-// ImageRequest represents a request to generate an image
-type ImageRequest struct {
-	Prompt   string
-	Model    string
-	Options  map[string]interface{}
-	Progress ProgressCallback
+// BaseImageRequest represents the base fields for an image generation request
+// (text2image or image2image)
+type BaseImageRequest struct {
+	Prompt   string                 `json:"prompt,omitempty"`    // Optional for image2image
+	ImageURL string                 `json:"image_url,omitempty"` // Required for image2image
+	Model    string                 `json:"-"`                   // Internal use: model name
+	Options  map[string]interface{} `json:"-"`                   // Fallback for generic options
+	Progress ProgressCallback       `json:"-"`                   // Progress callback interface
+}
+
+// GetProgress returns the progress callback
+func (r *BaseImageRequest) GetProgress() ProgressCallback {
+	return r.Progress
+}
+
+// GetOptions returns the options map
+func (r *BaseImageRequest) GetOptions() map[string]interface{} {
+	return r.Options
+}
+
+// FastSDXLRequest represents a request to generate an image using fast-sdxl
+type FastSDXLRequest struct {
+	BaseImageRequest
+	NumImages int `json:"num_images,omitempty"` // Optional: Number of images to generate
+}
+
+// GhiblifyRequest represents a request to transform an image using ghiblify
+type GhiblifyRequest struct {
+	BaseImageRequest // Requires ImageURL to be set
+	// No specific options for Ghiblify identified yet
+}
+
+// FluxSchnellRequest represents a request to generate an image using fal-ai/flux/schnell
+type FluxSchnellRequest struct {
+	BaseImageRequest
+	ImageSize           string `json:"image_size,omitempty"`
+	NumInferenceSteps   int    `json:"num_inference_steps,omitempty"`
+	Seed                *int   `json:"seed,omitempty"`
+	SyncMode            bool   `json:"sync_mode,omitempty"`
+	NumImages           int    `json:"num_images,omitempty"`
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"`
+}
+
+// FluxProV1_1Request represents a request for the fal-ai/flux-pro/v1.1 model
+type FluxProV1_1Request struct {
+	BaseImageRequest
+	ImageSize           string `json:"image_size,omitempty"`
+	Seed                *int   `json:"seed,omitempty"`
+	SyncMode            bool   `json:"sync_mode,omitempty"`
+	NumImages           int    `json:"num_images,omitempty"`
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"`
+	SafetyTolerance     string `json:"safety_tolerance,omitempty"`
+	OutputFormat        string `json:"output_format,omitempty"`
 }
 
 // ImageResponse represents the response from an image generation request
@@ -138,15 +355,40 @@ type ImageResponse struct {
 	NSFW        bool      `json:"nsfw"`
 	CreatedAt   time.Time `json:"created_at"`
 	CompletedAt time.Time `json:"completed_at"`
+	Seed        int       `json:"seed"` // Seed used for the generation
 }
 
-// SpeechRequest represents a request to generate speech
-type SpeechRequest struct {
-	Model    string // Name of the text-to-speech model to use
-	Text     string
-	VoiceID  string // Specific to models like minimax-tts
-	Options  map[string]interface{}
-	Progress ProgressCallback
+// BaseSpeechRequest represents the base fields for a speech generation request
+type BaseSpeechRequest struct {
+	Model    string                 `json:"-"` // Internal use: model name
+	Text     string                 `json:"text"`
+	Options  map[string]interface{} `json:"-"` // Fallback for generic options
+	Progress ProgressCallback       `json:"-"` // Progress callback interface
+}
+
+// GetProgress returns the progress callback
+func (r *BaseSpeechRequest) GetProgress() ProgressCallback {
+	return r.Progress
+}
+
+// GetOptions returns the options map
+func (r *BaseSpeechRequest) GetOptions() map[string]interface{} {
+	return r.Options
+}
+
+// MinimaxTTSRequest represents a request to generate speech using minimax-tts
+type MinimaxTTSRequest struct {
+	BaseSpeechRequest
+	VoiceID string `json:"-"` // Not sent directly, part of voice_setting
+	// Mirrored Options for convenience
+	Speed      *float64 `json:"-"`
+	Vol        *float64 `json:"-"`
+	Pitch      *int     `json:"-"`
+	Emotion    string   `json:"-"`
+	SampleRate string   `json:"-"`
+	Bitrate    string   `json:"-"`
+	Format     string   `json:"-"`
+	Channel    string   `json:"-"`
 }
 
 // AudioResponse represents the response from a speech generation request
@@ -240,4 +482,176 @@ type Error struct {
 
 func (e *Error) Error() string {
 	return e.Message
+}
+
+// HiDreamOptions represents common options for fal-ai/hidream models
+type HiDreamOptions struct {
+	NegativePrompt      string   `json:"negative_prompt,omitempty"`       // Default: ""
+	ImageSize           string   `json:"image_size,omitempty"`            // Default: "square_hd"
+	NumInferenceSteps   *int     `json:"num_inference_steps,omitempty"`   // Default: 50
+	Seed                *int     `json:"seed,omitempty"`                  // Optional seed
+	GuidanceScale       *float64 `json:"guidance_scale,omitempty"`        // Default: 5.0
+	SyncMode            bool     `json:"sync_mode,omitempty"`             // Default: false
+	NumImages           int      `json:"num_images,omitempty"`            // Default: 1
+	EnableSafetyChecker *bool    `json:"enable_safety_checker,omitempty"` // Default: true
+	OutputFormat        string   `json:"output_format,omitempty"`         // Default: "jpeg"
+}
+
+// GetDefaultValues returns default values for HiDream options
+func (o *HiDreamOptions) GetDefaultValues() map[string]interface{} {
+	defaultNumSteps := 50
+	defaultGuidanceScale := 5.0
+	defaultSafetyChecker := true
+	return map[string]interface{}{
+		"negative_prompt":       "",
+		"image_size":            "square_hd", // Defaulting to 1024x1024
+		"num_inference_steps":   &defaultNumSteps,
+		"guidance_scale":        &defaultGuidanceScale,
+		"num_images":            1,
+		"enable_safety_checker": &defaultSafetyChecker,
+		"output_format":         "jpeg",
+	}
+}
+
+// Validate validates HiDream options
+func (o *HiDreamOptions) Validate() error {
+	validImageSizes := map[string]bool{
+		"square_hd": true, "square": true, "portrait_4_3": true,
+		"portrait_16_9": true, "landscape_4_3": true, "landscape_16_9": true,
+	}
+	validOutputFormats := map[string]bool{"jpeg": true, "png": true, "": true}
+
+	if o.ImageSize != "" && !validImageSizes[o.ImageSize] {
+		return fmt.Errorf("invalid image_size: %s", o.ImageSize)
+	}
+	if o.NumInferenceSteps != nil && *o.NumInferenceSteps <= 0 {
+		return fmt.Errorf("num_inference_steps must be positive: %d", *o.NumInferenceSteps)
+	}
+	if o.GuidanceScale != nil && *o.GuidanceScale < 0 {
+		return fmt.Errorf("guidance_scale cannot be negative: %f", *o.GuidanceScale)
+	}
+	if o.NumImages < 0 {
+		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	}
+	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s", o.OutputFormat)
+	}
+	return nil
+}
+
+// HiDreamI1FullRequest represents a request for the fal-ai/hidream-i1-full model
+type HiDreamI1FullRequest struct {
+	BaseImageRequest
+	NegativePrompt      string   `json:"negative_prompt,omitempty"`
+	ImageSize           string   `json:"image_size,omitempty"`
+	NumInferenceSteps   *int     `json:"num_inference_steps,omitempty"`
+	Seed                *int     `json:"seed,omitempty"`
+	GuidanceScale       *float64 `json:"guidance_scale,omitempty"`
+	SyncMode            bool     `json:"sync_mode,omitempty"`
+	NumImages           int      `json:"num_images,omitempty"`
+	EnableSafetyChecker *bool    `json:"enable_safety_checker,omitempty"`
+	OutputFormat        string   `json:"output_format,omitempty"`
+}
+
+// HiDreamI1DevRequest represents a request for the fal-ai/hidream-i1-dev model
+type HiDreamI1DevRequest struct {
+	HiDreamI1FullRequest // Assuming same params as full
+}
+
+// HiDreamI1FastRequest represents a request for the fal-ai/hidream-i1-fast model
+type HiDreamI1FastRequest struct {
+	HiDreamI1FullRequest // Assuming same params as full
+}
+
+// FluxProV1_1UltraOptions represents options for fal-ai/flux-pro/v1.1-ultra
+type FluxProV1_1UltraOptions struct {
+	Seed                *int   `json:"seed,omitempty"`
+	SyncMode            bool   `json:"sync_mode,omitempty"`
+	NumImages           int    `json:"num_images,omitempty"`
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"`
+	SafetyTolerance     string `json:"safety_tolerance,omitempty"`
+	OutputFormat        string `json:"output_format,omitempty"`
+	AspectRatio         string `json:"aspect_ratio,omitempty"` // Different from image_size
+	Raw                 *bool  `json:"raw,omitempty"`
+}
+
+// GetDefaultValues returns default values for Flux Pro v1.1 Ultra options
+func (o *FluxProV1_1UltraOptions) GetDefaultValues() map[string]interface{} {
+	defaultSafetyChecker := true
+	defaultRaw := false
+	return map[string]interface{}{
+		"num_images":            1,
+		"enable_safety_checker": &defaultSafetyChecker,
+		"safety_tolerance":      "2",
+		"output_format":         "jpeg",
+		"aspect_ratio":          "16:9",
+		"raw":                   &defaultRaw,
+	}
+}
+
+// Validate validates Flux Pro v1.1 Ultra options
+func (o *FluxProV1_1UltraOptions) Validate() error {
+	validSafetyTolerances := map[string]bool{"1": true, "2": true, "3": true, "4": true, "5": true, "6": true, "": true}
+	validOutputFormats := map[string]bool{"jpeg": true, "png": true, "": true}
+	validAspectRatios := map[string]bool{
+		"21:9": true, "16:9": true, "4:3": true, "3:2": true, "1:1": true,
+		"2:3": true, "3:4": true, "9:16": true, "9:21": true, "": true,
+	}
+
+	if o.NumImages < 0 {
+		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	}
+	if o.SafetyTolerance != "" && !validSafetyTolerances[o.SafetyTolerance] {
+		return fmt.Errorf("invalid safety_tolerance: %s (must be 1-6)", o.SafetyTolerance)
+	}
+	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s (must be jpeg or png)", o.OutputFormat)
+	}
+	if o.AspectRatio != "" && !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s", o.AspectRatio)
+	}
+	return nil
+}
+
+// CartoonifyOptions represents options for the cartoonify model.
+type CartoonifyOptions struct {
+	// No specific options identified yet
+}
+
+func (o *CartoonifyOptions) GetDefaultValues() map[string]interface{} {
+	return make(map[string]interface{})
+}
+func (o *CartoonifyOptions) Validate() error { return nil }
+
+// StarVectorOptions represents options for the star-vector model.
+type StarVectorOptions struct {
+	// No specific options identified yet
+}
+
+func (o *StarVectorOptions) GetDefaultValues() map[string]interface{} {
+	return make(map[string]interface{})
+}
+func (o *StarVectorOptions) Validate() error { return nil }
+
+// FluxProV1_1UltraRequest represents a request for fal-ai/flux-pro/v1.1-ultra
+type FluxProV1_1UltraRequest struct {
+	BaseImageRequest
+	Seed                *int   `json:"seed,omitempty"`
+	SyncMode            bool   `json:"sync_mode,omitempty"`
+	NumImages           int    `json:"num_images,omitempty"`
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"`
+	SafetyTolerance     string `json:"safety_tolerance,omitempty"`
+	OutputFormat        string `json:"output_format,omitempty"`
+	AspectRatio         string `json:"aspect_ratio,omitempty"`
+	Raw                 *bool  `json:"raw,omitempty"`
+}
+
+// CartoonifyRequest represents a request for the cartoonify model
+type CartoonifyRequest struct {
+	BaseImageRequest // Requires ImageURL
+}
+
+// StarVectorRequest represents a request for the star-vector model
+type StarVectorRequest struct {
+	BaseImageRequest // Requires ImageURL
 }

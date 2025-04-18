@@ -16,7 +16,8 @@ import (
 )
 
 // Image2ImageCommand returns the image2image command
-func Image2ImageCommand(dbManager *database.DBManager, debug bool) Command {
+// It now requires an ImageService instance.
+func Image2ImageCommand(dbManager *database.DBManager, imageService *image.ImageService, debug bool) Command {
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("image2image")
 	if !exists {

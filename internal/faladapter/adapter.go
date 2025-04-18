@@ -172,14 +172,37 @@ func (c *BotProgressCallback) OnLogMessage(message string) {
 }
 
 // GenerateSpeech generates speech using the fal package.
-func GenerateSpeech(ctx context.Context, client *fal.Client, req fal.SpeechRequest, bot *kit.Bot, userNick string) (*fal.AudioResponse, error) {
-	// Ensure progress callback is set, creating one if necessary
-	if req.Progress == nil {
-		req.Progress = NewBotProgressCallback(bot, userNick)
+// Accepts specific request types (e.g., *fal.MinimaxTTSRequest) via interface{}.
+func GenerateSpeech(ctx context.Context, client *fal.Client, req interface{}, bot *kit.Bot, userNick string) (*fal.AudioResponse, error) {
+	// Ensure progress callback is set, creating one if necessary.
+	// We need to type assert to access the Progress field.
+	switch r := req.(type) {
+	case *fal.MinimaxTTSRequest:
+		if r.Progress == nil {
+			r.Progress = NewBotProgressCallback(bot, userNick)
+		}
+	// Add cases for other specific speech request types here
+	// case *OtherSpeechRequest:
+	//   if r.Progress == nil {
+	//	   r.Progress = NewBotProgressCallback(bot, userNick)
+	//   }
+	default:
+		// Attempt to access Progress via the base request if embedded.
+		// This relies on the Progressable interface being implemented by the base struct.
+		if progressable, ok := req.(fal.Progressable); ok {
+			if progressable.GetProgress() == nil {
+				// Setting progress via interface is tricky. This might require
+				// reflection or modifying the base request struct itself before the call.
+				// For now, log a warning if Progress is nil on an unknown type.
+				fmt.Printf("Warning: Progress callback is nil on unsupported request type %T\n", req)
+			}
+		} else {
+			return nil, fmt.Errorf("request type %T does not support progress updates or is unknown", req)
+		}
 	}
 
 	// Generate speech by calling the underlying fal client method
-	resp, err := client.GenerateSpeech(ctx, req)
+	resp, err := client.GenerateSpeech(ctx, req) // req is already the specific type
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate speech: %v", err)
 	}

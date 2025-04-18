@@ -29,6 +29,7 @@ func (m *cartoonifyModel) Define() Model {
 		PriceUSD:    0.02,
 		Type:        "image2image",
 		HelpDoc:     "Usage: !image2image [image_url]\nExample: !image2image https://example.com/image.jpg\n\nParameters:\n• image_url: URL of the image to transform",
+		Options:     &CartoonifyOptions{},
 	}
 }
 
@@ -43,9 +44,7 @@ func (m *starVectorModel) Define() Model {
 		PriceUSD:    1.0,
 		Type:        "image2image",
 		HelpDoc:     "Usage: !image2image [image_url]\nExample: !image2image https://example.com/image.jpg\n\nTo use this model, first set it as the default model:\n!setmodel image2image star-vector\n\nParameters:\n• image_url: URL of the source image\n\nPricing:\n• Base price: $1.0 per image",
-		// Note: This model doesn't seem to have specific options defined in the original code,
-		// even though its client usage might imply options. Keeping Options nil for now.
-		Options: nil,
+		Options:     &StarVectorOptions{},
 	}
 }
 

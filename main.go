@@ -108,7 +108,7 @@ func realMain() error {
 	}
 
 	// Initialize command registry
-	commandRegistry := commands.InitializeCommands(dbManager, debug)
+	commandRegistry := commands.InitializeCommands(dbManager, cfg, bot, debug)
 
 	// Add a goroutine to handle PMs using our bidirectional channel
 	go func() {

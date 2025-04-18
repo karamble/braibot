@@ -77,72 +77,107 @@ var progressCallback fal.ProgressCallback = &MyProgressTracker{}
 
 ### 3. Performing Generation Tasks
 
-**Text-to-Image:**
+**Text-to-Image (e.g., Flux Schnell):**
 
 ```go
-req := fal.ImageRequest{
-    Model:    "fast-sdxl", // Or another registered text2image model
-    Prompt:   "a futuristic cityscape at dusk",
-    Progress: progressCallback, // Optional
-    Options:  map[string]interface{}{"num_images": 1}, // Optional extra params
+// Use the specific request struct for type safety and defined options
+req := fal.FluxSchnellRequest{
+	BaseImageRequest: fal.BaseImageRequest{
+		Prompt:   "a hyperrealistic cat wearing sunglasses",
+		Progress: progressCallback, // Optional
+	},
+	// Set specific options for this model
+	NumImages: 2,
+	ImageSize: "square",
 }
-resp, err := client.GenerateImage(context.Background(), req)
+
+// Pass the specific request struct to GenerateImage
+resp, err := client.GenerateImage(context.Background(), &req)
 if err == nil {
-    fmt.Println("Image URL:", resp.Images[0].URL)
+	fmt.Println("Image URL:", resp.Images[0].URL)
+	// Access seed if needed: fmt.Println("Seed:", resp.Seed)
 }
 ```
 
 **Image-to-Image (e.g., Ghiblify):**
 
 ```go
-req := fal.ImageRequest{
-    Model:    "ghiblify", // Or another registered image2image model
-    Progress: progressCallback, // Optional
-    Options: map[string]interface{}{
-        "image_url": "https://example.com/input.jpg",
-        // Other model-specific options can go here
-    },
+// Use the specific request struct
+req := fal.GhiblifyRequest{
+	BaseImageRequest: fal.BaseImageRequest{
+		ImageURL: "https://example.com/input.jpg",
+		Progress: progressCallback, // Optional
+		// Prompt is optional for ghiblify but can be added here
+	},
+	// Ghiblify currently has no specific options beyond BaseImageRequest
 }
-resp, err := client.GenerateImage(context.Background(), req)
+
+// Pass the specific request struct to GenerateImage
+resp, err := client.GenerateImage(context.Background(), &req)
 // ... handle response ...
+```
+
+**Text-to-Speech (e.g., Minimax TTS):**
+
+```go
+// Use the specific request struct
+req := fal.MinimaxTTSRequest{
+	BaseSpeechRequest: fal.BaseSpeechRequest{
+		Text:     "Hello from the digital world!",
+		Progress: progressCallback, // Optional
+	},
+	// Set specific options for this model
+	VoiceID: "Calm_Woman",
+	Speed:   floatPtr(0.9), // Use helper for optional pointers if needed
+}
+
+// Pass the specific request struct to GenerateSpeech
+resp, err := client.GenerateSpeech(context.Background(), &req)
+if err == nil {
+    fmt.Println("Audio URL:", resp.AudioURL)
+}
+
+// Helper to get pointer for optional float (example)
+func floatPtr(f float64) *float64 { return &f }
 ```
 
 **Image-to-Video (e.g., Veo2):**
 
 ```go
 // Use the specific request struct for type safety and defaults
-veo2Req := fal.Veo2Request{
-    BaseVideoRequest: fal.BaseVideoRequest{
-        Prompt:   "make the cat dance",
-        ImageURL:  "https://example.com/cat.jpg",
-        Progress:  progressCallback, // Attach progress here
-    },
-    // Specific Veo2 options (will use defaults defined in model if empty)
-    Duration:    "8", 
-    AspectRatio: "16:9", 
+req := fal.Veo2Request{
+	BaseVideoRequest: fal.BaseVideoRequest{
+		Prompt:   "make the cat dance",
+		ImageURL: "https://example.com/cat.jpg",
+		Progress: progressCallback, // Attach progress here
+	},
+	// Specific Veo2 options (will use defaults defined in model if empty)
+	Duration:    "8",
+	AspectRatio: "16:9",
 }
 
 // Pass the specific request struct to GenerateVideo
-resp, err := client.GenerateVideo(context.Background(), &veo2Req) 
-if err == nil {
-    fmt.Println("Video URL:", resp.GetURL())
-}
+resp, err := client.GenerateVideo(context.Background(), &req)
+// ... handle response ...
 ```
 
-**Text-to-Speech (e.g., Minimax TTS):**
+**Text-to-Video (e.g., Kling Text):**
 
 ```go
-req := fal.SpeechRequest{
-    Model:    "minimax-tts/text-to-speech", // The registered model name
-    Text:     "The quick brown fox jumps over the lazy dog.",
-    VoiceID:  "Friendly_Person", // Parameter specific to this model
-    Progress: progressCallback, // Optional
-    Options:  map[string]interface{}{}, // Optional extra params
+// Use the specific request struct (KlingVideoRequest handles text/image variants)
+req := fal.KlingVideoRequest{
+	BaseVideoRequest: fal.BaseVideoRequest{
+		Prompt:   "a teddy bear playing drums on the moon",
+		Progress: progressCallback,
+	},
+	// Specific Kling options
+	Duration:    "10",
+	AspectRatio: "16:9",
 }
-resp, err := client.GenerateSpeech(context.Background(), req)
-if err == nil {
-    fmt.Println("Audio URL:", resp.AudioURL)
-}
+
+// Pass the specific request struct to GenerateVideo
+resp, err := client.GenerateVideo(context.Background(), &req)
+// ... handle response ...
 ```
 
 ### 4. Managing Models
