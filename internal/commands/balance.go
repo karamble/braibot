@@ -13,11 +13,18 @@ import (
 )
 
 // BalanceCommand returns the balance command
-func BalanceCommand(dbManager *database.DBManager, debug bool) Command {
+func BalanceCommand(dbManager *database.DBManager, debug bool, billingEnabled bool) Command {
 	return Command{
 		Name:        "balance",
 		Description: "Check your current balance",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
+			// If billing is disabled, inform the user and exit
+			if !billingEnabled {
+				return bot.SendPM(ctx, pm.Nick, "💰 Billing is currently disabled for this bot.")
+			}
+
+			// --- Billing is enabled, proceed with balance check ---
+
 			// Convert UID to string ID for database
 			var userID zkidentity.ShortID
 			userID.FromBytes(pm.Uid)
@@ -43,7 +50,9 @@ func BalanceCommand(dbManager *database.DBManager, debug bool) Command {
 			// Get current exchange rate
 			dcrPrice, _, err := GetDCRPrice()
 			if err != nil {
-				return fmt.Errorf("failed to get DCR price: %v", err)
+				// Inform user about the rate error but still show balance
+				msg := fmt.Sprintf("Your current balance is %.8f DCR.\n(Could not fetch current DCR/USD rate: %v)", balanceDCR, err)
+				return bot.SendPM(ctx, pm.Nick, msg)
 			}
 
 			// Send balance information

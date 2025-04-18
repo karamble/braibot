@@ -60,15 +60,16 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 		modelName = r.BaseVideoRequest.Model
 		model, exists := GetModel(modelName, "text2video") // Check both types
-		modelType := "text2video"
+		modelTypeForPath := "text-to-video"                // Default for path construction
 		if !exists {
 			model, exists = GetModel(modelName, "image2video")
-			modelType = "image2video"
+			modelTypeForPath = "image-to-video" // Update path type if found as image2video
 		}
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
-		endpoint = "/kling-video/v2/master/" + modelType // Simplified endpoint logic
+		// Use modelTypeForPath (image-to-video or text-to-video) for the endpoint path
+		endpoint = "/kling-video/v2/master/" + modelTypeForPath
 
 		// Get model options for validation and defaults
 		options, ok := model.Options.(*KlingVideoOptions)
@@ -115,7 +116,14 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			delete(reqBody, "prompt")
 		}
 		// Remove empty fields only if ImageURL was expected but not provided
-		if modelType == "image2video" && r.ImageURL == "" {
+		// Use the original modelType for this check (image2video)
+		var originalModelType string
+		if r.BaseVideoRequest.ImageURL != "" {
+			originalModelType = "image2video"
+		} else {
+			originalModelType = "text2video"
+		}
+		if originalModelType == "image2video" && r.ImageURL == "" {
 			delete(reqBody, "image_url") // Should ideally be caught earlier
 		}
 	case *BaseVideoRequest: // Handle potentially ambiguous base request

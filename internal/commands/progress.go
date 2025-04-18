@@ -32,8 +32,10 @@ type CommandProgressCallback struct {
 	latestProgressMessage string
 	latestLogMessage      string
 
-	// Track the last sent message to avoid duplicates
-	lastSentMessage string
+	// Track the last sent message to avoid duplicates for each type
+	lastSentMessage         string // Used by OnLogMessage
+	lastSentQueueMessage    string // Added for OnQueueUpdate
+	lastSentProgressMessage string // Added for OnProgress
 }
 
 // NewCommandProgressCallback creates a new CommandProgressCallback with default throttling intervals.
@@ -60,8 +62,14 @@ func (c *CommandProgressCallback) OnQueueUpdate(position int, eta time.Duration)
 		return
 	}
 
+	// Check if this is the same message we last sent for queue updates
+	if c.latestQueueMessage == c.lastSentQueueMessage {
+		return
+	}
+
 	c.bot.SendPM(context.Background(), c.userNick, c.latestQueueMessage)
 	c.lastQueueUpdate = time.Now()
+	c.lastSentQueueMessage = c.latestQueueMessage // Update last sent queue message
 }
 
 // OnProgress sends progress updates to the user with throttling.
@@ -74,8 +82,15 @@ func (c *CommandProgressCallback) OnProgress(status string) {
 		return
 	}
 
+	// Check if this is the same message we last sent for progress updates
+	if c.latestProgressMessage == c.lastSentProgressMessage {
+		return
+	}
+
 	// Send the progress message
 	c.bot.SendPM(context.Background(), c.userNick, c.latestProgressMessage)
+	c.lastProgressUpdate = time.Now()
+	c.lastSentProgressMessage = c.latestProgressMessage // Update last sent progress message
 
 	// If status is IN_PROGRESS, send a special message about the expected processing time
 	// but only once every 2 minutes at maximum
@@ -96,8 +111,6 @@ func (c *CommandProgressCallback) OnProgress(status string) {
 		c.bot.SendPM(context.Background(), c.userNick, message)
 		c.lastSpecialMessage = time.Now()
 	}
-
-	c.lastProgressUpdate = time.Now()
 }
 
 // OnError sends error messages to the user (no throttling for errors).

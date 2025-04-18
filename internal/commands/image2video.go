@@ -2,12 +2,14 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
+	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/internal/video"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
@@ -88,14 +90,39 @@ func Image2VideoCommand(dbManager *database.DBManager, videoService *video.Video
 				PriceUSD:       model.PriceUSD,
 			}
 
-			// Generate video
+			// Generate video using the service
 			result, err := videoService.GenerateVideo(ctx, req)
 			if err != nil {
-				return fmt.Errorf("failed to generate video: %v", err)
+				var insufficientBalanceErr *utils.ErrInsufficientBalance // Define variable outside switch
+				switch {
+				case errors.As(err, &insufficientBalanceErr):
+					// Send specific PM ONLY for insufficient balance
+					pmMsg := fmt.Sprintf("Video generation failed: %s", insufficientBalanceErr.Error())
+					_ = bot.SendPM(ctx, pm.Nick, pmMsg)
+					return nil // Return nil as we notified the user
+				case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+					// Context was cancelled (likely due to shutdown signal), log and return nil
+					fmt.Printf("INFO [image2video] User %s: Context canceled/deadline exceeded: %v\n", pm.Nick, err)
+					return nil // Indicate clean termination due to context cancellation
+				default:
+					// For ALL other errors, log and return the error to the framework
+					fmt.Printf("ERROR [image2video] User %s: %v\n", pm.Nick, err)
+					return err // Return the original error
+				}
 			}
 
 			if !result.Success {
-				return fmt.Errorf("video generation failed: %v", result.Error)
+				// Log the error and return it.
+				errMsg := fmt.Sprintf("ERROR [image2video] User %s: Video generation failed internally", pm.Nick)
+				if result.Error != nil {
+					errMsg += fmt.Sprintf(": %v", result.Error)
+				}
+				fmt.Println(errMsg)
+				// Return an error to the framework
+				if result.Error != nil {
+					return fmt.Errorf("video generation failed: %w", result.Error)
+				}
+				return fmt.Errorf("video generation failed internally")
 			}
 
 			return nil

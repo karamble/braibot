@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
 	"github.com/karamble/braibot/internal/image"
+	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
@@ -59,17 +61,11 @@ func Image2ImageCommand(dbManager *database.DBManager, imageService *image.Image
 				return bot.SendPM(ctx, pm.Nick, "Please provide a valid http:// or https:// URL for the image.")
 			}
 
-			// Create Fal.ai client
-			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
-
 			// Get model configuration
 			model, exists := faladapter.GetCurrentModel("image2image")
 			if !exists {
 				return fmt.Errorf("no default model found for image2image")
 			}
-
-			// Create image service
-			imageService := image.NewImageService(client, dbManager, bot, debug)
 
 			// Create progress callback
 			progress := NewCommandProgressCallback(bot, pm.Nick, "image2image")
@@ -87,14 +83,39 @@ func Image2ImageCommand(dbManager *database.DBManager, imageService *image.Image
 				PriceUSD:  model.PriceUSD,
 			}
 
-			// Generate image
+			// Generate image using the service
 			result, err := imageService.GenerateImage(ctx, req)
 			if err != nil {
-				return fmt.Errorf("failed to generate image: %v", err)
+				var insufficientBalanceErr *utils.ErrInsufficientBalance // Define variable outside switch
+				switch {
+				case errors.As(err, &insufficientBalanceErr):
+					// Send specific PM ONLY for insufficient balance
+					pmMsg := fmt.Sprintf("Image generation failed: %s", insufficientBalanceErr.Error())
+					_ = bot.SendPM(ctx, pm.Nick, pmMsg)
+					return nil // Return nil as we notified the user
+				case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+					// Context was cancelled (likely due to shutdown signal), log and return nil
+					fmt.Printf("INFO [image2image] User %s: Context canceled/deadline exceeded: %v\n", pm.Nick, err)
+					return nil // Indicate clean termination due to context cancellation
+				default:
+					// For ALL other errors, log and return the error to the framework
+					fmt.Printf("ERROR [image2image] User %s: %v\n", pm.Nick, err)
+					return err // Return the original error
+				}
 			}
 
 			if !result.Success {
-				return fmt.Errorf("image generation failed: %v", result.Error)
+				// Log the error and return it.
+				errMsg := fmt.Sprintf("ERROR [image2image] User %s: Image generation failed internally", pm.Nick)
+				if result.Error != nil {
+					errMsg += fmt.Sprintf(": %v", result.Error)
+				}
+				fmt.Println(errMsg)
+				// Return an error to the framework
+				if result.Error != nil {
+					return fmt.Errorf("image generation failed: %w", result.Error)
+				}
+				return fmt.Errorf("image generation failed internally")
 			}
 
 			return nil

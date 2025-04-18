@@ -83,11 +83,18 @@ func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoS
 			// Generate video
 			result, err := videoService.GenerateVideo(ctx, req)
 			if err != nil {
-				return fmt.Errorf("failed to generate video: %v", err)
+				// Return the error directly from the service
+				return err // REMOVED wrapping: fmt.Errorf("failed to generate video: %v", err)
 			}
 
 			if !result.Success {
-				return fmt.Errorf("video generation failed: %v", result.Error)
+				// This case might be less likely if service returns error on failure,
+				// but handle it just in case.
+				errMsg := "video generation failed"
+				if result.Error != nil {
+					errMsg += ": " + result.Error.Error()
+				}
+				return fmt.Errorf(errMsg)
 			}
 
 			return nil

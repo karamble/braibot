@@ -335,7 +335,7 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 				URL         string `json:"url"`
 				ContentType string `json:"content_type"`
 			} `json:"svg"`
-			Seed int `json:"seed"` // Capture top-level seed here too
+			Seed uint64 `json:"seed"` // Changed from int to uint64
 		}
 
 		if err := json.Unmarshal(data, &singleImageResp); err != nil {
@@ -360,12 +360,8 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 			return nil, fmt.Errorf("final response did not contain a valid image or svg URL. Body: %s", string(data))
 		}
 
-		response.Images = []struct {
-			URL         string `json:"url"`
-			ContentType string `json:"content_type"`
-			Width       int    `json:"width"`
-			Height      int    `json:"height"`
-		}{
+		// Use the named struct ImageOutput when assigning the slice
+		response.Images = []ImageOutput{
 			{
 				URL:         imgURL,
 				ContentType: imgContentType,

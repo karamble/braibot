@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -21,10 +22,11 @@ import (
 	"github.com/karamble/braibot/internal/commands"
 	braiconfig "github.com/karamble/braibot/internal/config"
 	"github.com/karamble/braibot/internal/database"
+	"github.com/karamble/braibot/internal/utils"
 	kit "github.com/vctt94/bisonbotkit"
 	botkitconfig "github.com/vctt94/bisonbotkit/config"
 	"github.com/vctt94/bisonbotkit/logging"
-	"github.com/vctt94/bisonbotkit/utils"
+	botkitutils "github.com/vctt94/bisonbotkit/utils"
 )
 
 var (
@@ -42,7 +44,7 @@ func realMain() error {
 	debug = *flagDebug
 
 	// Expand and clean the app root path
-	appRoot := utils.CleanAndExpandPath(*flagAppRoot)
+	appRoot := botkitutils.CleanAndExpandPath(*flagAppRoot)
 
 	// Initialize database manager
 	var err error
@@ -131,8 +133,19 @@ func realMain() error {
 				welcomeSent[userIDStr] = true
 
 				if command, exists := commandRegistry.Get(cmd); exists {
-					if err := command.Handler(context.Background(), bot, cfg, pm, args); err != nil {
-						log.Warnf("Error executing command %s: %v", cmd, err)
+					handleErr := command.Handler(context.Background(), bot, cfg, pm, args)
+					if handleErr != nil {
+						// Check if the error is specifically ErrInsufficientBalance
+						var insufErr *utils.ErrInsufficientBalance
+						if errors.Is(handleErr, insufErr) {
+							// Send the specific error message as PM, don't log as warning
+							if pmErr := bot.SendPM(context.Background(), pm.Nick, handleErr.Error()); pmErr != nil {
+								log.Warnf("Failed to send insufficient balance PM to %s: %v", pm.Nick, pmErr)
+							}
+						} else {
+							// Log other command execution errors as warnings
+							log.Warnf("Error executing command %s for user %s: %v", cmd, pm.Nick, handleErr)
+						}
 					}
 				} else {
 					// Send error message for unknown command

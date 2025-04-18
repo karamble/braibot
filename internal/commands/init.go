@@ -17,10 +17,14 @@ func InitializeCommands(dbManager *database.DBManager, cfg *config.BotConfig, bo
 	// Create Fal client (assuming API key is in extra config)
 	falClient := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
 
-	// Create Services
-	imageService := image.NewImageService(falClient, dbManager, bot, debug)
-	videoService := video.NewVideoService(falClient, dbManager, bot, debug)
-	speechService := speech.NewSpeechService(falClient, dbManager, bot, debug)
+	// Get billing enabled flag from config (defaulting to true)
+	billingEnabledStr := cfg.ExtraConfig["billingenabled"] // Already validated in config check
+	billingEnabled := (billingEnabledStr == "true")
+
+	// Create Services, passing the billing flag
+	imageService := image.NewImageService(falClient, dbManager, bot, debug, billingEnabled)
+	videoService := video.NewVideoService(falClient, dbManager, bot, debug, billingEnabled)    // Assuming NewVideoService signature is updated
+	speechService := speech.NewSpeechService(falClient, dbManager, bot, debug, billingEnabled) // Assuming NewSpeechService signature is updated
 
 	// Register help command
 	registry.Register(HelpCommand(registry, dbManager))
@@ -30,14 +34,15 @@ func InitializeCommands(dbManager *database.DBManager, cfg *config.BotConfig, bo
 	registry.Register(SetModelCommand(registry))
 
 	// Register AI commands (using services)
+	// Pass the billingEnabled flag to commands that might need it directly (like balance)
 	registry.Register(Text2ImageCommand(dbManager, imageService, debug))
-	registry.Register(Text2SpeechCommand(dbManager, speechService, debug))
+	registry.Register(Text2SpeechCommand(dbManager, speechService, debug)) // Pass service instance
 	registry.Register(Image2ImageCommand(dbManager, imageService, debug))
 	registry.Register(Image2VideoCommand(dbManager, videoService, debug))
 	registry.Register(Text2VideoCommand(dbManager, videoService, debug))
 
 	// Register balance and rate commands
-	registry.Register(BalanceCommand(dbManager, debug))
+	registry.Register(BalanceCommand(dbManager, debug, billingEnabled)) // Pass billing flag
 	registry.Register(RateCommand())
 
 	return registry
