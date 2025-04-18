@@ -56,39 +56,28 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 	// 3. Send initial message
 	s.bot.SendPM(ctx, req.UserNick, "Processing your request.")
 
-	// 4. Generate video
-	var videoResp *fal.VideoResponse
-
-	// Always use KlingVideoRequest, setting appropriate fields based on type
-	// The underlying fal.GenerateVideo distinguishes model by name.
-	videoReq := &fal.KlingVideoRequest{
-		BaseVideoRequest: fal.BaseVideoRequest{
-			Progress: req.Progress,                 // Pass progress callback
-			Options:  make(map[string]interface{}), // Initialize options map
-		},
-		Duration:       req.Duration,
-		AspectRatio:    req.AspectRatio,
-		NegativePrompt: req.NegativePrompt,
-		CFGScale:       req.CFGScale,
+	// 4. Get current model name
+	model, exists := faladapter.GetCurrentModel(req.ModelType)
+	if !exists {
+		return &VideoResult{Success: false, Error: fmt.Errorf("no default model found for %s", req.ModelType)}, nil
 	}
 
-	// Set fields based on ModelType
-	if req.ModelType == "text2video" {
-		videoReq.BaseVideoRequest.Model = "kling-video-text" // Specify the text model
-		videoReq.BaseVideoRequest.Prompt = req.Prompt
-	} else { // Assume image2video
-		videoReq.BaseVideoRequest.Model = "kling-video-image" // Specify the image model (or could be veo2 later)
-		videoReq.BaseVideoRequest.Prompt = req.Prompt         // Prompt might be used
-		videoReq.BaseVideoRequest.ImageURL = req.ImageURL
-	}
-
-	// Generate video using the unified request type
-	videoResp, err = s.client.GenerateVideo(ctx, videoReq)
+	// 5. Create the appropriate FAL request object using the helper function
+	falReq, err := createFalVideoRequest(req, model.Name)
 	if err != nil {
+		// Handle error from request creation (e.g., unsupported model)
+		// Optional: Add refund logic here if needed
 		return &VideoResult{Success: false, Error: err}, err
 	}
 
-	// 5. Download and send video
+	// 6. Generate video using the created request
+	videoResp, err := s.client.GenerateVideo(ctx, falReq)
+	if err != nil {
+		// Optional: Add refund logic here if needed
+		return &VideoResult{Success: false, Error: err}, err
+	}
+
+	// 7. Download and send video
 	videoURL := videoResp.GetURL()
 	if videoURL == "" {
 		err = fmt.Errorf("no video URL found in response")
@@ -99,7 +88,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 		return &VideoResult{Success: false, Error: err}, err
 	}
 
-	// 6. Send billing info
+	// 8. Send billing info
 	if err := utils.SendBillingMessage(ctx, s.bot, pm, billingResult); err != nil {
 		return &VideoResult{Success: false, Error: err}, err
 	}
@@ -118,18 +107,7 @@ func (s *VideoService) validateRequest(req *VideoRequest) error {
 		return fmt.Errorf("no default model found for %s", req.ModelType)
 	}
 
-	// Validate options
-	opts := &VideoOptions{
-		Duration:       req.Duration,
-		AspectRatio:    req.AspectRatio,
-		NegativePrompt: req.NegativePrompt,
-		CFGScale:       req.CFGScale,
-	}
-
-	parser := NewArgumentParser()
-	if err := parser.ValidateOptions(opts); err != nil {
-		return err
-	}
+	// Option validation is now handled within the fal.GenerateVideo function
 
 	// For image2video, check if image URL is provided
 	if req.ModelType == "image2video" && req.ImageURL == "" {
@@ -171,4 +149,55 @@ func (s *VideoService) downloadAndSendVideo(ctx context.Context, userNick string
 	}
 
 	return nil
+}
+
+// Helper function to safely dereference optional float64 pointers
+func derefFloat64PtrOrDefault(ptr *float64, defaultValue float64) float64 {
+	if ptr != nil {
+		return *ptr
+	}
+	return defaultValue
+}
+
+// createFalVideoRequest constructs the appropriate fal.Model request struct based on the internal VideoRequest.
+func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, error) {
+	base := fal.BaseVideoRequest{
+		Prompt:   req.Prompt,
+		ImageURL: req.ImageURL, // May be empty for text2video
+		Progress: req.Progress,
+		Options:  make(map[string]interface{}), // Initialize options map
+	}
+
+	// Create the specific fal request based on the model name
+	switch modelName {
+	case "kling-video-text", "kling-video-image":
+		// For Kling, CFGScale comes from the internal request if set
+		cfgScale := derefFloat64PtrOrDefault(req.CFGScale, 0.5) // Default from KlingVideoOptions
+
+		falReq := &fal.KlingVideoRequest{
+			BaseVideoRequest: base,
+			Duration:         req.Duration,
+			AspectRatio:      req.AspectRatio,
+			NegativePrompt:   req.NegativePrompt,
+			CFGScale:         cfgScale,
+		}
+		// Adjust base fields specific to type if necessary
+		if modelName == "kling-video-text" {
+			falReq.BaseVideoRequest.ImageURL = "" // Ensure empty for text2video
+		}
+		return falReq, nil
+	case "veo2":
+		if base.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for veo2 model")
+		}
+		falReq := &fal.Veo2Request{
+			BaseVideoRequest: base,
+			Duration:         req.Duration,
+			AspectRatio:      req.AspectRatio,
+		}
+		return falReq, nil
+	// Add cases for other specific video models here
+	default:
+		return nil, fmt.Errorf("unsupported or unhandled model for specific FAL video request creation: %s", modelName)
+	}
 }

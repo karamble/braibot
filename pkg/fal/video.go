@@ -33,16 +33,16 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
 		}
-		// Set default values from model options if not provided
+		// Validate options before proceeding
+		if err := options.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		// Set default values from model options if not provided in request
 		if r.AspectRatio == "" {
 			r.AspectRatio = options.AspectRatio
 		}
 		if r.Duration == "" {
 			r.Duration = options.Duration
-		}
-		// Validate options
-		if err := options.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid options: %v", err)
 		}
 		reqBody = map[string]interface{}{
 			"prompt":       r.Prompt,
@@ -51,31 +51,42 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			"duration":     r.Duration,
 		}
 	case *KlingVideoRequest:
-		// Kling can be image2video or text2video, need to check model registry
-		// Let's assume the specific type (image or text) is handled by caller setting r.Model correctly if BaseVideoRequest is embedded
-		if r.ImageURL != "" { // Likely Image-to-Video
-			modelName = "kling-video-image"
-			endpoint = "/kling-video/v2/master/image-to-video"
-		} else if r.Prompt != "" { // Likely Text-to-Video
-			modelName = "kling-video-text"
-			endpoint = "/kling-video/v2/master/text-to-video"
-		} else {
-			return nil, fmt.Errorf("kling request must have either image_url or prompt")
-		}
-
-		// Get model options (assuming KlingVideoOptions is used for both)
-		model, exists := GetModel(modelName, "image2video") // Check image2video first
-		if !exists {
-			model, exists = GetModel(modelName, "text2video") // Check text2video if not found
-			if !exists {
-				return nil, fmt.Errorf("model not found: %s", modelName)
+		if r.BaseVideoRequest.Model == "" { // Determine model based on fields if not set
+			if r.BaseVideoRequest.ImageURL != "" {
+				r.BaseVideoRequest.Model = "kling-video-image"
+			} else {
+				r.BaseVideoRequest.Model = "kling-video-text"
 			}
 		}
+		modelName = r.BaseVideoRequest.Model
+		model, exists := GetModel(modelName, "text2video") // Check both types
+		modelType := "text2video"
+		if !exists {
+			model, exists = GetModel(modelName, "image2video")
+			modelType = "image2video"
+		}
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		endpoint = "/kling-video/v2/master/" + modelType // Simplified endpoint logic
+
+		// Get model options for validation and defaults
 		options, ok := model.Options.(*KlingVideoOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
 		}
-		// Set default values from model options if not provided
+		// Validate options before proceeding
+		klingOpts := KlingVideoOptions{
+			Duration:       r.Duration,
+			AspectRatio:    r.AspectRatio,
+			NegativePrompt: r.NegativePrompt,
+			CFGScale:       r.CFGScale,
+		}
+		if err := klingOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Set default values if not provided
 		if r.Duration == "" {
 			r.Duration = options.Duration
 		}
@@ -87,10 +98,6 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 		if r.CFGScale == 0 {
 			r.CFGScale = options.CFGScale
-		}
-		// Validate options
-		if err := options.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid options: %v", err)
 		}
 		reqBody = map[string]interface{}{
 			"prompt":          r.Prompt,   // May be empty for image2video
@@ -106,6 +113,10 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 		if r.Prompt == "" {
 			delete(reqBody, "prompt")
+		}
+		// Remove empty fields only if ImageURL was expected but not provided
+		if modelType == "image2video" && r.ImageURL == "" {
+			delete(reqBody, "image_url") // Should ideally be caught earlier
 		}
 	case *BaseVideoRequest: // Handle potentially ambiguous base request
 		modelName = r.Model

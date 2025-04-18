@@ -44,39 +44,129 @@ func (p *ArgumentParser) ParseNegativePrompt(args []string) string {
 	return "blur, distort, and low quality" // Default negative prompt
 }
 
-// ParseCFGScale parses the CFG scale argument
-func (p *ArgumentParser) ParseCFGScale(args []string) float64 {
+// ParseCFGScale parses the CFG scale argument, returning a pointer or nil
+func (p *ArgumentParser) ParseCFGScale(args []string) *float64 {
 	for i, arg := range args {
 		if arg == "--cfg_scale" && i+1 < len(args) {
 			if scale, err := strconv.ParseFloat(args[i+1], 64); err == nil {
-				return scale
+				return &scale
 			}
 		}
 	}
-	return 0.5 // Default CFG scale
+	return nil // Return nil if not found or invalid
 }
 
-// ValidateOptions validates the video options
-func (p *ArgumentParser) ValidateOptions(opts *VideoOptions) error {
-	// Validate aspect ratio
-	validAspectRatios := map[string]bool{
-		"16:9": true,
-		"9:16": true,
-		"1:1":  true,
-	}
-	if !validAspectRatios[opts.AspectRatio] {
-		return fmt.Errorf("invalid aspect ratio: %s (must be one of: 16:9, 9:16, 1:1)", opts.AspectRatio)
+// Parse parses all arguments, separating prompt, image URL (optional), and options.
+// It returns the parsed values individually.
+func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imageURL, duration, aspectRatio, negativePrompt string, cfgScale *float64, err error) {
+	var promptParts []string
+	// Set defaults
+	duration = "5"
+	aspectRatio = "16:9"
+	negativePrompt = "blur, distort, and low quality"
+	cfgScale = nil // Default to nil, only set if parsed
+
+	parsedArgs := make(map[int]bool) // Track indices consumed by flags
+	currentIndex := 0
+
+	// First pass: Handle image URL if expected
+	if expectImageURL {
+		if len(args) > 0 && !strings.HasPrefix(args[0], "--") {
+			imageURL = args[0]
+			parsedArgs[0] = true
+			currentIndex = 1
+		} else {
+			err = fmt.Errorf("image URL is required as the first argument for this command")
+			return
+		}
 	}
 
-	// Validate duration
-	if opts.Duration != "5" {
-		return fmt.Errorf("invalid duration: %s (must be 5 seconds)", opts.Duration)
+	// Second pass: Parse flags
+	localArgs := args[currentIndex:] // Only parse flags after potential image URL
+	localIndexOffset := currentIndex
+	i := 0
+	for i < len(localArgs) {
+		arg := localArgs[i]
+		if !strings.HasPrefix(arg, "--") {
+			i++
+			continue // Skip non-flags in this pass
+		}
+
+		flag := strings.ToLower(arg)
+		originalIndex := i + localIndexOffset
+
+		if parsedArgs[originalIndex] {
+			i++
+			continue // Already processed (e.g., was image URL)
+		}
+
+		// Check for value
+		var value string
+		if i+1 < len(localArgs) {
+			value = localArgs[i+1]
+		}
+
+		switch flag {
+		case "--duration":
+			if value != "" {
+				duration = strings.TrimSuffix(value, "s")
+				parsedArgs[originalIndex] = true
+				parsedArgs[originalIndex+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		case "--aspect":
+			if value != "" {
+				aspectRatio = value
+				parsedArgs[originalIndex] = true
+				parsedArgs[originalIndex+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		case "--negative_prompt", "--negative-prompt":
+			if value != "" {
+				negativePrompt = value
+				parsedArgs[originalIndex] = true
+				parsedArgs[originalIndex+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		case "--cfg_scale", "--cfg-scale":
+			if value != "" {
+				if scale, parseErr := strconv.ParseFloat(value, 64); parseErr == nil {
+					cfgScale = &scale // Assign the pointer
+					parsedArgs[originalIndex] = true
+					parsedArgs[originalIndex+1] = true
+					i += 2
+				} else {
+					err = fmt.Errorf("invalid value for %s: %s", flag, value)
+					return
+				}
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		default:
+			// Unknown flag, treat as part of prompt later or ignore
+			i++
+		}
 	}
 
-	// Validate CFG scale
-	if opts.CFGScale < 0 || opts.CFGScale > 1 {
-		return fmt.Errorf("invalid cfg_scale: %f (must be between 0 and 1)", opts.CFGScale)
+	// Third pass: Collect prompt parts
+	for i, arg := range args {
+		if !parsedArgs[i] {
+			promptParts = append(promptParts, arg)
+		}
 	}
+	prompt = strings.Join(promptParts, " ")
 
-	return nil
+	// No final validation here anymore - that will happen in the FAL layer
+
+	return prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScale, nil
 }

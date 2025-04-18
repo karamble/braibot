@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
@@ -16,7 +15,8 @@ import (
 )
 
 // Image2VideoCommand returns the image2video command
-func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
+// It now requires a VideoService instance.
+func Image2VideoCommand(dbManager *database.DBManager, videoService *video.VideoService, debug bool) Command {
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("image2video")
 	if !exists {
@@ -50,46 +50,28 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [prompt] [--duration 5] [--aspect 16:9]")
 			}
 
-			// Parse arguments
-			imageURL := args[0]
-			prompt := ""
+			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			duration := parser.ParseDuration(args)
-			aspectRatio := parser.ParseAspectRatio(args)
-			negativePrompt := parser.ParseNegativePrompt(args)
-			cfgScale := parser.ParseCFGScale(args)
-
-			// Collect prompt text
-			for i := 1; i < len(args); i++ {
-				arg := args[i]
-				if !strings.HasPrefix(arg, "--") {
-					if prompt == "" {
-						prompt = arg
-					} else {
-						prompt += " " + arg
-					}
-				} else {
-					// Skip the value for flags
-					i++
-				}
+			prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScalePtr, err := parser.Parse(args, true) // Expect Image URL
+			if err != nil {
+				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Argument error: %v", err))
+			}
+			if prompt == "" {
+				// Prompt might be optional for some image2video models, but let's require it for now
+				// unless specific models indicate otherwise.
+				return bot.SendPM(ctx, pm.Nick, "Please provide a text prompt describing the desired animation.")
 			}
 
-			// Create Fal.ai client
-			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
+			// Don't create client here, use the one in the service
+			// client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
 
-			// Get model configuration
-			model, exists := faladapter.GetCurrentModel("image2video")
-			if !exists {
-				return fmt.Errorf("no default model found for image2video")
-			}
-
-			// Create video service
-			videoService := video.NewVideoService(client, dbManager, bot, debug)
+			// Video service is now passed in
+			// videoService := video.NewVideoService(client, dbManager, bot, debug)
 
 			// Create progress callback
 			progress := NewCommandProgressCallback(bot, pm.Nick, "image2video")
 
-			// Create video request
+			// Create video request using parsed values
 			var userID zkidentity.ShortID
 			userID.FromBytes(pm.Uid)
 			req := &video.VideoRequest{
@@ -98,7 +80,7 @@ func Image2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				Duration:       duration,
 				AspectRatio:    aspectRatio,
 				NegativePrompt: negativePrompt,
-				CFGScale:       cfgScale,
+				CFGScale:       cfgScalePtr, // Assign the parsed pointer
 				ModelType:      "image2video",
 				Progress:       progress,
 				UserNick:       pm.Nick,

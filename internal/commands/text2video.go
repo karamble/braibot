@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
@@ -16,7 +15,8 @@ import (
 )
 
 // Text2VideoCommand returns the text2video command
-func Text2VideoCommand(dbManager *database.DBManager, debug bool) Command {
+// It now requires a VideoService instance.
+func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoService, debug bool) Command {
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("text2video")
 	if !exists {
@@ -50,45 +50,21 @@ func Text2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				return bot.SendPM(ctx, pm.Nick, "Please provide a prompt. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9] [--negative_prompt \"blur, distort, and low quality\"] [--cfg_scale 0.5]")
 			}
 
-			// Parse arguments
-			prompt := ""
+			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			duration := parser.ParseDuration(args)
-			aspectRatio := parser.ParseAspectRatio(args)
-			negativePrompt := parser.ParseNegativePrompt(args)
-			cfgScale := parser.ParseCFGScale(args)
-
-			// Collect prompt text
-			for i := 0; i < len(args); i++ {
-				arg := args[i]
-				if !strings.HasPrefix(arg, "--") {
-					if prompt == "" {
-						prompt = arg
-					} else {
-						prompt += " " + arg
-					}
-				} else {
-					// Skip the value for flags
-					i++
-				}
+			// Update variable list to match parser.Parse return values
+			prompt, _, duration, aspectRatio, negativePrompt, cfgScalePtr, err := parser.Parse(args, false) // Expect NO Image URL
+			if err != nil {
+				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Argument error: %v", err))
 			}
-
-			// Create Fal.ai client
-			client := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
-
-			// Get model configuration
-			model, exists := faladapter.GetCurrentModel("text2video")
-			if !exists {
-				return fmt.Errorf("no default model found for text2video")
+			if prompt == "" {
+				return bot.SendPM(ctx, pm.Nick, "Please provide a prompt text.")
 			}
-
-			// Create video service
-			videoService := video.NewVideoService(client, dbManager, bot, debug)
 
 			// Create progress callback
 			progress := NewCommandProgressCallback(bot, pm.Nick, "text2video")
 
-			// Create video request
+			// Create video request using parsed values
 			var userID zkidentity.ShortID
 			userID.FromBytes(pm.Uid)
 			req := &video.VideoRequest{
@@ -96,7 +72,7 @@ func Text2VideoCommand(dbManager *database.DBManager, debug bool) Command {
 				Duration:       duration,
 				AspectRatio:    aspectRatio,
 				NegativePrompt: negativePrompt,
-				CFGScale:       cfgScale,
+				CFGScale:       cfgScalePtr, // Assign the parsed pointer
 				ModelType:      "text2video",
 				Progress:       progress,
 				UserNick:       pm.Nick,
