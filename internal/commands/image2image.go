@@ -36,21 +36,30 @@ func Image2ImageCommand(dbManager *database.DBManager, imageService *image.Image
 	return Command{
 		Name:        "image2image",
 		Description: description,
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
-				// Get the current model to use its help documentation
+				// Get the current model
 				model, exists := faladapter.GetCurrentModel("image2image")
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2image [image_url]")
+					return bot.SendPM(ctx, pm.Nick, "Error: Default image2image model not found.")
 				}
 
-				// Use the model's help documentation if available
-				if model.HelpDoc != "" {
-					return bot.SendPM(ctx, pm.Nick, model.HelpDoc)
+				// Get user ID
+				var userID zkidentity.ShortID
+				userID.FromBytes(pm.Uid)
+
+				// Format header using utility function
+				header := utils.FormatCommandHelpHeader("image2image", model, userID, dbManager)
+
+				// Get help doc
+				helpDoc := model.HelpDoc
+				if helpDoc == "" {
+					helpDoc = "Usage: !image2image [image_url] [prompt] [--options...]\n(No specific documentation available for this model.)"
 				}
 
-				// Fallback to default help message
-				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2image [image_url]")
+				// Send combined header and help doc
+				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
 			}
 
 			imageURL := args[0]

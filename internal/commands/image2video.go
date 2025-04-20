@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
@@ -35,21 +34,30 @@ func Image2VideoCommand(dbManager *database.DBManager, videoService *video.Video
 	return Command{
 		Name:        "image2video",
 		Description: description,
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
-				// Get the current model to use its help documentation
+				// Get the current model
 				model, exists := faladapter.GetCurrentModel("image2video")
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [prompt] [--duration 5] [--aspect 16:9]")
+					return bot.SendPM(ctx, pm.Nick, "Error: Default image2video model not found.")
 				}
 
-				// Use the model's help documentation if available
-				if model.HelpDoc != "" {
-					return bot.SendPM(ctx, pm.Nick, model.HelpDoc)
+				// Get user ID
+				var userID zkidentity.ShortID
+				userID.FromBytes(pm.Uid)
+
+				// Format header using utility function
+				header := utils.FormatCommandHelpHeader("image2video", model, userID, dbManager)
+
+				// Get help doc
+				helpDoc := model.HelpDoc
+				if helpDoc == "" {
+					helpDoc = "Usage: !image2video [image_url] [prompt] [--options...]\n(No specific documentation available for this model.)"
 				}
 
-				// Fallback to default help message
-				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL. Usage: !image2video [image_url] [prompt] [--duration 5] [--aspect 16:9]")
+				// Send combined header and help doc
+				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
 			}
 
 			// Parse arguments using the video parser
@@ -58,10 +66,19 @@ func Image2VideoCommand(dbManager *database.DBManager, videoService *video.Video
 			if err != nil {
 				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Argument error: %v", err))
 			}
+			if imageURL == "" { // Image URL is required for image2video
+				return bot.SendPM(ctx, pm.Nick, "Please provide an image URL as the first argument.")
+			}
 			if prompt == "" {
 				// Prompt might be optional for some image2video models, but let's require it for now
 				// unless specific models indicate otherwise.
 				return bot.SendPM(ctx, pm.Nick, "Please provide a text prompt describing the desired animation.")
+			}
+
+			// Get model configuration (required for PriceUSD)
+			model, exists := faladapter.GetCurrentModel("image2video")
+			if !exists {
+				return fmt.Errorf("no default model found for image2video")
 			}
 
 			// Don't create client here, use the one in the service
@@ -92,39 +109,13 @@ func Image2VideoCommand(dbManager *database.DBManager, videoService *video.Video
 
 			// Generate video using the service
 			result, err := videoService.GenerateVideo(ctx, req)
-			if err != nil {
-				var insufficientBalanceErr *utils.ErrInsufficientBalance // Define variable outside switch
-				switch {
-				case errors.As(err, &insufficientBalanceErr):
-					// Send specific PM ONLY for insufficient balance
-					pmMsg := fmt.Sprintf("Video generation failed: %s", insufficientBalanceErr.Error())
-					_ = bot.SendPM(ctx, pm.Nick, pmMsg)
-					return nil // Return nil as we notified the user
-				case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-					// Context was cancelled (likely due to shutdown signal), log and return nil
-					fmt.Printf("INFO [image2video] User %s: Context canceled/deadline exceeded: %v\n", pm.Nick, err)
-					return nil // Indicate clean termination due to context cancellation
-				default:
-					// For ALL other errors, log and return the error to the framework
-					fmt.Printf("ERROR [image2video] User %s: %v\n", pm.Nick, err)
-					return err // Return the original error
-				}
+
+			// Handle result/error using the utility function
+			if handleErr := utils.HandleServiceResultOrError(ctx, bot, pm, "image2video", result, err); handleErr != nil {
+				return handleErr // Propagate error if not handled by the utility function
 			}
 
-			if !result.Success {
-				// Log the error and return it.
-				errMsg := fmt.Sprintf("ERROR [image2video] User %s: Video generation failed internally", pm.Nick)
-				if result.Error != nil {
-					errMsg += fmt.Sprintf(": %v", result.Error)
-				}
-				fmt.Println(errMsg)
-				// Return an error to the framework
-				if result.Error != nil {
-					return fmt.Errorf("video generation failed: %w", result.Error)
-				}
-				return fmt.Errorf("video generation failed internally")
-			}
-
+			// If we reach here, the operation was successful and errors were handled
 			return nil
 		},
 	}

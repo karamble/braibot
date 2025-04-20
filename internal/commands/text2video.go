@@ -8,6 +8,7 @@ import (
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
+	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/internal/video"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
@@ -28,26 +29,35 @@ func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoS
 	}
 
 	// Create the command description using the model's description
-	description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9] [--negative_prompt \"blur, distort, and low quality\"] [--cfg_scale 0.5]", model.Description)
+	// description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9] [--negative_prompt \"blur, distort, and low quality\"] [--cfg_scale 0.5]", model.Description)
 
 	return Command{
 		Name:        "text2video",
-		Description: description,
+		Description: "🎥 Generate a short video from a text prompt (e.g., !text2video a running dog)",
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
-				// Get the current model to use its help documentation
+				// Get the current model
 				model, exists := faladapter.GetCurrentModel("text2video")
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, "Please provide a prompt. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9] [--negative_prompt \"blur, distort, and low quality\"] [--cfg_scale 0.5]")
+					return bot.SendPM(ctx, pm.Nick, "Error: Default text2video model not found.")
 				}
 
-				// Use the model's help documentation if available
-				if model.HelpDoc != "" {
-					return bot.SendPM(ctx, pm.Nick, model.HelpDoc)
+				// Get user ID
+				var userID zkidentity.ShortID
+				userID.FromBytes(pm.Uid)
+
+				// Format header using utility function
+				header := utils.FormatCommandHelpHeader("text2video", model, userID, dbManager)
+
+				// Get help doc
+				helpDoc := model.HelpDoc
+				if helpDoc == "" {
+					helpDoc = "Usage: !text2video [prompt] [--options...]\n(No specific documentation available for this model.)"
 				}
 
-				// Fallback to default help message
-				return bot.SendPM(ctx, pm.Nick, "Please provide a prompt. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9] [--negative_prompt \"blur, distort, and low quality\"] [--cfg_scale 0.5]")
+				// Send combined header and help doc
+				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
 			}
 
 			// Parse arguments using the video parser
@@ -59,6 +69,12 @@ func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoS
 			}
 			if prompt == "" {
 				return bot.SendPM(ctx, pm.Nick, "Please provide a prompt text.")
+			}
+
+			// Get model configuration (required for PriceUSD)
+			model, exists = faladapter.GetCurrentModel("text2video")
+			if !exists {
+				return fmt.Errorf("no default model found for text2video")
 			}
 
 			// Create progress callback
@@ -82,21 +98,13 @@ func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoS
 
 			// Generate video
 			result, err := videoService.GenerateVideo(ctx, req)
-			if err != nil {
-				// Return the error directly from the service
-				return err // REMOVED wrapping: fmt.Errorf("failed to generate video: %v", err)
+
+			// Handle result/error using the utility function
+			if handleErr := utils.HandleServiceResultOrError(ctx, bot, pm, "text2video", result, err); handleErr != nil {
+				return handleErr // Propagate error if not handled by the utility function
 			}
 
-			if !result.Success {
-				// This case might be less likely if service returns error on failure,
-				// but handle it just in case.
-				errMsg := "video generation failed"
-				if result.Error != nil {
-					errMsg += ": " + result.Error.Error()
-				}
-				return fmt.Errorf(errMsg)
-			}
-
+			// If we reach here, the operation was successful and errors were handled
 			return nil
 		},
 	}

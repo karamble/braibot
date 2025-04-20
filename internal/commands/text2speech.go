@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,32 +12,41 @@ import (
 	"github.com/karamble/braibot/internal/faladapter"
 	"github.com/karamble/braibot/internal/speech"
 	"github.com/karamble/braibot/internal/utils"
-	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
 )
 
 // Text2SpeechCommand returns the text2speech command
 func Text2SpeechCommand(dbManager *database.DBManager, speechService *speech.SpeechService, debug bool) Command {
-	// Get the current model to use its description and help doc
-	model, exists := faladapter.GetCurrentModel("text2speech")
-	if !exists {
-		model = fal.Model{
-			Name:        "text2speech",
-			Description: "Converts text to speech using AI.",
-			HelpDoc:     "Usage: !text2speech [voice_id] [text]\nDefault voice: Wise_Woman. Please provide text to convert.",
-		}
-	}
-
-	description := model.Description // Use the model description
-	help := model.HelpDoc            // Use the model help doc
+	// Outer model retrieval removed
 
 	return Command{
 		Name:        "text2speech",
-		Description: description,
+		Description: "🗣️ Generate speech audio from text (e.g., !text2speech Hello world!)",
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
-				return bot.SendPM(ctx, pm.Nick, help) // Send detailed help doc
+				// Get the current model
+				model, exists := faladapter.GetCurrentModel("text2speech")
+				if !exists {
+					return bot.SendPM(ctx, pm.Nick, "Error: Default text2speech model not found.")
+				}
+
+				// Get user ID
+				var userID zkidentity.ShortID
+				userID.FromBytes(pm.Uid)
+
+				// Format header using utility function
+				header := utils.FormatCommandHelpHeader("text2speech", model, userID, dbManager)
+
+				// Get help doc
+				helpDoc := model.HelpDoc
+				if helpDoc == "" {
+					helpDoc = "Usage: !text2speech [text] [--options...]\n(No specific documentation available for this model.)"
+				}
+
+				// Send combined header and help doc
+				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
 			}
 
 			// Parse arguments using the helper
@@ -48,7 +56,7 @@ func Text2SpeechCommand(dbManager *database.DBManager, speechService *speech.Spe
 			}
 
 			// Get model configuration (required for PriceUSD)
-			model, exists := faladapter.GetCurrentModel("text2speech")
+			model, exists := faladapter.GetCurrentModel("text2speech") // Restore model retrieval
 			if !exists {
 				return fmt.Errorf("no default model found for text2speech") // Should not happen if validation passed
 			}
@@ -62,11 +70,11 @@ func Text2SpeechCommand(dbManager *database.DBManager, speechService *speech.Spe
 			req := &speech.SpeechRequest{
 				Text:      text,
 				VoiceID:   voiceID,
-				ModelName: model.Name, // Use current default model
+				ModelName: model.Name, // Restore model usage
 				Progress:  progress,
 				UserNick:  pm.Nick,
 				UserID:    userID,
-				PriceUSD:  model.PriceUSD,
+				PriceUSD:  model.PriceUSD, // Restore model usage
 			}
 
 			// Populate options from the parsed map
@@ -97,40 +105,14 @@ func Text2SpeechCommand(dbManager *database.DBManager, speechService *speech.Spe
 
 			// Generate speech using the service
 			result, err := speechService.GenerateSpeech(ctx, req)
-			if err != nil {
-				var insufficientBalanceErr *utils.ErrInsufficientBalance // Define variable outside switch
-				switch {
-				case errors.As(err, &insufficientBalanceErr):
-					// Send specific PM ONLY for insufficient balance
-					pmMsg := fmt.Sprintf("Speech generation failed: %s", insufficientBalanceErr.Error())
-					_ = bot.SendPM(ctx, pm.Nick, pmMsg)
-					return nil // Return nil as we notified the user
-				case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-					// Context was cancelled (likely due to shutdown signal), log and return nil
-					fmt.Printf("INFO [text2speech] User %s: Context canceled/deadline exceeded: %v\n", pm.Nick, err)
-					return nil // Indicate clean termination due to context cancellation
-				default:
-					// For ALL other errors, log and return the error to the framework
-					fmt.Printf("ERROR [text2speech] User %s: %v\n", pm.Nick, err)
-					return err // Return the original error
-				}
+
+			// Handle result/error using the utility function
+			if handleErr := utils.HandleServiceResultOrError(ctx, bot, pm, "text2speech", result, err); handleErr != nil {
+				return handleErr // Propagate error if not handled by the utility function
 			}
 
-			if !result.Success {
-				// Log the error and return it.
-				errMsg := fmt.Sprintf("ERROR [text2speech] User %s: Speech generation failed internally", pm.Nick)
-				if result.Error != nil {
-					errMsg += fmt.Sprintf(": %v", result.Error)
-				}
-				fmt.Println(errMsg)
-				// Return an error to the framework
-				if result.Error != nil {
-					return fmt.Errorf("speech generation failed: %w", result.Error)
-				}
-				return fmt.Errorf("speech generation failed internally")
-			}
-
-			// Success message is handled by the service (audio embed + billing info)
+			// If we reach here, the operation was successful and errors were handled
+			// Success message (audio embed) is handled by the service itself in this case
 			return nil
 		},
 	}

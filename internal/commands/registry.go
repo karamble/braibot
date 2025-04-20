@@ -15,6 +15,7 @@ type Command struct {
 	Name        string
 	Description string
 	Handler     func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error
+	Category    string
 }
 
 // Registry holds all available commands
@@ -63,35 +64,41 @@ func IsCommand(msg string) (string, []string, bool) {
 
 // FormatHelpMessage formats a help message for all registered commands
 func (r *Registry) FormatHelpMessage() string {
-	// Define command categories
-	universalCommands := []string{"help", "balance", "rate"}
-	modelCommands := []string{"listmodels", "setmodel"}
-	generationCommands := []string{"text2image", "image2image", "image2video", "text2speech"}
+	categories := make(map[string][]Command)
+	categoryOrder := []string{"🎯 Basic", "🔧 Model Configuration", "🎨 AI Generation"}
 
-	// Create help message with sections
-	helpMsg := "## 🎯 Basic Commands\n"
-	helpMsg += "| Command | Description |\n| -------- | ----------- |\n"
-	for _, cmdName := range universalCommands {
-		if cmd, exists := r.commands[cmdName]; exists {
-			helpMsg += fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description)
+	// Group commands by category
+	for _, cmd := range r.commands {
+		cat := cmd.Category
+		if cat == "" {
+			cat = "Other" // Default category if none provided
+		}
+		categories[cat] = append(categories[cat], cmd)
+	}
+
+	var helpMsg strings.Builder
+
+	// Function to append category section to help message
+	appendCategory := func(categoryName string) {
+		if cmds, ok := categories[categoryName]; ok {
+			helpMsg.WriteString(fmt.Sprintf("\n## %s\n", categoryName))
+			helpMsg.WriteString("| Command | Description |\n| -------- | ----------- |\n")
+			for _, cmd := range cmds {
+				helpMsg.WriteString(fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description))
+			}
+			delete(categories, categoryName) // Remove processed category
 		}
 	}
 
-	helpMsg += "\n## 🔧 Model Configuration\n"
-	helpMsg += "| Command | Description |\n| -------- | ----------- |\n"
-	for _, cmdName := range modelCommands {
-		if cmd, exists := r.commands[cmdName]; exists {
-			helpMsg += fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description)
-		}
+	// Append categories in the specified order
+	for _, catName := range categoryOrder {
+		appendCategory(catName)
 	}
 
-	helpMsg += "\n## 🎨 AI Generation\n"
-	helpMsg += "| Command | Description |\n| -------- | ----------- |\n"
-	for _, cmdName := range generationCommands {
-		if cmd, exists := r.commands[cmdName]; exists {
-			helpMsg += fmt.Sprintf("| !%s | %s |\n", cmd.Name, cmd.Description)
-		}
+	// Append any remaining categories (e.g., "Other")
+	for catName := range categories {
+		appendCategory(catName)
 	}
 
-	return helpMsg
+	return helpMsg.String()
 }

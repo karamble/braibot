@@ -16,7 +16,8 @@ import (
 func BalanceCommand(dbManager *database.DBManager, debug bool, billingEnabled bool) Command {
 	return Command{
 		Name:        "balance",
-		Description: "Check your current balance",
+		Description: "💰 Check your current DCR balance available for AI tasks.",
+		Category:    "🎯 Basic",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			// If billing is disabled, inform the user and exit
 			if !billingEnabled {
@@ -47,15 +48,16 @@ func BalanceCommand(dbManager *database.DBManager, debug bool, billingEnabled bo
 				fmt.Printf("  Balance in DCR: %.8f\n", balanceDCR)
 			}
 
-			// Get current exchange rate
-			dcrPrice, _, err := GetDCRPrice()
+			// Get current exchange rate using utils
+			dcrPrice, _, err := utils.GetDCRPrice()
 			if err != nil {
 				// Inform user about the rate error but still show balance
-				msg := fmt.Sprintf("Your current balance is %.8f DCR.\n(Could not fetch current DCR/USD rate: %v)", balanceDCR, err)
+				// Use only DCR balance if rate fails
+				msg := fmt.Sprintf("💰 Your Balance:\n• %.8f DCR\n(Could not fetch current DCR/USD rate: %v)", balanceDCR, err)
 				return bot.SendPM(ctx, pm.Nick, msg)
 			}
 
-			// Send balance information
+			// Send balance information using the formatter
 			message := utils.FormatBalanceMessage(balanceDCR, dcrPrice)
 			return bot.SendPM(ctx, pm.Nick, message)
 		},

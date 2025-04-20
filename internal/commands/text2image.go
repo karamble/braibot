@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -37,21 +36,30 @@ func Text2ImageCommand(dbManager *database.DBManager, imageService *image.ImageS
 	return Command{
 		Name:        "text2image",
 		Description: description,
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
-				// Get the current model to use its help documentation
+				// Get the current model
 				model, exists := faladapter.GetCurrentModel("text2image")
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, "Please provide a prompt. Usage: !text2image [prompt]")
+					return bot.SendPM(ctx, pm.Nick, "Error: Default text2image model not found.")
 				}
 
-				// Use the model's help documentation if available
-				if model.HelpDoc != "" {
-					return bot.SendPM(ctx, pm.Nick, model.HelpDoc)
+				// Get user ID
+				var userID zkidentity.ShortID
+				userID.FromBytes(pm.Uid)
+
+				// Format header using utility function
+				header := utils.FormatCommandHelpHeader("text2image", model, userID, dbManager)
+
+				// Get help doc
+				helpDoc := model.HelpDoc
+				if helpDoc == "" {
+					helpDoc = "Usage: !text2image [prompt] [--options...]\n(No specific documentation available for this model.)"
 				}
 
-				// Fallback to default help message
-				return bot.SendPM(ctx, pm.Nick, "Please provide a prompt. Usage: !text2image [prompt]")
+				// Send combined header and help doc
+				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
 			}
 
 			// Parse arguments and prompt
@@ -101,39 +109,13 @@ func Text2ImageCommand(dbManager *database.DBManager, imageService *image.ImageS
 
 			// Generate image using the service
 			result, err := imageService.GenerateImage(ctx, req)
-			if err != nil {
-				var insufficientBalanceErr *utils.ErrInsufficientBalance // Define variable outside switch
-				switch {
-				case errors.As(err, &insufficientBalanceErr):
-					// Send specific PM ONLY for insufficient balance
-					pmMsg := fmt.Sprintf("Image generation failed: %s", insufficientBalanceErr.Error())
-					_ = bot.SendPM(ctx, pm.Nick, pmMsg)
-					return nil // Return nil as we notified the user
-				case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-					// Context was cancelled (likely due to shutdown signal), log and return nil
-					fmt.Printf("INFO [text2image] User %s: Context canceled/deadline exceeded: %v\n", pm.Nick, err)
-					return nil // Indicate clean termination due to context cancellation
-				default:
-					// For ALL other errors, log and return the error to the framework
-					fmt.Printf("ERROR [text2image] User %s: %v\n", pm.Nick, err)
-					return err // Return the original error
-				}
+
+			// Handle result/error using the utility function
+			if handleErr := utils.HandleServiceResultOrError(ctx, bot, pm, "text2image", result, err); handleErr != nil {
+				return handleErr // Propagate error if not handled by the utility function
 			}
 
-			if !result.Success {
-				// Log the error and return it.
-				errMsg := fmt.Sprintf("ERROR [text2image] User %s: Image generation failed internally", pm.Nick)
-				if result.Error != nil {
-					errMsg += fmt.Sprintf(": %v", result.Error)
-				}
-				fmt.Println(errMsg)
-				// Return an error to the framework
-				if result.Error != nil {
-					return fmt.Errorf("image generation failed: %w", result.Error)
-				}
-				return fmt.Errorf("image generation failed internally")
-			}
-
+			// If we reach here, the operation was successful and errors were handled
 			return nil
 		},
 	}

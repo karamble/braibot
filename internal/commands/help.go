@@ -9,6 +9,7 @@ import (
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
+	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	"github.com/vctt94/bisonbotkit/config"
@@ -18,7 +19,8 @@ import (
 func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 	return Command{
 		Name:        "help",
-		Description: "Shows help message. Usage: **!help [command] [model]**",
+		Description: "📚 Show this help message or details for a specific command (e.g., !help text2image)",
+		Category:    "🎯 Basic",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			// If no args, show general help with contextual information
 			if len(args) == 0 {
@@ -32,10 +34,12 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				}
 				balanceDCR := float64(balance) / 1e11
 
-				// Get current exchange rate for USD value
-				dcrPrice, _, err := GetDCRPrice()
+				// Get current exchange rate for USD value using utils
+				dcrPrice, _, err := utils.GetDCRPrice()
 				if err != nil {
-					return fmt.Errorf("failed to get DCR price: %v", err)
+					// Log the error but continue, maybe showing balance without USD value
+					fmt.Printf("ERROR [help] Failed to get DCR price: %v\n", err)
+					dcrPrice = 0 // Set to 0 to avoid NaN issues if used later
 				}
 				usdValue := balanceDCR * dcrPrice
 
@@ -169,32 +173,21 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Unknown model: %s for command: %s. Use !help %s to see available models.", modelName, commandName, commandName))
 				}
 
-				// Get user's balance for contextual information
+				// Get user ID
 				var userID zkidentity.ShortID
 				userID.FromBytes(pm.Uid)
-				userIDStr := userID.String()
-				balance, err := dbManager.GetBalance(userIDStr)
-				if err != nil {
-					return fmt.Errorf("failed to get balance: %v", err)
-				}
-				balanceDCR := float64(balance) / 1e11
 
-				// Convert model price to DCR
-				dcrAmount, err := USDToDCR(model.PriceUSD)
-				if err != nil {
-					return fmt.Errorf("failed to convert USD to DCR: %v", err)
+				// Format header using utility function
+				header := utils.FormatCommandHelpHeader(commandName, model, userID, dbManager)
+
+				// Get help doc
+				helpDoc := model.HelpDoc
+				if helpDoc == "" {
+					helpDoc = "(No specific documentation available for this model.)"
 				}
 
-				// Format model-specific help message with balance context
-				helpMsg := fmt.Sprintf("Model: %s\nDescription: %s\nPrice: $%.2f USD (%.8f DCR)\n\nYour Balance: %.8f DCR\n\n%s",
-					model.Name,
-					model.Description,
-					model.PriceUSD,
-					dcrAmount,
-					balanceDCR,
-					model.HelpDoc)
-
-				return bot.SendPM(ctx, pm.Nick, helpMsg)
+				// Send combined header and help doc
+				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
 			}
 
 			// If more than two args, show error

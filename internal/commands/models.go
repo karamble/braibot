@@ -16,7 +16,8 @@ import (
 func ListModelsCommand() Command {
 	return Command{
 		Name:        "listmodels",
-		Description: "Lists available models for a specific command. Usage: !listmodels [command]",
+		Description: "📋 List available AI models for generation tasks (e.g., text2image, text2speech).",
+		Category:    "🔧 Model Configuration",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) == 0 {
 				return bot.SendPM(ctx, pm.Nick, "Please specify a command (text2image, text2speech, image2image, or image2video). Usage: !listmodels [command]")
@@ -65,7 +66,8 @@ func ListModelsCommand() Command {
 func SetModelCommand(registry *Registry) Command {
 	return Command{
 		Name:        "setmodel",
-		Description: "Sets the model to use for specified commands. Usage: !setmodel [command] [modelname]",
+		Description: "⚙️ Set the default model for a specific task (e.g., !setmodel text2image stable-diffusion-xl)",
+		Category:    "🔧 Model Configuration",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 2 {
 				return bot.SendPM(ctx, pm.Nick, "Please specify a command and a model name. Usage: !setmodel [command] [modelname]")
