@@ -35,6 +35,7 @@ func Image2VideoCommand(dbManager *database.DBManager, videoService *video.Video
 	return Command{
 		Name:        "image2video",
 		Description: description,
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
 				// Get the current model to use its help documentation

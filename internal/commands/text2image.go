@@ -37,6 +37,7 @@ func Text2ImageCommand(dbManager *database.DBManager, imageService *image.ImageS
 	return Command{
 		Name:        "text2image",
 		Description: description,
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
 				// Get the current model to use its help documentation

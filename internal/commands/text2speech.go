@@ -24,18 +24,17 @@ func Text2SpeechCommand(dbManager *database.DBManager, speechService *speech.Spe
 	model, exists := faladapter.GetCurrentModel("text2speech")
 	if !exists {
 		model = fal.Model{
-			Name:        "text2speech",
-			Description: "Converts text to speech using AI.",
-			HelpDoc:     "Usage: !text2speech [voice_id] [text]\nDefault voice: Wise_Woman. Please provide text to convert.",
+			Name:    "text2speech",
+			HelpDoc: "Usage: !text2speech [voice_id] [text]\nDefault voice: Wise_Woman. Please provide text to convert.",
 		}
 	}
 
-	description := model.Description // Use the model description
-	help := model.HelpDoc            // Use the model help doc
+	help := model.HelpDoc // Use the model help doc
 
 	return Command{
 		Name:        "text2speech",
-		Description: description,
+		Description: "🗣️ Generate speech audio from text (e.g., !text2speech Hello world!)",
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
 				return bot.SendPM(ctx, pm.Nick, help) // Send detailed help doc

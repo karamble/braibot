@@ -18,7 +18,8 @@ import (
 func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 	return Command{
 		Name:        "help",
-		Description: "Shows help message. Usage: **!help [command] [model]**",
+		Description: "📚 Show this help message or details for a specific command (e.g., !help text2image)",
+		Category:    "🎯 Basic",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			// If no args, show general help with contextual information
 			if len(args) == 0 {

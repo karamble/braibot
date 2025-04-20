@@ -73,11 +73,12 @@ func USDToDCR(usdAmount float64) (float64, error) {
 	return dcrAmount, nil
 }
 
-// RateCommand returns the rate command
+// RateCommand defines the !rate command
 func RateCommand() Command {
 	return Command{
 		Name:        "rate",
-		Description: "Shows current DCR exchange rate in USD and BTC",
+		Description: "💲 Show the current DCR cost per second for AI model usage.",
+		Category:    "🎯 Basic",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			// Send a status message to indicate we're fetching rates
 			bot.SendPM(ctx, pm.Nick, "Fetching current exchange rates...")

@@ -16,7 +16,8 @@ import (
 func BalanceCommand(dbManager *database.DBManager, debug bool, billingEnabled bool) Command {
 	return Command{
 		Name:        "balance",
-		Description: "Check your current balance",
+		Description: "💰 Check your current DCR balance available for AI tasks.",
+		Category:    "🎯 Basic",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			// If billing is disabled, inform the user and exit
 			if !billingEnabled {

@@ -28,11 +28,12 @@ func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoS
 	}
 
 	// Create the command description using the model's description
-	description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9] [--negative_prompt \"blur, distort, and low quality\"] [--cfg_scale 0.5]", model.Description)
+	// description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9] [--negative_prompt \"blur, distort, and low quality\"] [--cfg_scale 0.5]", model.Description)
 
 	return Command{
 		Name:        "text2video",
-		Description: description,
+		Description: "🎥 Generate a short video from a text prompt (e.g., !text2video a running dog)",
+		Category:    "🎨 AI Generation",
 		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
 			if len(args) < 1 {
 				// Get the current model to use its help documentation
