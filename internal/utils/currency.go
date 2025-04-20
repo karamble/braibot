@@ -67,21 +67,11 @@ func USDToDCR(usdAmount float64) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if dcrPrice == 0 {
+		return 0, fmt.Errorf("DCR price is zero, cannot convert")
+	}
 
 	// Calculate DCR amount (USD amount / DCR price)
 	dcrAmount := usdAmount / dcrPrice
 	return dcrAmount, nil
-}
-
-// FormatBalanceMessage formats a balance message with DCR and USD values
-func FormatBalanceMessage(balanceDCR float64, dcrPrice float64) string {
-	usdValue := balanceDCR * dcrPrice
-	return fmt.Sprintf("💰 Your Balance:\n• %.8f DCR\n• $%.2f USD",
-		balanceDCR, usdValue)
-}
-
-// FormatBillingMessage formats a billing message with charged amount and remaining balance
-func FormatBillingMessage(chargedDCR float64, chargedUSD float64, remainingBalance float64) string {
-	return fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• Remaining Balance: %.8f DCR",
-		chargedDCR, chargedUSD, remainingBalance)
 }

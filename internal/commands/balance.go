@@ -48,15 +48,16 @@ func BalanceCommand(dbManager *database.DBManager, debug bool, billingEnabled bo
 				fmt.Printf("  Balance in DCR: %.8f\n", balanceDCR)
 			}
 
-			// Get current exchange rate
-			dcrPrice, _, err := GetDCRPrice()
+			// Get current exchange rate using utils
+			dcrPrice, _, err := utils.GetDCRPrice()
 			if err != nil {
 				// Inform user about the rate error but still show balance
-				msg := fmt.Sprintf("Your current balance is %.8f DCR.\n(Could not fetch current DCR/USD rate: %v)", balanceDCR, err)
+				// Use only DCR balance if rate fails
+				msg := fmt.Sprintf("💰 Your Balance:\n• %.8f DCR\n(Could not fetch current DCR/USD rate: %v)", balanceDCR, err)
 				return bot.SendPM(ctx, pm.Nick, msg)
 			}
 
-			// Send balance information
+			// Send balance information using the formatter
 			message := utils.FormatBalanceMessage(balanceDCR, dcrPrice)
 			return bot.SendPM(ctx, pm.Nick, message)
 		},

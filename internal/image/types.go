@@ -36,3 +36,19 @@ type ImageResult struct {
 	Success  bool
 	Error    error
 }
+
+// IsSuccess checks if the image generation was successful.
+func (r *ImageResult) IsSuccess() bool {
+	if r == nil {
+		return false
+	}
+	return r.Success
+}
+
+// GetError returns the error from the image generation, if any.
+func (r *ImageResult) GetError() error {
+	if r == nil {
+		return nil // Consistent with IsSuccess returning false for nil
+	}
+	return r.Error
+}
