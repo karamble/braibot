@@ -198,9 +198,20 @@ func (s *VideoService) validateRequest(req *VideoRequest) error {
 
 	// Option validation for other parameters is now handled within the fal.GenerateVideo function
 
-	// For image2video, check if image URL is provided
-	if req.ModelType == "image2video" && req.ImageURL == "" {
-		return fmt.Errorf("image URL is required for image2video")
+	// For image2video, check if the required image URL field is provided based on the model
+	if req.ModelType == "image2video" {
+		switch model.Name {
+		case "minimax/video-01-subject-reference":
+			if req.SubjectReferenceImageURL == "" {
+				return fmt.Errorf("subject_reference_image_url is required for model %s", model.Name)
+			}
+		// Add cases for other image2video models that might use different URL fields
+		default:
+			// Default check for models using the standard ImageURL field (e.g., veo2, kling-video-image)
+			if req.ImageURL == "" {
+				return fmt.Errorf("image URL is required for model %s", model.Name)
+			}
+		}
 	}
 
 	return nil
@@ -248,6 +259,14 @@ func derefFloat64PtrOrDefault(ptr *float64, defaultValue float64) float64 {
 	return defaultValue
 }
 
+// Helper function to safely dereference optional bool pointers
+func derefBoolPtrOrDefault(ptr *bool, defaultValue bool) bool {
+	if ptr != nil {
+		return *ptr
+	}
+	return defaultValue
+}
+
 // createFalVideoRequest constructs the appropriate fal.Model request struct based on the internal VideoRequest.
 // Assumes req.Duration has already been formatted by validateRequest.
 func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, error) {
@@ -288,6 +307,78 @@ func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, er
 			Duration:         req.Duration, // Use pre-formatted duration
 			AspectRatio:      req.AspectRatio,
 		}
+		return falReq, nil
+	case "minimax/video-01-director":
+		if base.ImageURL != "" {
+			return nil, fmt.Errorf("image_url is not supported for %s model", modelName)
+		}
+		// Get the default PromptOptimizer value from the model definition
+		model, _ := faladapter.GetModel(modelName, "text2video") // Ignore error as model should exist
+		defaultOptimizer := true                                 // Default fallback
+		if modelOpts, ok := model.Options.(*fal.MinimaxDirectorOptions); ok && modelOpts.PromptOptimizer != nil {
+			defaultOptimizer = *modelOpts.PromptOptimizer
+		}
+		promptOptimizer := derefBoolPtrOrDefault(req.PromptOptimizer, defaultOptimizer)
+
+		falReq := &fal.MinimaxDirectorRequest{
+			BaseVideoRequest: base,
+			PromptOptimizer:  &promptOptimizer,
+		}
+		falReq.BaseVideoRequest.ImageURL = "" // Ensure ImageURL is empty
+		return falReq, nil
+	case "minimax/video-01-subject-reference":
+		if req.SubjectReferenceImageURL == "" {
+			return nil, fmt.Errorf("subject_reference_image_url is required for %s model", modelName)
+		}
+		// Get the default PromptOptimizer value from the model definition
+		model, _ := faladapter.GetModel(modelName, "image2video") // Ignore error as model should exist
+		defaultOptimizer := true                                  // Default fallback
+		if modelOpts, ok := model.Options.(*fal.MinimaxSubjectReferenceOptions); ok && modelOpts.PromptOptimizer != nil {
+			defaultOptimizer = *modelOpts.PromptOptimizer
+		}
+		promptOptimizer := derefBoolPtrOrDefault(req.PromptOptimizer, defaultOptimizer)
+
+		falReq := &fal.MinimaxSubjectReferenceRequest{
+			BaseVideoRequest:         base, // Includes Prompt, Progress
+			SubjectReferenceImageURL: req.SubjectReferenceImageURL,
+			PromptOptimizer:          &promptOptimizer,
+		}
+		falReq.BaseVideoRequest.ImageURL = "" // Ensure base ImageURL is empty as it's not used
+		return falReq, nil
+	case "minimax/video-01-live":
+		if req.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s model", modelName)
+		}
+		// Get the default PromptOptimizer value from the model definition
+		model, _ := faladapter.GetModel(modelName, "image2video")
+		defaultOptimizer := true
+		if modelOpts, ok := model.Options.(*fal.MinimaxLiveOptions); ok && modelOpts.PromptOptimizer != nil {
+			defaultOptimizer = *modelOpts.PromptOptimizer
+		}
+		promptOptimizer := derefBoolPtrOrDefault(req.PromptOptimizer, defaultOptimizer)
+
+		falReq := &fal.MinimaxLiveRequest{
+			BaseVideoRequest: base,
+			PromptOptimizer:  &promptOptimizer,
+		}
+		return falReq, nil
+	case "minimax/video-01":
+		if base.ImageURL != "" {
+			return nil, fmt.Errorf("image_url is not supported for %s model", modelName)
+		}
+		// Get the default PromptOptimizer value from the model definition
+		model, _ := faladapter.GetModel(modelName, "text2video") // Ignore error as model should exist
+		defaultOptimizer := true                                 // Default fallback
+		if modelOpts, ok := model.Options.(*fal.MinimaxVideo01Options); ok && modelOpts.PromptOptimizer != nil {
+			defaultOptimizer = *modelOpts.PromptOptimizer
+		}
+		promptOptimizer := derefBoolPtrOrDefault(req.PromptOptimizer, defaultOptimizer)
+
+		falReq := &fal.MinimaxVideo01Request{
+			BaseVideoRequest: base, // Includes Prompt, Progress
+			PromptOptimizer:  &promptOptimizer,
+		}
+		falReq.BaseVideoRequest.ImageURL = "" // Ensure base ImageURL is empty
 		return falReq, nil
 	// Add cases for other specific video models here
 	default:

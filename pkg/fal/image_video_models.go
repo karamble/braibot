@@ -42,7 +42,45 @@ func (m *klingVideoImageModel) Define() Model {
 	}
 }
 
+// --- minimax/video-01-subject-reference ---
+
+type minimaxSubjectReferenceModel struct{}
+
+func (m *minimaxSubjectReferenceModel) Define() Model {
+	defaultOptimizer := true
+	return Model{
+		Name:        "minimax/video-01-subject-reference",
+		Description: "Generate video from a subject reference image.",
+		PriceUSD:    0.8,
+		Type:        "image2video",
+		HelpDoc:     "Usage: !image2video [subject_reference_image_url] [prompt] [options]\nExample: !image2video https://example.com/subject.jpg a person walking --prompt-optimizer false\n\nParameters:\n• subject_reference_image_url: URL of the image to use for consistent subject appearance.\n• prompt: Description of the desired video animation.\n• --prompt-optimizer: Whether to use the model's prompt optimizer (default: true)",
+		Options: &MinimaxSubjectReferenceOptions{
+			PromptOptimizer: &defaultOptimizer,
+		},
+	}
+}
+
+// --- minimax/video-01-live ---
+
+type minimaxLiveModel struct{}
+
+func (m *minimaxLiveModel) Define() Model {
+	defaultOptimizer := true
+	return Model{
+		Name:        "minimax/video-01-live",
+		Description: "Generate video from an image, specialized in bringing 2D illustrations to life.",
+		PriceUSD:    0.8,
+		Type:        "image2video",
+		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.png A character waving --prompt-optimizer true\n\nInfo: This model is specialized in bringing 2D illustrations to life.\n\nParameters:\n• image_url: URL of the image to animate.\n• prompt: Description of the desired video animation.\n• --prompt-optimizer: Whether to use the model's prompt optimizer (default: true)",
+		Options: &MinimaxLiveOptions{
+			PromptOptimizer: &defaultOptimizer,
+		},
+	}
+}
+
 func init() {
 	registerModel(&veo2Model{})
 	registerModel(&klingVideoImageModel{})
+	registerModel(&minimaxSubjectReferenceModel{})
+	registerModel(&minimaxLiveModel{})
 }
