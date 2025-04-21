@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	// "io" // No longer needed directly here
+	// "strings" // Removed, no longer needed
+	// "time" // Removed, no longer needed
 )
 
 // GenerateVideo sends a request to the video model and returns the video URL
@@ -126,6 +128,135 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if originalModelType == "image2video" && r.ImageURL == "" {
 			delete(reqBody, "image_url") // Should ideally be caught earlier
 		}
+	case *MinimaxDirectorRequest:
+		modelName = "minimax/video-01-director"
+		endpoint = "/minimax/video-01-director" // Corrected relative path
+		model, exists := GetModel(modelName, "text2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*MinimaxDirectorOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		// Validate options
+		miniOpts := MinimaxDirectorOptions{
+			PromptOptimizer: r.PromptOptimizer,
+		}
+		if err := miniOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Set default values if not provided
+		// Need pointer comparison for boolean option
+		if r.PromptOptimizer == nil {
+			r.PromptOptimizer = options.PromptOptimizer // Get default from model definition
+		}
+
+		reqBody = map[string]interface{}{
+			"prompt":           r.Prompt,
+			"prompt_optimizer": r.PromptOptimizer,
+		}
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt cannot be empty for %s", modelName)
+		}
+	case *MinimaxSubjectReferenceRequest:
+		modelName = "minimax/video-01-subject-reference"
+		endpoint = "/minimax/video-01-subject-reference" // Correct relative path
+		model, exists := GetModel(modelName, "image2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*MinimaxSubjectReferenceOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		// Validate options
+		subRefOpts := MinimaxSubjectReferenceOptions{
+			PromptOptimizer: r.PromptOptimizer,
+		}
+		if err := subRefOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		// Set default values if not provided
+		if r.PromptOptimizer == nil {
+			r.PromptOptimizer = options.PromptOptimizer
+		}
+		reqBody = map[string]interface{}{
+			"prompt":                      r.Prompt,
+			"subject_reference_image_url": r.SubjectReferenceImageURL,
+			"prompt_optimizer":            r.PromptOptimizer,
+		}
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt cannot be empty for %s", modelName)
+		}
+		if r.SubjectReferenceImageURL == "" {
+			return nil, fmt.Errorf("subject_reference_image_url cannot be empty for %s", modelName)
+		}
+	case *MinimaxLiveRequest:
+		modelName = "minimax/video-01-live"
+		endpoint = "/minimax/video-01-live/image-to-video" // Correct relative path
+		model, exists := GetModel(modelName, "image2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*MinimaxLiveOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		// Validate options
+		liveOpts := MinimaxLiveOptions{
+			PromptOptimizer: r.PromptOptimizer,
+		}
+		if err := liveOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		// Set default values if not provided
+		if r.PromptOptimizer == nil {
+			r.PromptOptimizer = options.PromptOptimizer
+		}
+		reqBody = map[string]interface{}{
+			"prompt":           r.Prompt,
+			"image_url":        r.ImageURL,
+			"prompt_optimizer": r.PromptOptimizer,
+		}
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt cannot be empty for %s", modelName)
+		}
+		if r.ImageURL == "" {
+			return nil, fmt.Errorf("image_url cannot be empty for %s", modelName)
+		}
+	case *MinimaxVideo01Request:
+		modelName = "minimax/video-01"
+		endpoint = "/minimax/video-01" // Correct relative path
+		model, exists := GetModel(modelName, "text2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*MinimaxVideo01Options)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		// Validate options
+		vidOpts := MinimaxVideo01Options{
+			PromptOptimizer: r.PromptOptimizer,
+		}
+		if err := vidOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		// Set default values if not provided
+		if r.PromptOptimizer == nil {
+			r.PromptOptimizer = options.PromptOptimizer
+		}
+		reqBody = map[string]interface{}{
+			"prompt":           r.Prompt,
+			"prompt_optimizer": r.PromptOptimizer,
+		}
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt cannot be empty for %s", modelName)
+		}
+		// Ensure ImageURL is not included (should be empty in BaseVideoRequest for text2video)
+		delete(reqBody, "image_url")
 	case *BaseVideoRequest: // Handle potentially ambiguous base request
 		modelName = r.Model
 		model, exists := GetModel(modelName, "image2video")
@@ -143,6 +274,14 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			endpoint = "/kling-video/v2/master/image-to-video"
 		case "kling-video-text":
 			endpoint = "/kling-video/v2/master/text-to-video"
+		case "minimax/video-01-director": // Add case for endpoint determination
+			endpoint = "/minimax/video-01-director" // Corrected relative path
+		case "minimax/video-01-subject-reference": // Add case for endpoint determination
+			endpoint = "/minimax/video-01-subject-reference" // Corrected relative path
+		case "minimax/video-01-live": // Add case for endpoint determination
+			endpoint = "/minimax/video-01-live/image-to-video" // Corrected relative path
+		case "minimax/video-01": // Add case for endpoint determination
+			endpoint = "/minimax/video-01" // Corrected relative path
 		default:
 			return nil, fmt.Errorf("unsupported model: %s", model.Name)
 		}

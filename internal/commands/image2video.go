@@ -62,7 +62,7 @@ func Image2VideoCommand(dbManager *database.DBManager, videoService *video.Video
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScalePtr, err := parser.Parse(args, true) // Expect Image URL
+			prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, err := parser.Parse(args, true) // Expect Image URL, ignore promptOptimizer
 			if err != nil {
 				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Argument error: %v", err))
 			}
@@ -75,7 +75,7 @@ func Image2VideoCommand(dbManager *database.DBManager, videoService *video.Video
 				return bot.SendPM(ctx, pm.Nick, "Please provide a text prompt describing the desired animation.")
 			}
 
-			// Get model configuration (required for PriceUSD)
+			// Get model configuration (required for PriceUSD and logic)
 			model, exists := faladapter.GetCurrentModel("image2video")
 			if !exists {
 				return fmt.Errorf("no default model found for image2video")
@@ -94,17 +94,24 @@ func Image2VideoCommand(dbManager *database.DBManager, videoService *video.Video
 			var userID zkidentity.ShortID
 			userID.FromBytes(pm.Uid)
 			req := &video.VideoRequest{
-				Prompt:         prompt,
-				ImageURL:       imageURL,
-				Duration:       duration,
-				AspectRatio:    aspectRatio,
-				NegativePrompt: negativePrompt,
-				CFGScale:       cfgScalePtr, // Assign the parsed pointer
-				ModelType:      "image2video",
-				Progress:       progress,
-				UserNick:       pm.Nick,
-				UserID:         userID,
-				PriceUSD:       model.PriceUSD,
+				Prompt:          prompt,
+				Duration:        duration,
+				AspectRatio:     aspectRatio,
+				NegativePrompt:  negativePrompt,
+				CFGScale:        cfgScalePtr,        // Assign the parsed pointer
+				PromptOptimizer: promptOptimizerPtr, // Assign the parsed pointer (may be nil)
+				ModelType:       "image2video",
+				Progress:        progress,
+				UserNick:        pm.Nick,
+				UserID:          userID,
+				PriceUSD:        model.PriceUSD,
+			}
+
+			// Set the correct image URL field based on the model
+			if model.Name == "minimax/video-01-subject-reference" {
+				req.SubjectReferenceImageURL = imageURL // Parsed URL is the subject reference
+			} else {
+				req.ImageURL = imageURL // For other models, it's the standard image URL
 			}
 
 			// Generate video using the service

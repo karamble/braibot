@@ -63,7 +63,7 @@ func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoS
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
 			// Update variable list to match parser.Parse return values
-			prompt, _, duration, aspectRatio, negativePrompt, cfgScalePtr, err := parser.Parse(args, false) // Expect NO Image URL
+			prompt, _, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, err := parser.Parse(args, false) // Expect NO Image URL
 			if err != nil {
 				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Argument error: %v", err))
 			}
@@ -84,16 +84,17 @@ func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoS
 			var userID zkidentity.ShortID
 			userID.FromBytes(pm.Uid)
 			req := &video.VideoRequest{
-				Prompt:         prompt,
-				Duration:       duration,
-				AspectRatio:    aspectRatio,
-				NegativePrompt: negativePrompt,
-				CFGScale:       cfgScalePtr, // Assign the parsed pointer
-				ModelType:      "text2video",
-				Progress:       progress,
-				UserNick:       pm.Nick,
-				UserID:         userID,
-				PriceUSD:       model.PriceUSD,
+				Prompt:          prompt,
+				Duration:        duration,
+				AspectRatio:     aspectRatio,
+				NegativePrompt:  negativePrompt,
+				CFGScale:        cfgScalePtr,        // Assign the parsed pointer
+				PromptOptimizer: promptOptimizerPtr, // Assign the parsed pointer
+				ModelType:       "text2video",
+				Progress:        progress,
+				UserNick:        pm.Nick,
+				UserID:          userID,
+				PriceUSD:        model.PriceUSD,
 			}
 
 			// Generate video

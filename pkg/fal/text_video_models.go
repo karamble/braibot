@@ -27,3 +27,47 @@ func (m *klingVideoTextModel) Define() Model {
 func init() {
 	registerModel(&klingVideoTextModel{})
 }
+
+// --- minimax-video-01-director ---
+
+type minimaxDirectorModel struct{}
+
+func (m *minimaxDirectorModel) Define() Model {
+	defaultOptimizer := true
+	return Model{
+		Name:        "minimax/video-01-director",
+		Description: "Generate video clips with camera movement instructions.",
+		PriceUSD:    0.8, // TODO: Update with actual price
+		Type:        "text2video",
+		HelpDoc:     "Usage: !text2video [prompt] [options]\n\nParameters:\n• prompt: Description of the desired video. Include camera movements in square brackets `[]`.\n  - Single movement: `[Push in] A cat walking.`\n  - Combined (up to 3): `[Truck left, Pan right, Zoom in] A busy street scene.`\n  - Available movements: `Truck left/right`, `Pan left/right`, `Push in/Pull out`, `Pedestal up/down`, `Tilt up/down`, `Zoom in/out`, `Shake`, `Tracking shot`, `Static shot`. \n  - More details: https://sixth-switch-2ac.notion.site/T2V-01-Director-Model-Tutorial-with-camera-movement-1886c20a98eb80f395b8e05291ad8645\n• --prompt-optimizer: Whether to use the model's prompt optimizer (default: true)",
+		Options: &MinimaxDirectorOptions{
+			PromptOptimizer: &defaultOptimizer,
+		},
+	}
+}
+
+func init() {
+	registerModel(&minimaxDirectorModel{})
+}
+
+// --- minimax/video-01 ---
+
+type minimaxVideo01Model struct{}
+
+func (m *minimaxVideo01Model) Define() Model {
+	defaultOptimizer := true
+	return Model{
+		Name:        "minimax/video-01",
+		Description: "Native high-resolution, high-frame-rate video generation model.",
+		PriceUSD:    0.8,
+		Type:        "text2video",
+		HelpDoc:     "Usage: !text2video [prompt] [options]\nExample: !text2video A futuristic cityscape --prompt-optimizer true\n\nParameters:\n• prompt: Description of the desired video.\n• --prompt-optimizer: Whether to use the model's prompt optimizer (default: true)",
+		Options: &MinimaxVideo01Options{
+			PromptOptimizer: &defaultOptimizer,
+		},
+	}
+}
+
+func init() {
+	registerModel(&minimaxVideo01Model{})
+}

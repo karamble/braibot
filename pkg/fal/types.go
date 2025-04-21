@@ -102,14 +102,35 @@ func (o *KlingVideoOptions) Validate() error {
 	return nil
 }
 
+// MinimaxDirectorOptions represents the options available for the minimax-video-01-director model
+type MinimaxDirectorOptions struct {
+	PromptOptimizer *bool `json:"prompt_optimizer,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns the default values for MinimaxDirector options
+func (o *MinimaxDirectorOptions) GetDefaultValues() map[string]interface{} {
+	defaultOptimizer := true
+	return map[string]interface{}{
+		"prompt_optimizer": &defaultOptimizer,
+	}
+}
+
+// Validate validates the MinimaxDirector options
+func (o *MinimaxDirectorOptions) Validate() error {
+	// No specific validation needed for a boolean flag yet
+	return nil
+}
+
 // FluxSchnellOptions represents the options available for the fal-ai/flux/schnell model
 type FluxSchnellOptions struct {
-	ImageSize           string `json:"image_size,omitempty"`            // square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9
-	NumInferenceSteps   int    `json:"num_inference_steps,omitempty"`   // Default: 4
-	Seed                *int   `json:"seed,omitempty"`                  // Optional seed
-	SyncMode            bool   `json:"sync_mode,omitempty"`             // Default: false
-	NumImages           int    `json:"num_images,omitempty"`            // Default: 1
-	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"` // Default: true
+	ImageSize           string  `json:"image_size,omitempty"`            // square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9
+	NumInferenceSteps   int     `json:"num_inference_steps,omitempty"`   // Default: 4
+	Seed                *int    `json:"seed,omitempty"`                  // Optional seed
+	SyncMode            bool    `json:"sync_mode,omitempty"`             // Default: false
+	NumImages           int     `json:"num_images,omitempty"`            // Default: 1
+	EnableSafetyChecker *bool   `json:"enable_safety_checker,omitempty"` // Default: true
+	CFGScale            float64 `json:"cfg_scale,omitempty"`
+	PromptOptimizer     *bool   `json:"prompt_optimizer,omitempty"` // Mirrored option
 }
 
 // GetDefaultValues returns the default values for Flux Schnell options
@@ -657,4 +678,86 @@ type CartoonifyRequest struct {
 // StarVectorRequest represents a request for the star-vector model
 type StarVectorRequest struct {
 	BaseImageRequest // Requires ImageURL
+}
+
+// MinimaxDirectorRequest represents a request to generate a video using the minimax-video-01-director model
+type MinimaxDirectorRequest struct {
+	BaseVideoRequest
+	PromptOptimizer *bool `json:"prompt_optimizer,omitempty"`
+}
+
+// MinimaxSubjectReferenceOptions represents options for minimax/video-01-subject-reference
+type MinimaxSubjectReferenceOptions struct {
+	PromptOptimizer *bool `json:"prompt_optimizer,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns default values for MinimaxSubjectReferenceOptions
+func (o *MinimaxSubjectReferenceOptions) GetDefaultValues() map[string]interface{} {
+	defaultOptimizer := true
+	return map[string]interface{}{
+		"prompt_optimizer": &defaultOptimizer,
+	}
+}
+
+// Validate validates MinimaxSubjectReferenceOptions
+func (o *MinimaxSubjectReferenceOptions) Validate() error {
+	// No validation needed for a boolean flag yet
+	return nil
+}
+
+// MinimaxSubjectReferenceRequest represents a request for minimax/video-01-subject-reference
+type MinimaxSubjectReferenceRequest struct {
+	BaseVideoRequest                // Embeds Prompt, Progress, Model, Options
+	SubjectReferenceImageURL string `json:"subject_reference_image_url"` // Specific required field
+	PromptOptimizer          *bool  `json:"prompt_optimizer,omitempty"`  // Mirrored option
+}
+
+// MinimaxLiveOptions represents options for minimax/video-01-live
+type MinimaxLiveOptions struct {
+	PromptOptimizer *bool `json:"prompt_optimizer,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns default values for MinimaxLiveOptions
+func (o *MinimaxLiveOptions) GetDefaultValues() map[string]interface{} {
+	defaultOptimizer := true
+	return map[string]interface{}{
+		"prompt_optimizer": &defaultOptimizer,
+	}
+}
+
+// Validate validates MinimaxLiveOptions
+func (o *MinimaxLiveOptions) Validate() error {
+	// No validation needed for a boolean flag yet
+	return nil
+}
+
+// MinimaxLiveRequest represents a request for minimax/video-01-live
+type MinimaxLiveRequest struct {
+	BaseVideoRequest       // Embeds Prompt, ImageURL, Progress, Model, Options
+	PromptOptimizer  *bool `json:"prompt_optimizer,omitempty"` // Mirrored option
+}
+
+// MinimaxVideo01Options represents options for minimax/video-01
+type MinimaxVideo01Options struct {
+	PromptOptimizer *bool `json:"prompt_optimizer,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns default values for MinimaxVideo01Options
+func (o *MinimaxVideo01Options) GetDefaultValues() map[string]interface{} {
+	defaultOptimizer := true
+	return map[string]interface{}{
+		"prompt_optimizer": &defaultOptimizer,
+	}
+}
+
+// Validate validates MinimaxVideo01Options
+func (o *MinimaxVideo01Options) Validate() error {
+	// No validation needed for a boolean flag yet
+	return nil
+}
+
+// MinimaxVideo01Request represents a request for minimax/video-01
+type MinimaxVideo01Request struct {
+	BaseVideoRequest       // Embeds Prompt, Progress, Model, Options (ImageURL should be empty)
+	PromptOptimizer  *bool `json:"prompt_optimizer,omitempty"` // Mirrored option
 }
