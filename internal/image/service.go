@@ -43,12 +43,18 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 		return &ImageResult{Success: false, Error: err}, err
 	}
 
-	// 2. Calculate cost and CHECK balance if billing is enabled
+	// 2. Calculate TOTAL cost and CHECK balance if billing is enabled
+	numImagesToRequest := req.NumImages
+	if numImagesToRequest <= 0 {
+		numImagesToRequest = 1 // Default to 1 if not specified or invalid
+	}
+	totalExpectedCostUSD := req.PriceUSD * float64(numImagesToRequest) // Calculate total cost first
+
 	var requiredDCR, currentBalanceDCR float64
 	var checkErr error
 	if s.billingEnabled {
-		// Call CheckBalance, which now returns the error directly if insufficient or other issue
-		requiredDCR, currentBalanceDCR, checkErr = utils.CheckBalance(ctx, s.dbManager, req.UserID[:], req.PriceUSD, s.debug, s.billingEnabled)
+		// Call CheckBalance with the TOTAL cost
+		requiredDCR, currentBalanceDCR, checkErr = utils.CheckBalance(ctx, s.dbManager, req.UserID[:], totalExpectedCostUSD, s.debug, s.billingEnabled)
 		if checkErr != nil {
 			// Return the error (could be ErrInsufficientBalance or another critical error)
 			// The calling layer (main.go) will handle ErrInsufficientBalance specifically.
@@ -57,18 +63,13 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	}
 
 	// 3. Send initial message (adjusted for billing status)
-	numImagesToRequest := req.NumImages
-	if numImagesToRequest <= 0 {
-		numImagesToRequest = 1 // Default to 1 if not specified or invalid
-	}
-	totalExpectedCostUSD := req.PriceUSD * float64(numImagesToRequest)
-
 	// Inform user about processing (adjust message based on billing)
 	var infoMsg string
 	if s.billingEnabled {
-		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing...", totalExpectedCostUSD, requiredDCR, currentBalanceDCR)
+		// Use the total cost and the requiredDCR calculated from it
+		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing %d image(s)...", totalExpectedCostUSD, requiredDCR, currentBalanceDCR, numImagesToRequest)
 	} else {
-		infoMsg = "Processing your request (billing disabled)..."
+		infoMsg = fmt.Sprintf("Processing your request for %d image(s) (billing disabled)...", numImagesToRequest)
 	}
 	s.bot.SendPM(ctx, req.UserNick, infoMsg)
 
