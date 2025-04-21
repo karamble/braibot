@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
+	"strconv"
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
@@ -135,4 +137,48 @@ func FormatBalanceMessage(balanceDCR float64, dcrPrice float64) string {
 func FormatBillingMessage(chargedDCR float64, chargedUSD float64, remainingBalance float64) string {
 	return fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• Remaining Balance: %.8f DCR",
 		chargedDCR, chargedUSD, remainingBalance)
+}
+
+// FormatThousands formats a float64 with dots as thousands separators, rounded to the nearest integer.
+func FormatThousands(n float64) string {
+	// Round to the nearest integer
+	rounded := int64(math.Round(n)) // Use int64 for potentially large numbers
+	s := strconv.FormatInt(rounded, 10)
+
+	nDigits := len(s)
+	if rounded < 0 {
+		nDigits-- // Sign doesn't count
+	}
+	if nDigits <= 3 {
+		return s // No separator needed
+	}
+
+	// Calculate the number of separators needed
+	numSeparators := (nDigits - 1) / 3
+	resultLen := len(s) + numSeparators
+	result := make([]byte, resultLen)
+
+	sepIdx := resultLen - 1
+	srcIdx := len(s) - 1
+	digitsSinceSep := 0
+
+	for srcIdx >= 0 {
+		if s[srcIdx] == '-' {
+			result[0] = '-'
+			break
+		}
+
+		if digitsSinceSep == 3 {
+			result[sepIdx] = '.'
+			sepIdx--
+			digitsSinceSep = 0
+		}
+
+		result[sepIdx] = s[srcIdx]
+		sepIdx--
+		srcIdx--
+		digitsSinceSep++
+	}
+
+	return string(result)
 }

@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -116,6 +117,9 @@ func realMain() error {
 
 	// Initialize command registry
 	commandRegistry := commands.InitializeCommands(dbManager, cfg, bot, debug)
+
+	// Use a WaitGroup to ensure clean shutdown coordination
+	var wg sync.WaitGroup
 
 	// Add a goroutine to handle PMs using our bidirectional channel
 	go func() {
@@ -229,17 +233,36 @@ func realMain() error {
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	wg.Add(1) // Increment counter for the signal handler goroutine
 	go func() {
+		defer wg.Done() // Decrement counter when this goroutine finishes
 		sig := <-sigChan
 		log.Infof("Received shutdown signal: %v", sig)
-		bot.Close()
+		// Attempt to close the bot resources cleanly first
+		if bot != nil {
+			log.Infof("Attempting to close bot resources...")
+			bot.Close()
+			log.Infof("Bot resources closed.")
+			// Add a small delay to allow network cleanup before cancelling context
+			time.Sleep(1 * time.Second) // Keep the delay
+		}
+		// Close the channels used by main.go goroutines
+		close(pmChan)
+		close(tipChan)
+		// Then, cancel the main context to signal Run() to stop
 		cancel()
 	}()
 
 	// Run the bot with the cancellable context
 	if err := bot.Run(ctx); err != nil {
-		return fmt.Errorf("bot error: %v", err)
+		// Log the error from Run(), potentially filtering out context canceled errors
+		if !errors.Is(err, context.Canceled) {
+			log.Errorf("Bot run error: %v", err)
+		}
 	}
+
+	// Wait for the signal handling goroutine to complete its cleanup.
+	wg.Wait()
 
 	return nil
 }

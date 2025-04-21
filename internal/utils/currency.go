@@ -61,6 +61,50 @@ func GetDCRPrice() (float64, float64, error) {
 	return usdPrice, btcPrice, nil
 }
 
+// GetBTCPrice gets the current BTC price in USD from CoinGecko
+func GetBTCPrice() (float64, error) {
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	// Create request to CoinGecko API for BTC/USD
+	req, err := http.NewRequest("GET", "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd", nil)
+	if err != nil {
+		return 0, fmt.Errorf("error creating request: %v", err)
+	}
+
+	// Make request
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("error fetching BTC rate: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// Parse response
+	var result map[string]map[string]float64
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, fmt.Errorf("error parsing BTC rate: %v", err)
+	}
+
+	btcData, ok := result["bitcoin"]
+	if !ok {
+		return 0, fmt.Errorf("no data returned for BTC")
+	}
+
+	usdPrice, ok := btcData["usd"]
+	if !ok {
+		return 0, fmt.Errorf("no USD price found for BTC")
+	}
+
+	return usdPrice, nil
+}
+
 // USDToDCR converts a USD amount to DCR using current exchange rate
 func USDToDCR(usdAmount float64) (float64, error) {
 	dcrPrice, _, err := GetDCRPrice()

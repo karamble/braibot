@@ -7,7 +7,6 @@ toolchain go1.24.2
 require (
 	github.com/companyzero/bisonrelay v0.2.4-0.20250321132913-c1cc5b0fd438
 	github.com/companyzero/gopus v0.0.1
-	github.com/decred/dcrd/dcrutil/v4 v4.0.2
 	github.com/mattn/go-sqlite3 v1.14.27
 	github.com/vctt94/bisonbotkit v0.0.0-20250411232944-0bdc47d1c976
 )
@@ -23,6 +22,7 @@ require (
 	github.com/decred/dcrd/dcrec v1.0.1 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
+	github.com/decred/dcrd/dcrutil/v4 v4.0.2 // indirect
 	github.com/decred/dcrd/txscript/v4 v4.1.1 // indirect
 	github.com/decred/dcrd/wire v1.7.0 // indirect
 	github.com/decred/slog v1.2.0 // indirect

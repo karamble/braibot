@@ -14,6 +14,7 @@ go.work
 # Binary files
 bin/
 dist/
+braibot
 
 # IDE specific files
 .idea/
