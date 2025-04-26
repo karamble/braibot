@@ -39,11 +39,8 @@ func Text2SpeechCommand(dbManager *database.DBManager, speechService *speech.Spe
 				// Format header using utility function
 				header := utils.FormatCommandHelpHeader("text2speech", model, userID, dbManager)
 
-				// Get help doc
+				// Get help doc from model
 				helpDoc := model.HelpDoc
-				if helpDoc == "" {
-					helpDoc = "Usage: !text2speech [text] [--options...]\n(No specific documentation available for this model.)"
-				}
 
 				// Send combined header and help doc
 				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
@@ -119,8 +116,7 @@ func Text2SpeechCommand(dbManager *database.DBManager, speechService *speech.Spe
 }
 
 // parseTextSpeechArgs parses the command arguments for text2speech.
-// It identifies an optional voice_id as the first argument if it doesn't start with '--'
-// and isn't likely part of a multi-word text when only one arg is given.
+// It requires voice_id to be specified with --voice_id parameter.
 // Returns the text, voice_id (or default), and parsed options map, and error.
 func parseTextSpeechArgs(args []string) (text, voiceID string, options map[string]interface{}, err error) {
 	defaultVoiceID := "Wise_Woman"
@@ -132,36 +128,16 @@ func parseTextSpeechArgs(args []string) (text, voiceID string, options map[strin
 		return
 	}
 
-	// Identify voice ID
-	firstArgIsLikelyVoiceID := false
-	if len(args) > 1 && !strings.HasPrefix(args[0], "--") {
-		if len(strings.Split(args[0], "_")) > 1 && len(args[0]) < 30 { // Basic heuristic
-			firstArgIsLikelyVoiceID = true
-		}
-	}
-	if len(args) == 1 && !strings.HasPrefix(args[0], "--") {
-		if len(strings.Split(args[0], "_")) > 1 && len(args[0]) < 30 {
-			err = fmt.Errorf("voice ID '%s' provided, but no text found", args[0])
-			return
-		}
-	}
+	// Initialize with default voice
+	voiceID = defaultVoiceID
 
-	// Separate potential voice ID from other args
-	startIdx := 0
-	if firstArgIsLikelyVoiceID {
-		voiceID = args[0]
-		startIdx = 1
-	} else {
-		voiceID = defaultVoiceID
-	}
-
-	// Parse remaining args for flags and text
-	i := startIdx
+	// Parse args for flags and text
+	i := 0
 	for i < len(args) {
 		arg := args[i]
 		argLower := strings.ToLower(arg)
 
-		// Handle boolean flags like --flag=value (though none are bool here yet)
+		// Handle flags like --flag=value
 		var flagValue string
 		if strings.Contains(argLower, "=") {
 			parts := strings.SplitN(argLower, "=", 2)
@@ -207,6 +183,8 @@ func parseTextSpeechArgs(args []string) (text, voiceID string, options map[strin
 					return
 				}
 				options["pitch"] = &iVal
+			case "voice_id":
+				voiceID = value
 			case "emotion":
 				options["emotion"] = value
 			case "sample_rate":
