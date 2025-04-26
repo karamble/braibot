@@ -2,6 +2,8 @@ package speech
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -156,7 +158,16 @@ func (s *SpeechService) downloadAndSendAudio(ctx context.Context, userNick strin
 	// For now, defaulting to mp3 based on minimax default format
 	// A more robust approach would pass content_type from fal.AudioResponse
 	fileExtension := ".mp3"
-	fileNamePrefix := "speech-" + modelName + "-"
+
+	// Generate random bytes for the filename to make it unpredictable
+	randomBytes := make([]byte, 8)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return fmt.Errorf("failed to generate random filename: %v", err)
+	}
+
+	// Convert to hex string and create file prefix
+	randomString := hex.EncodeToString(randomBytes)
+	fileNamePrefix := "speech-" + randomString + "-"
 
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", fileNamePrefix+"*"+fileExtension)
