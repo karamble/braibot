@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -24,7 +23,7 @@ type WebhookResponse struct {
 }
 
 // AICommand returns the AI command that forwards messages to a webhook
-func AICommand() Command {
+func AICommand(debug bool) Command {
 	return Command{
 		Name:        "ai",
 		Description: "🤖 Send a message to the AI webhook for processing",
@@ -72,6 +71,10 @@ func AICommand() Command {
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-BRAIBOT-API-KEY", webhookAPIKey)
 
+			if debug {
+				fmt.Printf("DEBUG [ai] User %s: Sending request to webhook\n", pm.Nick)
+			}
+
 			// Send request
 			resp, err := client.Do(req)
 			if err != nil {
@@ -86,7 +89,9 @@ func AICommand() Command {
 			}
 
 			// Debug: Log the raw response
-			log.Printf("Webhook response body: %s", string(body))
+			if debug {
+				fmt.Printf("DEBUG [ai] User %s: Webhook response body: %s\n", pm.Nick, string(body))
+			}
 
 			// Check response status
 			if resp.StatusCode != http.StatusOK {
@@ -96,22 +101,16 @@ func AICommand() Command {
 			// Parse response as array of WebhookResponse
 			var responses []WebhookResponse
 			if err := json.Unmarshal(body, &responses); err != nil {
-				log.Printf("Failed to parse JSON: %v", err)
 				return fmt.Errorf("failed to parse response as JSON: %v", err)
 			}
 
 			// Debug: Log the parsed responses
-			log.Printf("Number of responses: %d", len(responses))
-			if len(responses) > 0 {
-				log.Printf("First response - SessionID: %q", responses[0].SessionID)
-			}
-			if len(responses) > 1 {
-				log.Printf("Second response - Output: %q", responses[1].Output)
+			if debug {
+				fmt.Printf("DEBUG [ai] User %s: Number of responses: %d\n", pm.Nick, len(responses))
 			}
 
 			// Check if we have at least two responses (query and output)
 			if len(responses) < 2 {
-				log.Printf("Not enough responses: got %d, expected at least 2", len(responses))
 				return bot.SendPM(ctx, pm.Nick, "Unable to process your query.")
 			}
 
@@ -121,8 +120,11 @@ func AICommand() Command {
 
 			// Validate required fields
 			if sessionID == "" || output == "" {
-				log.Printf("Missing required fields - SessionID: %q, Output: %q", sessionID, output)
 				return bot.SendPM(ctx, pm.Nick, "Unable to process your query.")
+			}
+
+			if debug {
+				fmt.Printf("DEBUG [ai] User %s: Sending response to session %s\n", pm.Nick, sessionID)
 			}
 
 			// Send the output back to the user identified by session_id
