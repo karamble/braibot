@@ -92,6 +92,14 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 					"text2speech": "Convert text to speech with AI",
 				}
 
+				// Add !ai command with conditional display
+				webhookEnabled, hasWebhookEnabled := cfg.ExtraConfig["webhookenabled"]
+				if hasWebhookEnabled && webhookEnabled == "true" {
+					aiCommands["ai"] = "Send a message to the AI for processing"
+				} else {
+					aiCommands["ai"] = "Send a message to the AI webhook for processing **disabled**"
+				}
+
 				for cmdName, description := range aiCommands {
 					if _, exists := registry.Get(cmdName); exists {
 						if model, exists := faladapter.GetCurrentModel(cmdName); exists {
