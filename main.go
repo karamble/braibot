@@ -23,6 +23,7 @@ import (
 	"github.com/karamble/braibot/internal/commands"
 	braiconfig "github.com/karamble/braibot/internal/config"
 	"github.com/karamble/braibot/internal/database"
+	braibottypes "github.com/karamble/braibot/internal/types"
 	"github.com/karamble/braibot/internal/utils"
 	kit "github.com/vctt94/bisonbotkit"
 	botkitconfig "github.com/vctt94/bisonbotkit/config"
@@ -98,10 +99,15 @@ func realMain() error {
 	pmChan := make(chan types.ReceivedPM)
 	tipChan := make(chan types.ReceivedTip)
 	tipProgressChan := make(chan types.TipProgressEvent)
+	gcChan := make(chan types.GCReceivedMsg) // Add group chat channel
 
 	// Set up PM channels/log
 	cfg.PMChan = pmChan
 	cfg.PMLog = logBackend.Logger("PM")
+
+	// Set up GC channels/log
+	cfg.GCChan = gcChan
+	cfg.GCLog = logBackend.Logger("GC")
 
 	// Set up tip channels/logs
 	cfg.TipLog = logBackend.Logger("TIP")
@@ -137,7 +143,18 @@ func realMain() error {
 				welcomeSent[userIDStr] = true
 
 				if command, exists := commandRegistry.Get(cmd); exists {
-					handleErr := command.Handler(context.Background(), bot, cfg, pm, args)
+					// Construct MessageContext for PM
+					var senderID zkidentity.ShortID
+					senderID.FromBytes(pm.Uid)
+					msgCtx := braibottypes.MessageContext{
+						Nick:    pm.Nick,
+						Uid:     pm.Uid,
+						Message: pm.Msg.Message,
+						IsPM:    true,
+						Sender:  senderID,
+					}
+					msgSender := braibottypes.NewMessageSender(braibottypes.NewBisonBotAdapter(bot))
+					handleErr := command.Handler.Handle(context.Background(), msgCtx, args, msgSender, dbManager)
 					if handleErr != nil {
 						// Check if the error is specifically ErrInsufficientBalance
 						var insufErr *utils.ErrInsufficientBalance
@@ -167,6 +184,51 @@ func realMain() error {
 				} else {
 					// Mark welcome as sent for this user
 					welcomeSent[userIDStr] = true
+				}
+			}
+		}
+	}()
+
+	// Add a goroutine to handle group chat messages
+	go func() {
+		for gc := range gcChan {
+			log.Infof("Received GC message from %s in %s: %s", gc.Nick, gc.GcAlias, gc.Msg.Message)
+
+			// Convert UID to string ID for tracking
+			var userID zkidentity.ShortID
+			userID.FromBytes(gc.Uid)
+
+			// Check if the message is a command
+			if cmd, args, isCmd := commands.IsCommand(gc.Msg.Message); isCmd {
+				if command, exists := commandRegistry.Get(cmd); exists {
+					var senderID zkidentity.ShortID
+					senderID.FromBytes(gc.Uid)
+					msgCtx := braibottypes.MessageContext{
+						Nick:    gc.Nick,
+						Uid:     gc.Uid,
+						Message: gc.Msg.Message,
+						IsPM:    false,
+						Sender:  senderID,
+						GC:      gc.GcAlias,
+					}
+					msgSender := braibottypes.NewMessageSender(braibottypes.NewBisonBotAdapter(bot))
+					handleErr := command.Handler.Handle(context.Background(), msgCtx, args, msgSender, dbManager)
+					if handleErr != nil {
+						// Check if the error is specifically ErrInsufficientBalance
+						var insufErr *utils.ErrInsufficientBalance
+						if errors.Is(handleErr, insufErr) {
+							// Send the specific error message to the group chat
+							if gcErr := bot.SendGC(context.Background(), gc.GcAlias, handleErr.Error()); gcErr != nil {
+								log.Warnf("Failed to send insufficient balance message to GC %s: %v", gc.GcAlias, gcErr)
+							}
+						} else {
+							// Log other command execution errors as warnings
+							log.Warnf("Error executing command %s for user %s in GC %s: %v", cmd, gc.Nick, gc.GcAlias, handleErr)
+						}
+					}
+				} else {
+					// Send error message for unknown command to the group chat
+					bot.SendGC(context.Background(), gc.GcAlias, fmt.Sprintf("👋 Hi %s!\n\nI don't recognize that command. Use **!help** to see available commands.", gc.Nick))
 				}
 			}
 		}
@@ -249,6 +311,7 @@ func realMain() error {
 		// Close the channels used by main.go goroutines
 		close(pmChan)
 		close(tipChan)
+		close(gcChan) // Close group chat channel
 		// Then, cancel the main context to signal Run() to stop
 		cancel()
 	}()

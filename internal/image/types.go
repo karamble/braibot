@@ -15,7 +15,9 @@ type ImageRequest struct {
 	UserNick  string
 	UserID    zkidentity.ShortID
 	PriceUSD  float64
-	NumImages int // Number of images requested (for models that support it)
+	NumImages int    // Number of images requested (for models that support it)
+	IsPM      bool   // Whether this is a private message
+	GC        string // Group chat name if not PM
 
 	// Model-specific options parsed from command args
 	ImageSize           string   // e.g., "landscape_4_3"

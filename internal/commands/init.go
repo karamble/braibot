@@ -35,16 +35,20 @@ func InitializeCommands(dbManager *database.DBManager, cfg *config.BotConfig, bo
 
 	// Register AI commands (using services)
 	// Pass the billingEnabled flag to commands that might need it directly (like balance)
-	registry.Register(Text2ImageCommand(dbManager, imageService, debug))
-	registry.Register(Text2SpeechCommand(dbManager, speechService, debug)) // Pass service instance
-	registry.Register(Image2ImageCommand(dbManager, imageService, debug))
-	registry.Register(Image2VideoCommand(dbManager, videoService, debug))
-	registry.Register(Text2VideoCommand(dbManager, videoService, debug))
-	registry.Register(AICommand(debug))
 
-	// Register balance and rate commands
-	registry.Register(BalanceCommand(dbManager, debug, billingEnabled)) // Pass billing flag
+	registry.Register(Image2ImageCommand(bot, cfg, imageService, debug))
+	registry.Register(Image2VideoCommand(bot, cfg, videoService, debug))
+
+	registry.Register(AICommand(bot, cfg, debug))
+
+	registry.Register(BalanceCommand())
 	registry.Register(RateCommand())
+
+	registry.Register(Text2ImageCommand(bot, cfg, imageService, debug))
+
+	registry.Register(Text2SpeechCommand(bot, cfg, speechService, debug))
+
+	registry.Register(Text2VideoCommand(bot, cfg, videoService, debug))
 
 	return registry
 }

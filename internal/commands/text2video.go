@@ -3,110 +3,59 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
 
-	"github.com/companyzero/bisonrelay/clientrpc/types"
-	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
-	"github.com/karamble/braibot/internal/utils"
+	braibottypes "github.com/karamble/braibot/internal/types"
 	"github.com/karamble/braibot/internal/video"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
-	"github.com/vctt94/bisonbotkit/config"
+	botconfig "github.com/vctt94/bisonbotkit/config"
 )
 
 // Text2VideoCommand returns the text2video command
 // It now requires a VideoService instance.
-func Text2VideoCommand(dbManager *database.DBManager, videoService *video.VideoService, debug bool) Command {
+func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *video.VideoService, debug bool) braibottypes.Command {
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("text2video")
 	if !exists {
-		// Fallback to a default description if no model is found
 		model = fal.Model{
 			Name:        "text2video",
-			Description: "Generate a video from text using AI",
+			Description: "Generate a video from text",
 		}
 	}
+	description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9]", model.Description)
 
-	// Create the command description using the model's description
-	// description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9] [--negative_prompt \"blur, distort, and low quality\"] [--cfg_scale 0.5]", model.Description)
-
-	return Command{
+	return braibottypes.Command{
 		Name:        "text2video",
-		Description: "🎥 Generate a short video from a text prompt (e.g., !text2video a running dog)",
+		Description: description,
 		Category:    "🎨 AI Generation",
-		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
+		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
+			// Create a message sender using the adapter
+			msgSender := braibottypes.NewMessageSender(braibottypes.NewBisonBotAdapter(bot))
+
 			if len(args) < 1 {
-				// Get the current model
-				model, exists := faladapter.GetCurrentModel("text2video")
-				if !exists {
-					return bot.SendPM(ctx, pm.Nick, "Error: Default text2video model not found.")
-				}
-
-				// Get user ID
-				var userID zkidentity.ShortID
-				userID.FromBytes(pm.Uid)
-
-				// Format header using utility function
-				header := utils.FormatCommandHelpHeader("text2video", model, userID, dbManager)
-
-				// Get help doc
-				helpDoc := model.HelpDoc
-				if helpDoc == "" {
-					helpDoc = "Usage: !text2video [prompt] [--options...]\n(No specific documentation available for this model.)"
-				}
-
-				// Send combined header and help doc
-				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
+				return msgSender.SendMessage(ctx, msgCtx, "Please provide a prompt. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9]")
 			}
 
-			// Parse arguments using the video parser
-			parser := video.NewArgumentParser()
-			// Update variable list to match parser.Parse return values
-			prompt, _, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, err := parser.Parse(args, false) // Expect NO Image URL
+			// Get the prompt from the arguments
+			prompt := strings.Join(args, " ")
+
+			// Create the video request
+			req := video.VideoRequest{
+				Prompt: prompt,
+				IsPM:   msgCtx.IsPM,
+				GC:     msgCtx.GC,
+			}
+
+			// Process the video
+			result, err := videoService.GenerateVideo(ctx, &req)
 			if err != nil {
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Argument error: %v", err))
-			}
-			if prompt == "" {
-				return bot.SendPM(ctx, pm.Nick, "Please provide a prompt text.")
+				return msgSender.SendErrorMessage(ctx, msgCtx, err)
 			}
 
-			// Get model configuration (required for PriceUSD)
-			model, exists = faladapter.GetCurrentModel("text2video")
-			if !exists {
-				return fmt.Errorf("no default model found for text2video")
-			}
-
-			// Create progress callback
-			progress := NewCommandProgressCallback(bot, pm.Nick, "text2video")
-
-			// Create video request using parsed values
-			var userID zkidentity.ShortID
-			userID.FromBytes(pm.Uid)
-			req := &video.VideoRequest{
-				Prompt:          prompt,
-				Duration:        duration,
-				AspectRatio:     aspectRatio,
-				NegativePrompt:  negativePrompt,
-				CFGScale:        cfgScalePtr,        // Assign the parsed pointer
-				PromptOptimizer: promptOptimizerPtr, // Assign the parsed pointer
-				ModelType:       "text2video",
-				Progress:        progress,
-				UserNick:        pm.Nick,
-				UserID:          userID,
-				PriceUSD:        model.PriceUSD,
-			}
-
-			// Generate video
-			result, err := videoService.GenerateVideo(ctx, req)
-
-			// Handle result/error using the utility function
-			if handleErr := utils.HandleServiceResultOrError(ctx, bot, pm, "text2video", result, err); handleErr != nil {
-				return handleErr // Propagate error if not handled by the utility function
-			}
-
-			// If we reach here, the operation was successful and errors were handled
-			return nil
-		},
+			// Send the result
+			return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Generated video: %s", result.VideoURL))
+		}),
 	}
 }

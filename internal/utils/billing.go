@@ -98,6 +98,7 @@ func SendBillingMessage(ctx context.Context, bot *kit.Bot, pm types.ReceivedPM, 
 		return bot.SendPM(ctx, pm.Nick, result.ErrorMessage)
 	}
 
+	// Only send billing information in PMs
 	billingMsg := FormatBillingMessage(result.ChargedDCR, result.ChargedUSD, result.NewBalance)
 	return bot.SendPM(ctx, pm.Nick, billingMsg)
 }

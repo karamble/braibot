@@ -14,6 +14,8 @@ type SpeechRequest struct {
 	UserNick  string
 	UserID    zkidentity.ShortID
 	PriceUSD  float64
+	IsPM      bool   // Whether this is a private message
+	GC        string // Group chat name if not PM
 	// Parsed Options
 	Speed      *float64
 	Vol        *float64
