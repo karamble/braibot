@@ -109,6 +109,115 @@ func CheckAndUpdateConfig(cfg *config.BotConfig, appRoot string) error {
 		}
 	}
 
+	// Check for optional webhook settings
+	// Only prompt for webhook settings if the user wants to enable them
+	if _, exists := cfg.ExtraConfig["webhookenabled"]; !exists {
+		reader := bufio.NewReader(os.Stdin)
+		var webhookEnabledStr string
+		for {
+			fmt.Print("Do you want to enable webhook functionality? (yes/no): ")
+			input, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Printf("\nError reading input: %v. Defaulting webhook to DISABLED.\n", err)
+				webhookEnabledStr = "false"
+				break
+			}
+			input = strings.ToLower(strings.TrimSpace(input))
+
+			if input == "yes" || input == "y" {
+				webhookEnabledStr = "true"
+				break
+			} else if input == "no" || input == "n" {
+				webhookEnabledStr = "false"
+				break
+			} else {
+				fmt.Println("Invalid input. Please enter 'yes' or 'no'.")
+			}
+		}
+
+		// Store the webhook enabled setting
+		cfg.ExtraConfig["webhookenabled"] = webhookEnabledStr
+
+		// Write to config file
+		configPath := filepath.Join(appRoot, "braibot.conf")
+		f, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Printf("WARN: Failed to open config file to append webhookenabled setting: %v\n", err)
+		} else {
+			if _, err := f.WriteString(fmt.Sprintf("webhookenabled=%s\n", webhookEnabledStr)); err != nil {
+				fmt.Printf("WARN: Failed to write webhookenabled setting to config file: %v\n", err)
+			}
+			f.Close()
+		}
+
+		// If webhook is enabled, prompt for URL and API key
+		if webhookEnabledStr == "true" {
+			// Prompt for webhook URL
+			fmt.Print("Enter your webhook URL: ")
+			webhookURL, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Printf("\nError reading webhook URL: %v. Webhook functionality will be disabled.\n", err)
+				cfg.ExtraConfig["webhookenabled"] = "false"
+			} else {
+				webhookURL = strings.TrimSpace(webhookURL)
+				if webhookURL != "" {
+					cfg.ExtraConfig["webhookurl"] = webhookURL
+
+					// Write to config file
+					f, err := os.OpenFile(configPath, os.O_APPEND|os.O_WRONLY, 0644)
+					if err != nil {
+						fmt.Printf("WARN: Failed to open config file to append webhookurl: %v\n", err)
+					} else {
+						if _, err := f.WriteString(fmt.Sprintf("webhookurl=%s\n", webhookURL)); err != nil {
+							fmt.Printf("WARN: Failed to write webhookurl to config file: %v\n", err)
+						}
+						f.Close()
+					}
+
+					// Prompt for webhook API key
+					fmt.Print("Enter your webhook API key: ")
+					webhookAPIKey, err := reader.ReadString('\n')
+					if err != nil {
+						fmt.Printf("\nError reading webhook API key: %v. Webhook functionality will be disabled.\n", err)
+						cfg.ExtraConfig["webhookenabled"] = "false"
+					} else {
+						webhookAPIKey = strings.TrimSpace(webhookAPIKey)
+						if webhookAPIKey != "" {
+							cfg.ExtraConfig["webhookapikey"] = webhookAPIKey
+
+							// Write to config file
+							f, err := os.OpenFile(configPath, os.O_APPEND|os.O_WRONLY, 0644)
+							if err != nil {
+								fmt.Printf("WARN: Failed to open config file to append webhookapikey: %v\n", err)
+							} else {
+								if _, err := f.WriteString(fmt.Sprintf("webhookapikey=%s\n", webhookAPIKey)); err != nil {
+									fmt.Printf("WARN: Failed to write webhookapikey to config file: %v\n", err)
+								}
+								f.Close()
+							}
+						} else {
+							fmt.Println("Webhook API key cannot be empty. Webhook functionality will be disabled.")
+							cfg.ExtraConfig["webhookenabled"] = "false"
+						}
+					}
+				} else {
+					fmt.Println("Webhook URL cannot be empty. Webhook functionality will be disabled.")
+					cfg.ExtraConfig["webhookenabled"] = "false"
+				}
+			}
+		}
+	} else {
+		// Validate existing webhook enabled setting
+		val := strings.ToLower(strings.TrimSpace(cfg.ExtraConfig["webhookenabled"]))
+		if val != "true" && val != "false" {
+			fmt.Printf("Invalid value '%s' for webhookenabled found in config, defaulting to false.\n", cfg.ExtraConfig["webhookenabled"])
+			cfg.ExtraConfig["webhookenabled"] = "false"
+		} else {
+			// Store the validated, lowercased value back
+			cfg.ExtraConfig["webhookenabled"] = val
+		}
+	}
+
 	return nil
 }
 

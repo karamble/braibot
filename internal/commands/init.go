@@ -40,6 +40,7 @@ func InitializeCommands(dbManager *database.DBManager, cfg *config.BotConfig, bo
 	registry.Register(Image2ImageCommand(dbManager, imageService, debug))
 	registry.Register(Image2VideoCommand(dbManager, videoService, debug))
 	registry.Register(Text2VideoCommand(dbManager, videoService, debug))
+	registry.Register(AICommand(debug))
 
 	// Register balance and rate commands
 	registry.Register(BalanceCommand(dbManager, debug, billingEnabled)) // Pass billing flag
