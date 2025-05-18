@@ -20,6 +20,7 @@ func InitializeCommands(dbManager *database.DBManager, cfg *config.BotConfig, bo
 	// Get billing enabled flag from config (defaulting to true)
 	billingEnabledStr := cfg.ExtraConfig["billingenabled"] // Already validated in config check
 	billingEnabled := (billingEnabledStr == "true")
+	registry.SetBillingEnabled(billingEnabled)
 
 	// Set webhook enabled status in registry
 	webhookEnabledStr := cfg.ExtraConfig["webhookenabled"]

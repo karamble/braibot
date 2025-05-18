@@ -11,6 +11,7 @@ import (
 type Registry struct {
 	commands       map[string]braibottypes.Command
 	webhookEnabled bool
+	billingEnabled bool
 }
 
 // NewRegistry creates a new command registry
@@ -18,6 +19,7 @@ func NewRegistry() *Registry {
 	return &Registry{
 		commands:       make(map[string]braibottypes.Command),
 		webhookEnabled: false,
+		billingEnabled: true, // Default to true
 	}
 }
 
@@ -54,6 +56,16 @@ func (r *Registry) GetWebhookEnabled() (bool, bool) {
 // SetWebhookEnabled sets whether the webhook is enabled
 func (r *Registry) SetWebhookEnabled(enabled bool) {
 	r.webhookEnabled = enabled
+}
+
+// GetBillingEnabled returns whether billing is enabled
+func (r *Registry) GetBillingEnabled() bool {
+	return r.billingEnabled
+}
+
+// SetBillingEnabled sets whether billing is enabled
+func (r *Registry) SetBillingEnabled(enabled bool) {
+	r.billingEnabled = enabled
 }
 
 // IsCommand checks if a message is a command (starts with !)

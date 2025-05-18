@@ -48,6 +48,11 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 					helpMsg += "💰 **Balance Command:** Only available in private messages\n\n"
 				}
 
+				// Add billing disabled message if applicable
+				if !registry.GetBillingEnabled() {
+					helpMsg += "🎉 **Happy Days!** All commands are free to use.\n\n"
+				}
+
 				// Get current model selections
 				helpMsg += "🎯 **Your Current Model Selections:**\n"
 				for _, cmdType := range []string{"text2image", "text2speech", "image2image", "image2video", "text2video"} {
