@@ -101,7 +101,7 @@ func init() {
 	// We only set the defaults here.
 
 	// Set default models
-	setDefaultModel("text2image", "fast-sdxl")
+	setDefaultModel("text2image", "flux/schnell")
 	setDefaultModel("image2image", "ghiblify")
 	setDefaultModel("text2speech", "minimax-tts/text-to-speech")
 	setDefaultModel("image2video", "veo2")

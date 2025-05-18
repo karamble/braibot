@@ -18,7 +18,7 @@ import (
 // It now requires a VideoService instance.
 func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *video.VideoService, debug bool) braibottypes.Command {
 	// Get the current model to use its description
-	model, exists := faladapter.GetCurrentModel("image2video")
+	model, exists := faladapter.GetCurrentModel("image2video", "") // Empty string for global default
 	if !exists {
 		// Fallback to a default description if no model is found
 		model = fal.Model{
@@ -40,7 +40,13 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 
 			if len(args) < 1 {
 				// Get the current model
-				model, exists := faladapter.GetCurrentModel("image2video")
+				var userIDStr string
+				if msgCtx.IsPM {
+					var uid zkidentity.ShortID
+					uid.FromBytes(msgCtx.Uid)
+					userIDStr = uid.String()
+				}
+				model, exists := faladapter.GetCurrentModel("image2video", userIDStr)
 				if !exists {
 					return msgSender.SendMessage(ctx, msgCtx, "Error: Default image2video model not found.")
 				}
@@ -77,8 +83,14 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 				return msgSender.SendMessage(ctx, msgCtx, "Please provide a text prompt describing the desired animation.")
 			}
 
-			// Get model configuration (required for PriceUSD and logic)
-			model, exists := faladapter.GetCurrentModel("image2video")
+			// Get model configuration
+			var userIDStr string
+			if msgCtx.IsPM {
+				var uid zkidentity.ShortID
+				uid.FromBytes(msgCtx.Uid)
+				userIDStr = uid.String()
+			}
+			model, exists := faladapter.GetCurrentModel("image2video", userIDStr)
 			if !exists {
 				return msgSender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("no default model found for image2video"))
 			}
@@ -100,8 +112,8 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 				Duration:        duration,
 				AspectRatio:     aspectRatio,
 				NegativePrompt:  negativePrompt,
-				CFGScale:        cfgScalePtr,        // Assign the parsed pointer
-				PromptOptimizer: promptOptimizerPtr, // Assign the parsed pointer (may be nil)
+				CFGScale:        cfgScalePtr,
+				PromptOptimizer: promptOptimizerPtr,
 				ModelType:       "image2video",
 				Progress:        progress,
 				UserNick:        msgCtx.Nick,

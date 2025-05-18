@@ -20,7 +20,7 @@ import (
 // It now requires an ImageService instance.
 func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *imgservice.ImageService, debug bool) braibottypes.Command {
 	// Get the current model to use its description
-	model, exists := faladapter.GetCurrentModel("image2image")
+	model, exists := faladapter.GetCurrentModel("image2image", "") // Empty string for global default
 	if !exists {
 		// Fallback to a default description if no model is found
 		model = fal.Model{
@@ -42,7 +42,13 @@ func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *im
 
 			if len(args) < 1 {
 				// Get the current model
-				model, exists := faladapter.GetCurrentModel("image2image")
+				var userIDStr string
+				if msgCtx.IsPM {
+					var uid zkidentity.ShortID
+					uid.FromBytes(msgCtx.Uid)
+					userIDStr = uid.String()
+				}
+				model, exists := faladapter.GetCurrentModel("image2image", userIDStr)
 				if !exists {
 					return msgSender.SendMessage(ctx, msgCtx, "Error: Default image2image model not found.")
 				}
@@ -73,7 +79,13 @@ func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *im
 			}
 
 			// Get model configuration
-			model, exists := faladapter.GetCurrentModel("image2image")
+			var userIDStr string
+			if msgCtx.IsPM {
+				var uid zkidentity.ShortID
+				uid.FromBytes(msgCtx.Uid)
+				userIDStr = uid.String()
+			}
+			model, exists := faladapter.GetCurrentModel("image2image", userIDStr)
 			if !exists {
 				return msgSender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("no default model found for image2image"))
 			}

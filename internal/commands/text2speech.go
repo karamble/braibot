@@ -6,9 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/faladapter"
 	"github.com/karamble/braibot/internal/speech"
 	braibottypes "github.com/karamble/braibot/internal/types"
+	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 	botconfig "github.com/vctt94/bisonbotkit/config"
@@ -17,7 +19,7 @@ import (
 // Text2SpeechCommand returns the text2speech command
 func Text2SpeechCommand(bot *kit.Bot, cfg *botconfig.BotConfig, speechService *speech.SpeechService, debug bool) braibottypes.Command {
 	// Get the current model to use its description
-	model, exists := faladapter.GetCurrentModel("text2speech")
+	model, exists := faladapter.GetCurrentModel("text2speech", "") // Empty string for global default
 	if !exists {
 		model = fal.Model{
 			Name:        "text2speech",
@@ -32,17 +34,56 @@ func Text2SpeechCommand(bot *kit.Bot, cfg *botconfig.BotConfig, speechService *s
 		Category:    "🎤 AI Generation",
 		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			if len(args) < 1 {
-				return sender.SendMessage(ctx, msgCtx, "Please provide text to convert to speech. Usage: !text2speech [text]")
+				// Get the current model
+				var userIDStr string
+				if msgCtx.IsPM {
+					var uid zkidentity.ShortID
+					uid.FromBytes(msgCtx.Uid)
+					userIDStr = uid.String()
+				}
+				model, exists := faladapter.GetCurrentModel("text2speech", userIDStr)
+				if !exists {
+					return sender.SendMessage(ctx, msgCtx, "Error: Default text2speech model not found.")
+				}
+
+				// Get user ID
+				var userID zkidentity.ShortID
+				userID.FromBytes(msgCtx.Uid)
+
+				// Format header using utility function
+				header := utils.FormatCommandHelpHeader("text2speech", model, userID, db)
+
+				// Get help doc
+				helpDoc := model.HelpDoc
+				if helpDoc == "" {
+					helpDoc = "Usage: !text2speech [text] [--options...]\n(No specific documentation available for this model.)"
+				}
+
+				// Send combined header and help doc
+				return sender.SendMessage(ctx, msgCtx, header+helpDoc)
 			}
 
 			// Get the text from the arguments
 			text := strings.Join(args, " ")
 
+			// Get model configuration
+			var userIDStr string
+			if msgCtx.IsPM {
+				var uid zkidentity.ShortID
+				uid.FromBytes(msgCtx.Uid)
+				userIDStr = uid.String()
+			}
+			model, exists := faladapter.GetCurrentModel("text2speech", userIDStr)
+			if !exists {
+				return sender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("no default model found for text2speech"))
+			}
+
 			// Create the speech request
 			req := speech.SpeechRequest{
-				Text: text,
-				IsPM: msgCtx.IsPM,
-				GC:   msgCtx.GC,
+				Text:      text,
+				IsPM:      msgCtx.IsPM,
+				GC:        msgCtx.GC,
+				ModelName: model.Name, // Use the model name in the request
 			}
 
 			// Process the speech
