@@ -71,7 +71,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 	}
 
 	// 4. Get current model name
-	model, exists := faladapter.GetCurrentModel(req.ModelType)
+	model, exists := faladapter.GetCurrentModel(req.ModelType, "")
 	if !exists {
 		return &VideoResult{Success: false, Error: fmt.Errorf("no default model found for %s", req.ModelType)}, nil // No billing occurred
 	}
@@ -176,7 +176,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 // validateRequest validates the video request and formats duration based on model
 func (s *VideoService) validateRequest(req *VideoRequest) error {
 	// Check if model exists and get its details
-	model, exists := faladapter.GetCurrentModel(req.ModelType)
+	model, exists := faladapter.GetCurrentModel(req.ModelType, "")
 	if !exists {
 		return fmt.Errorf("no default model found for %s", req.ModelType)
 	}

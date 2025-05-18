@@ -101,7 +101,6 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				CFGScale:        cfgScalePtr,
 				PromptOptimizer: promptOptimizerPtr,
 				ModelType:       "text2video",
-				ModelName:       model.Name,
 				Progress:        progress,
 				UserNick:        msgCtx.Nick,
 				UserID:          userID,

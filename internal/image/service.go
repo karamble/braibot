@@ -263,8 +263,8 @@ func derefIntPtrOrDefault(ptr *int, defaultValue int) int {
 
 // validateRequest validates the image request
 func (s *ImageService) validateRequest(req *ImageRequest) error {
-	// Check if model exists
-	_, exists := faladapter.GetCurrentModel(req.ModelType)
+	// Get model configuration
+	_, exists := faladapter.GetCurrentModel(req.ModelType, "") // Empty string for userID means use global default
 	if !exists {
 		return fmt.Errorf("no default model found for %s", req.ModelType)
 	}
