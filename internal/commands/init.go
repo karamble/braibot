@@ -21,6 +21,11 @@ func InitializeCommands(dbManager *database.DBManager, cfg *config.BotConfig, bo
 	billingEnabledStr := cfg.ExtraConfig["billingenabled"] // Already validated in config check
 	billingEnabled := (billingEnabledStr == "true")
 
+	// Set webhook enabled status in registry
+	webhookEnabledStr := cfg.ExtraConfig["webhookenabled"]
+	webhookEnabled := (webhookEnabledStr == "true")
+	registry.SetWebhookEnabled(webhookEnabled)
+
 	// Create Services, passing the billing flag
 	imageService := image.NewImageService(falClient, dbManager, bot, debug, billingEnabled)
 	videoService := video.NewVideoService(falClient, dbManager, bot, debug, billingEnabled)    // Assuming NewVideoService signature is updated

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/faladapter"
 	braibottypes "github.com/karamble/braibot/internal/types"
 )
@@ -45,10 +46,25 @@ func SetModelCommand(registry *Registry) braibottypes.Command {
 			}
 			task := strings.ToLower(args[0])
 			modelName := strings.ToLower(args[1])
-			if err := faladapter.SetCurrentModel(task, modelName); err != nil {
+
+			// Convert user ID to string for PMs
+			var userID string
+			if msgCtx.IsPM {
+				var uid zkidentity.ShortID
+				uid.FromBytes(msgCtx.Uid)
+				userID = uid.String()
+			}
+
+			if err := faladapter.SetCurrentModel(task, modelName, userID); err != nil {
 				return sender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("failed to set model: %v", err))
 			}
-			return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Model for %s set to: %s", task, modelName))
+
+			// Different message based on context
+			if msgCtx.IsPM {
+				return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Your personal model for %s set to: %s", task, modelName))
+			} else {
+				return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Group chat model for %s set to: %s", task, modelName))
+			}
 		}),
 	}
 }

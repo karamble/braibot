@@ -44,6 +44,8 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 				helpMsg := fmt.Sprintf("🤖 **Welcome to BraiBot Help!**\n\n")
 				if msgCtx.IsPM {
 					helpMsg += fmt.Sprintf("💰 **Your Balance:** %.8f DCR ($%.2f USD)\n\n", balanceDCR, usdValue)
+				} else {
+					helpMsg += "💰 **Balance Command:** Only available in private messages\n\n"
 				}
 
 				// Get current model selections

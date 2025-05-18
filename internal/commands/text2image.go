@@ -20,7 +20,7 @@ import (
 // It now requires an ImageService instance.
 func Text2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *image.ImageService, debug bool) braibottypes.Command {
 	// Get the current model to use its description
-	model, exists := faladapter.GetCurrentModel("text2image")
+	model, exists := faladapter.GetCurrentModel("text2image", "") // Empty string for global default
 	if !exists {
 		// Fallback to a default description if no model is found
 		model = fal.Model{
@@ -42,7 +42,13 @@ func Text2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *ima
 
 			if len(args) < 1 {
 				// Get the current model
-				model, exists := faladapter.GetCurrentModel("text2image")
+				var userIDStr string
+				if msgCtx.IsPM {
+					var uid zkidentity.ShortID
+					uid.FromBytes(msgCtx.Uid)
+					userIDStr = uid.String()
+				}
+				model, exists := faladapter.GetCurrentModel("text2image", userIDStr)
 				if !exists {
 					return msgSender.SendMessage(ctx, msgCtx, "Error: Default text2image model not found.")
 				}
@@ -71,7 +77,13 @@ func Text2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *ima
 			}
 
 			// Model config is needed for PriceUSD
-			model, exists := faladapter.GetCurrentModel("text2image")
+			var userIDStr string
+			if msgCtx.IsPM {
+				var uid zkidentity.ShortID
+				uid.FromBytes(msgCtx.Uid)
+				userIDStr = uid.String()
+			}
+			model, exists := faladapter.GetCurrentModel("text2image", userIDStr)
 			if !exists {
 				return msgSender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("no default model found for text2image"))
 			}
