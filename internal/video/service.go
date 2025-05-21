@@ -64,10 +64,14 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 	} else {
 		infoMsg = "Processing your request (billing disabled)..."
 	}
-	s.bot.SendPM(ctx, req.UserNick, infoMsg)
+	if req.IsPM {
+		s.bot.SendPM(ctx, req.UserNick, infoMsg)
+	} else {
+		s.bot.SendGC(ctx, req.GC, "Processing your video request...")
+	}
 
 	// 4. Get current model name
-	model, exists := faladapter.GetCurrentModel(req.ModelType)
+	model, exists := faladapter.GetCurrentModel(req.ModelType, "")
 	if !exists {
 		return &VideoResult{Success: false, Error: fmt.Errorf("no default model found for %s", req.ModelType)}, nil // No billing occurred
 	}
@@ -119,8 +123,9 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 		billingAttempted = true
 		deductChargedDCR, deductNewBalance, deductErr := utils.DeductBalance(ctx, s.dbManager, req.UserID[:], req.PriceUSD, s.debug, s.billingEnabled)
 		if deductErr != nil {
-			s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error processing payment after sending video: %v. Please contact support.", deductErr))
-			// Use pre-deduction balance (balance from CheckBalance)
+			if req.IsPM {
+				s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error processing payment after sending video: %v. Please contact support.", deductErr))
+			}
 			finalBalanceDCR = currentBalanceDCR
 		} else {
 			billingSucceeded = true
@@ -139,22 +144,26 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 	if !successfullySent {
 		finalMessage = "Video generation completed, but failed to send the result.\n\n"
 	}
-
-	if s.billingEnabled {
-		if billingAttempted && billingSucceeded {
-			finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
-				chargedDCR, req.PriceUSD, finalBalanceDCR)
-		} else if billingAttempted && !billingSucceeded {
-			finalMessage += fmt.Sprintf("⚠️ Billing failed after sending video. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
+	if req.IsPM {
+		if s.billingEnabled {
+			if billingAttempted && billingSucceeded {
+				finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
+					chargedDCR, req.PriceUSD, finalBalanceDCR)
+			} else if billingAttempted && !billingSucceeded {
+				finalMessage += fmt.Sprintf("⚠️ Billing failed after sending video. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
+			} else {
+				finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
+			}
 		} else {
-			finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
+			finalMessage += "Billing is disabled. No charge was applied."
+		}
+		if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
+			// fmt.Printf("ERROR: Failed to send final confirmation message (video) to %s: %v\n", req.UserNick, err) // Removed
 		}
 	} else {
-		finalMessage += "Billing is disabled. No charge was applied."
-	}
-
-	if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
-		// fmt.Printf("ERROR: Failed to send final confirmation message (video) to %s: %v\n", req.UserNick, err) // Removed
+		if err := s.bot.SendGC(ctx, req.GC, "Video generation completed."); err != nil {
+			// fmt.Printf("ERROR: Failed to send final confirmation message (video) to GC %s: %v\n", req.GC, err) // Removed
+		}
 	}
 
 	// Return overall success based on generation, even if sending/billing failed
@@ -167,7 +176,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 // validateRequest validates the video request and formats duration based on model
 func (s *VideoService) validateRequest(req *VideoRequest) error {
 	// Check if model exists and get its details
-	model, exists := faladapter.GetCurrentModel(req.ModelType)
+	model, exists := faladapter.GetCurrentModel(req.ModelType, "")
 	if !exists {
 		return fmt.Errorf("no default model found for %s", req.ModelType)
 	}

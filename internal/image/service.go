@@ -63,15 +63,17 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	}
 
 	// 3. Send initial message (adjusted for billing status)
-	// Inform user about processing (adjust message based on billing)
 	var infoMsg string
 	if s.billingEnabled {
-		// Use the total cost and the requiredDCR calculated from it
 		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing %d image(s)...", totalExpectedCostUSD, requiredDCR, currentBalanceDCR, numImagesToRequest)
 	} else {
 		infoMsg = fmt.Sprintf("Processing your request for %d image(s) (billing disabled)...", numImagesToRequest)
 	}
-	s.bot.SendPM(ctx, req.UserNick, infoMsg)
+	if req.IsPM {
+		s.bot.SendPM(ctx, req.UserNick, infoMsg)
+	} else {
+		s.bot.SendGC(ctx, req.GC, "Processing your image request...")
+	}
 
 	// 4. Create the appropriate FAL request object using the helper function
 	falReq, err := createFalImageRequest(req, numImagesToRequest)
@@ -136,8 +138,14 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	// Send seed information if available
 	if imageResp.Seed != 0 {
 		seedMsg := fmt.Sprintf("🌱 Seed for the request: %d", imageResp.Seed)
-		if err := s.bot.SendPM(ctx, req.UserNick, seedMsg); err != nil {
-			fmt.Printf("WARN: Failed to send seed message to %s: %v\n", req.UserNick, err)
+		if req.IsPM {
+			if err := s.bot.SendPM(ctx, req.UserNick, seedMsg); err != nil {
+				fmt.Printf("WARN: Failed to send seed message to %s: %v\n", req.UserNick, err)
+			}
+		} else {
+			if err := s.bot.SendGC(ctx, req.GC, seedMsg); err != nil {
+				fmt.Printf("WARN: Failed to send seed message to GC %s: %v\n", req.GC, err)
+			}
 		}
 	}
 
@@ -151,9 +159,9 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 		billingAttempted = true
 		deductChargedDCR, deductNewBalance, deductErr := utils.DeductBalance(ctx, s.dbManager, req.UserID[:], totalExpectedCostUSD, s.debug, s.billingEnabled)
 		if deductErr != nil {
-			// Log the error and inform the user
-			s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error processing payment after sending results: %v. Please contact support.", deductErr))
-			// Use the balance known before the failed deduction attempt (balance from CheckBalance)
+			if req.IsPM {
+				s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error processing payment after sending results: %v. Please contact support.", deductErr))
+			}
 			finalBalanceDCR = currentBalanceDCR
 		} else {
 			billingSucceeded = true
@@ -170,27 +178,29 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	// 9. Send final confirmation
 	finalMessage := fmt.Sprintf("Finished processing request. Sent %d of %d generated image(s).\n\n", successfullySentCount, numImagesGenerated)
 
-	if s.billingEnabled {
-		if billingAttempted && billingSucceeded {
-			finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
-				chargedDCR,
-				totalExpectedCostUSD, // Using the original cost USD for consistency
-				finalBalanceDCR)
-		} else if billingAttempted && !billingSucceeded {
-			// Images sent, but billing failed
-			finalMessage += fmt.Sprintf("⚠️ Billing failed after sending results. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
+	if req.IsPM {
+		if s.billingEnabled {
+			if billingAttempted && billingSucceeded {
+				finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
+					chargedDCR,
+					totalExpectedCostUSD, // Using the original cost USD for consistency
+					finalBalanceDCR)
+			} else if billingAttempted && !billingSucceeded {
+				finalMessage += fmt.Sprintf("⚠️ Billing failed after sending results. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
+			} else {
+				finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
+			}
 		} else {
-			// Billing enabled, but no charge was applied (e.g., no images sent)
-			finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
+			finalMessage += "Billing is disabled. No charge was applied."
+		}
+		if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
+			// Log error, but don't fail the whole operation just because the final message failed
+			// fmt.Printf("ERROR: Failed to send final confirmation message to %s: %v\n", req.UserNick, err) // Removed
 		}
 	} else {
-		// Billing is disabled
-		finalMessage += "Billing is disabled. No charge was applied."
-	}
-
-	if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
-		// Log error, but don't fail the whole operation just because the final message failed
-		// fmt.Printf("ERROR: Failed to send final confirmation message to %s: %v\n", req.UserNick, err) // Removed
+		if err := s.bot.SendGC(ctx, req.GC, "Image generation completed."); err != nil {
+			// fmt.Printf("ERROR: Failed to send final confirmation message (image) to GC %s: %v\n", req.GC, err) // Removed
+		}
 	}
 
 	// Return success if at least one image was generated, using the last URL
@@ -207,7 +217,7 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	}
 }
 
-// sendEmbeddedImage fetches, encodes, and sends an image embedded in a PM.
+// sendEmbeddedImage fetches, encodes, and sends an image embedded in a message.
 func sendEmbeddedImage(ctx context.Context, bot *kit.Bot, req *ImageRequest, img fal.ImageOutput, index, total int) error {
 	// Fetch the image data
 	imgDataResp, err := http.Get(img.URL)
@@ -236,7 +246,11 @@ func sendEmbeddedImage(ctx context.Context, bot *kit.Bot, req *ImageRequest, img
 		img.ContentType,
 		encodedImage)
 
-	return bot.SendPM(ctx, req.UserNick, message)
+	if req.IsPM {
+		return bot.SendPM(ctx, req.UserNick, message)
+	} else {
+		return bot.SendGC(ctx, req.GC, message)
+	}
 }
 
 // Helper function to safely dereference optional int pointers
@@ -249,8 +263,8 @@ func derefIntPtrOrDefault(ptr *int, defaultValue int) int {
 
 // validateRequest validates the image request
 func (s *ImageService) validateRequest(req *ImageRequest) error {
-	// Check if model exists
-	_, exists := faladapter.GetCurrentModel(req.ModelType)
+	// Get model configuration
+	_, exists := faladapter.GetCurrentModel(req.ModelType, "") // Empty string for userID means use global default
 	if !exists {
 		return fmt.Errorf("no default model found for %s", req.ModelType)
 	}

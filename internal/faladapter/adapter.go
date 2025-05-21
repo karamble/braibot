@@ -221,11 +221,11 @@ func GetModels(commandType string) (map[string]fal.Model, bool) {
 }
 
 // GetCurrentModel returns the current model for a command type.
-func GetCurrentModel(commandType string) (fal.Model, bool) {
-	return fal.GetCurrentModel(commandType)
+func GetCurrentModel(commandType string, userID string) (fal.Model, bool) {
+	return fal.GetCurrentModel(commandType, userID)
 }
 
 // SetCurrentModel sets the current model for a command type.
-func SetCurrentModel(commandType, modelName string) error {
-	return fal.SetCurrentModel(commandType, modelName)
+func SetCurrentModel(commandType, modelName string, userID string) error {
+	return fal.SetCurrentModel(commandType, modelName, userID)
 }

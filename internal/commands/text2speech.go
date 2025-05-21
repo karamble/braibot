@@ -6,112 +6,95 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
 	"github.com/karamble/braibot/internal/speech"
+	braibottypes "github.com/karamble/braibot/internal/types"
 	"github.com/karamble/braibot/internal/utils"
+	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
-	"github.com/vctt94/bisonbotkit/config"
+	botconfig "github.com/vctt94/bisonbotkit/config"
 )
 
 // Text2SpeechCommand returns the text2speech command
-func Text2SpeechCommand(dbManager *database.DBManager, speechService *speech.SpeechService, debug bool) Command {
-	// Outer model retrieval removed
+func Text2SpeechCommand(bot *kit.Bot, cfg *botconfig.BotConfig, speechService *speech.SpeechService, debug bool) braibottypes.Command {
+	// Get the current model to use its description
+	model, exists := faladapter.GetCurrentModel("text2speech", "") // Empty string for global default
+	if !exists {
+		model = fal.Model{
+			Name:        "text2speech",
+			Description: "Convert text to speech",
+		}
+	}
+	description := fmt.Sprintf("%s. Usage: !text2speech [text]", model.Description)
 
-	return Command{
+	return braibottypes.Command{
 		Name:        "text2speech",
-		Description: "🗣️ Generate speech audio from text (e.g., !text2speech Hello world!)",
-		Category:    "🎨 AI Generation",
-		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
+		Description: description,
+		Category:    "🎤 AI Generation",
+		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			if len(args) < 1 {
 				// Get the current model
-				model, exists := faladapter.GetCurrentModel("text2speech")
+				var userIDStr string
+				if msgCtx.IsPM {
+					var uid zkidentity.ShortID
+					uid.FromBytes(msgCtx.Uid)
+					userIDStr = uid.String()
+				}
+				model, exists := faladapter.GetCurrentModel("text2speech", userIDStr)
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, "Error: Default text2speech model not found.")
+					return sender.SendMessage(ctx, msgCtx, "Error: Default text2speech model not found.")
 				}
 
 				// Get user ID
 				var userID zkidentity.ShortID
-				userID.FromBytes(pm.Uid)
+				userID.FromBytes(msgCtx.Uid)
 
 				// Format header using utility function
-				header := utils.FormatCommandHelpHeader("text2speech", model, userID, dbManager)
+				header := utils.FormatCommandHelpHeader("text2speech", model, userID, db)
 
-				// Get help doc from model
+				// Get help doc
 				helpDoc := model.HelpDoc
+				if helpDoc == "" {
+					helpDoc = "Usage: !text2speech [text] [--options...]\n(No specific documentation available for this model.)"
+				}
 
 				// Send combined header and help doc
-				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
+				return sender.SendMessage(ctx, msgCtx, header+helpDoc)
 			}
 
-			// Parse arguments using the helper
-			text, voiceID, options, err := parseTextSpeechArgs(args)
-			if err != nil {
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Argument error: %v", err))
-			}
+			// Get the text from the arguments
+			text := strings.Join(args, " ")
 
-			// Get model configuration (required for PriceUSD)
-			model, exists := faladapter.GetCurrentModel("text2speech") // Restore model retrieval
+			// Get model configuration
+			var userIDStr string
+			if msgCtx.IsPM {
+				var uid zkidentity.ShortID
+				uid.FromBytes(msgCtx.Uid)
+				userIDStr = uid.String()
+			}
+			model, exists := faladapter.GetCurrentModel("text2speech", userIDStr)
 			if !exists {
-				return fmt.Errorf("no default model found for text2speech") // Should not happen if validation passed
+				return sender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("no default model found for text2speech"))
 			}
 
-			// Create progress callback
-			progress := NewCommandProgressCallback(bot, pm.Nick, "text2speech")
-
-			// Create internal speech request
-			var userID zkidentity.ShortID
-			userID.FromBytes(pm.Uid)
-			req := &speech.SpeechRequest{
+			// Create the speech request
+			req := speech.SpeechRequest{
 				Text:      text,
-				VoiceID:   voiceID,
-				ModelName: model.Name, // Restore model usage
-				Progress:  progress,
-				UserNick:  pm.Nick,
-				UserID:    userID,
-				PriceUSD:  model.PriceUSD, // Restore model usage
+				IsPM:      msgCtx.IsPM,
+				GC:        msgCtx.GC,
+				ModelName: model.Name, // Use the model name in the request
 			}
 
-			// Populate options from the parsed map
-			if val, ok := options["speed"].(*float64); ok {
-				req.Speed = val
-			}
-			if val, ok := options["vol"].(*float64); ok {
-				req.Vol = val
-			}
-			if val, ok := options["pitch"].(*int); ok {
-				req.Pitch = val
-			}
-			if val, ok := options["emotion"].(string); ok {
-				req.Emotion = val
-			}
-			if val, ok := options["sample_rate"].(string); ok {
-				req.SampleRate = val
-			}
-			if val, ok := options["bitrate"].(string); ok {
-				req.Bitrate = val
-			}
-			if val, ok := options["format"].(string); ok {
-				req.Format = val
-			}
-			if val, ok := options["channel"].(string); ok {
-				req.Channel = val
+			// Process the speech
+			result, err := speechService.GenerateSpeech(ctx, &req)
+			if err != nil {
+				return sender.SendErrorMessage(ctx, msgCtx, err)
 			}
 
-			// Generate speech using the service
-			result, err := speechService.GenerateSpeech(ctx, req)
-
-			// Handle result/error using the utility function
-			if handleErr := utils.HandleServiceResultOrError(ctx, bot, pm, "text2speech", result, err); handleErr != nil {
-				return handleErr // Propagate error if not handled by the utility function
-			}
-
-			// If we reach here, the operation was successful and errors were handled
-			// Success message (audio embed) is handled by the service itself in this case
-			return nil
-		},
+			// Send the result
+			return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Generated speech: %s", result.AudioURL))
+		}),
 	}
 }
 

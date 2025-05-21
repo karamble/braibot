@@ -1,49 +1,71 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
-	"github.com/companyzero/bisonrelay/clientrpc/types"
-	kit "github.com/vctt94/bisonbotkit"
-	"github.com/vctt94/bisonbotkit/config"
+	braibottypes "github.com/karamble/braibot/internal/types"
 )
-
-// Command represents a bot command
-type Command struct {
-	Name        string
-	Description string
-	Handler     func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error
-	Category    string
-}
 
 // Registry holds all available commands
 type Registry struct {
-	commands map[string]Command
+	commands       map[string]braibottypes.Command
+	webhookEnabled bool
+	billingEnabled bool
 }
 
 // NewRegistry creates a new command registry
 func NewRegistry() *Registry {
 	return &Registry{
-		commands: make(map[string]Command),
+		commands:       make(map[string]braibottypes.Command),
+		webhookEnabled: false,
+		billingEnabled: true, // Default to true
 	}
 }
 
 // Register adds a command to the registry
-func (r *Registry) Register(cmd Command) {
+func (r *Registry) Register(cmd braibottypes.Command) {
 	r.commands[cmd.Name] = cmd
 }
 
 // Get returns a command by name
-func (r *Registry) Get(name string) (Command, bool) {
+func (r *Registry) Get(name string) (braibottypes.Command, bool) {
 	cmd, exists := r.commands[name]
 	return cmd, exists
 }
 
 // GetAll returns all registered commands
-func (r *Registry) GetAll() map[string]Command {
+func (r *Registry) GetAll() map[string]braibottypes.Command {
 	return r.commands
+}
+
+// ListCommands returns a slice of all registered commands
+func (r *Registry) ListCommands() []braibottypes.Command {
+	cmds := make([]braibottypes.Command, 0, len(r.commands))
+	for _, cmd := range r.commands {
+		cmds = append(cmds, cmd)
+	}
+	return cmds
+}
+
+// GetWebhookEnabled returns whether the webhook is enabled
+func (r *Registry) GetWebhookEnabled() (bool, bool) {
+	return r.webhookEnabled, true
+}
+
+// SetWebhookEnabled sets whether the webhook is enabled
+func (r *Registry) SetWebhookEnabled(enabled bool) {
+	r.webhookEnabled = enabled
+}
+
+// GetBillingEnabled returns whether billing is enabled
+func (r *Registry) GetBillingEnabled() bool {
+	return r.billingEnabled
+}
+
+// SetBillingEnabled sets whether billing is enabled
+func (r *Registry) SetBillingEnabled(enabled bool) {
+	r.billingEnabled = enabled
 }
 
 // IsCommand checks if a message is a command (starts with !)
@@ -64,7 +86,7 @@ func IsCommand(msg string) (string, []string, bool) {
 
 // FormatHelpMessage formats a help message for all registered commands
 func (r *Registry) FormatHelpMessage() string {
-	categories := make(map[string][]Command)
+	categories := make(map[string][]braibottypes.Command)
 	categoryOrder := []string{"🎯 Basic", "🔧 Model Configuration", "🎨 AI Generation"}
 
 	// Group commands by category

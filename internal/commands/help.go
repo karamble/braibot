@@ -5,32 +5,29 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/karamble/braibot/internal/database"
 	"github.com/karamble/braibot/internal/faladapter"
+	braibottypes "github.com/karamble/braibot/internal/types"
 	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
-	kit "github.com/vctt94/bisonbotkit"
-	"github.com/vctt94/bisonbotkit/config"
 )
 
 // HelpCommand returns the help command
-func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
-	return Command{
+func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) braibottypes.Command {
+	return braibottypes.Command{
 		Name:        "help",
 		Description: "📚 Show this help message or details for a specific command (e.g., !help text2image)",
 		Category:    "🎯 Basic",
-		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
+		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			// If no args, show general help with contextual information
 			if len(args) == 0 {
 				// Get user's balance for contextual information
 				var userID zkidentity.ShortID
-				userID.FromBytes(pm.Uid)
+				userID.FromBytes(msgCtx.Uid)
 				userIDStr := userID.String()
-				balance, err := dbManager.GetBalance(userIDStr)
+				balance, err := db.GetBalance(userIDStr)
 				if err != nil {
-					return fmt.Errorf("failed to get balance: %v", err)
+					return sender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("failed to get balance: %v", err))
 				}
 				balanceDCR := float64(balance) / 1e11
 
@@ -45,12 +42,21 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 
 				// Create enhanced help message with user context
 				helpMsg := fmt.Sprintf("🤖 **Welcome to BraiBot Help!**\n\n")
-				helpMsg += fmt.Sprintf("💰 **Your Balance:** %.8f DCR ($%.2f USD)\n\n", balanceDCR, usdValue)
+				if msgCtx.IsPM {
+					helpMsg += fmt.Sprintf("💰 **Your Balance:** %.8f DCR ($%.2f USD)\n\n", balanceDCR, usdValue)
+				} else {
+					helpMsg += "💰 **Balance Command:** Only available in private messages\n\n"
+				}
+
+				// Add billing disabled message if applicable
+				if !registry.GetBillingEnabled() {
+					helpMsg += "🎉 **Happy Days!** All commands are free to use.\n\n"
+				}
 
 				// Get current model selections
 				helpMsg += "🎯 **Your Current Model Selections:**\n"
 				for _, cmdType := range []string{"text2image", "text2speech", "image2image", "image2video", "text2video"} {
-					if model, exists := faladapter.GetCurrentModel(cmdType); exists {
+					if model, exists := faladapter.GetCurrentModel(cmdType, ""); exists {
 						helpMsg += fmt.Sprintf("• %s: %s ($%.2f USD)\n", cmdType, model.Name, model.PriceUSD)
 					}
 				}
@@ -93,8 +99,8 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				}
 
 				// Add !ai command with conditional display
-				webhookEnabled, hasWebhookEnabled := cfg.ExtraConfig["webhookenabled"]
-				if hasWebhookEnabled && webhookEnabled == "true" {
+				webhookEnabled, hasWebhookEnabled := registry.GetWebhookEnabled()
+				if hasWebhookEnabled && webhookEnabled {
 					aiCommands["ai"] = "Send a message to the AI for processing"
 				} else {
 					aiCommands["ai"] = "Send a message to the AI webhook for processing **disabled**"
@@ -102,7 +108,7 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 
 				for cmdName, description := range aiCommands {
 					if _, exists := registry.Get(cmdName); exists {
-						if model, exists := faladapter.GetCurrentModel(cmdName); exists {
+						if model, exists := faladapter.GetCurrentModel(cmdName, ""); exists {
 							helpMsg += fmt.Sprintf("| !%s | %s | $%.2f |\n", cmdName, description, model.PriceUSD)
 						} else {
 							helpMsg += fmt.Sprintf("| !%s | %s | - |\n", cmdName, description)
@@ -115,7 +121,7 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				helpMsg += "• Use `!help [command] [model]` for model-specific details\n"
 				helpMsg += "• Send tips through Bison Relay to add funds to your balance\n"
 
-				return bot.SendPM(ctx, pm.Nick, helpMsg)
+				return sender.SendMessage(ctx, msgCtx, helpMsg)
 			}
 
 			// If only one arg, show command-specific help with model list
@@ -123,7 +129,7 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				commandName := strings.ToLower(args[0])
 				cmd, exists := registry.Get(commandName)
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Unknown command: %s. Use **!help** to see available commands.", commandName))
+					return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Unknown command: %s. Use **!help** to see available commands.", commandName))
 				}
 
 				// Get models for this command
@@ -139,15 +145,15 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				case "image2video":
 					models, modelExists = faladapter.GetModels("image2video")
 				default:
-					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Command: !%s\nDescription: %s", cmd.Name, cmd.Description))
+					return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Command: !%s\nDescription: %s", cmd.Name, cmd.Description))
 				}
 
 				if !modelExists {
-					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("No models found for command: %s", commandName))
+					return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("No models found for command: %s", commandName))
 				}
 
 				// Get current model selection
-				currentModel, hasCurrentModel := faladapter.GetCurrentModel(commandName)
+				currentModel, hasCurrentModel := faladapter.GetCurrentModel(commandName, "")
 				currentModelInfo := ""
 				if hasCurrentModel {
 					currentModelInfo = fmt.Sprintf("\n\n**Currently Selected Model:** %s ($%.2f USD)\n\n%s",
@@ -167,7 +173,7 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				}
 
 				helpMsg += "\nUse !help " + commandName + " <model_name> for detailed information about a specific model."
-				return bot.SendPM(ctx, pm.Nick, helpMsg)
+				return sender.SendMessage(ctx, msgCtx, helpMsg)
 			}
 
 			// If two args, show model-specific help
@@ -178,15 +184,15 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				// Get the model information
 				model, exists := faladapter.GetModel(modelName, commandName)
 				if !exists {
-					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Unknown model: %s for command: %s. Use !help %s to see available models.", modelName, commandName, commandName))
+					return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Unknown model: %s for command: %s. Use !help %s to see available models.", modelName, commandName, commandName))
 				}
 
 				// Get user ID
 				var userID zkidentity.ShortID
-				userID.FromBytes(pm.Uid)
+				userID.FromBytes(msgCtx.Uid)
 
 				// Format header using utility function
-				header := utils.FormatCommandHelpHeader(commandName, model, userID, dbManager)
+				header := utils.FormatCommandHelpHeader(commandName, model, userID, db)
 
 				// Get help doc
 				helpDoc := model.HelpDoc
@@ -195,11 +201,10 @@ func HelpCommand(registry *Registry, dbManager *database.DBManager) Command {
 				}
 
 				// Send combined header and help doc
-				return bot.SendPM(ctx, pm.Nick, header+helpDoc)
+				return sender.SendMessage(ctx, msgCtx, header+helpDoc)
 			}
 
-			// If more than two args, show error
-			return bot.SendPM(ctx, pm.Nick, "Too many arguments. Usage: **!help [command] [model]**")
-		},
+			return sender.SendMessage(ctx, msgCtx, "Invalid help command usage. Use !help for general help or !help [command] for specific command help.")
+		}),
 	}
 }

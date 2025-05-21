@@ -58,14 +58,18 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 	} else {
 		infoMsg = "Processing your speech request (billing disabled)..."
 	}
-	s.bot.SendPM(ctx, req.UserNick, infoMsg)
+	// Only send balance info in PMs
+	if req.IsPM {
+		s.bot.SendPM(ctx, req.UserNick, infoMsg)
+	} else {
+		s.bot.SendGC(ctx, req.GC, "Processing your speech request...")
+	}
 
 	// 3. Create the appropriate FAL request object using the helper function
 	falReq, err := createFalSpeechRequest(req)
 	if err != nil {
 		// Log error server-side, do not PM the user here.
 		// Error will be handled by the command handler.
-		// s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error creating speech request: %v", err))
 		return &SpeechResult{Success: false, Error: err}, err // Return error to command handler
 	}
 
@@ -74,7 +78,6 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 	if genErr != nil {
 		// Log error server-side, do not PM the user here.
 		// Error will be handled by the command handler.
-		// s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Speech generation failed: %v", genErr))
 		return &SpeechResult{Success: false, Error: genErr}, genErr // Return error to command handler
 	}
 
@@ -83,7 +86,6 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 		genErr = fmt.Errorf("received empty audio URL from API")
 		// Log error server-side, do not PM the user here.
 		// Error will be handled by the command handler.
-		// s.bot.SendPM(ctx, req.UserNick, genErr.Error())
 		return &SpeechResult{Success: false, Error: genErr}, genErr // Return error to command handler
 	}
 
@@ -92,7 +94,6 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 	if err := s.downloadAndSendAudio(ctx, req.UserNick, audioResp.AudioURL, req.ModelName); err != nil {
 		// Log download/send error server-side, do not PM the user here.
 		fmt.Printf("ERROR [SpeechService] User %s: Failed to download/send audio: %v\n", req.UserNick, err)
-		// s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Failed to send audio file: %v", err))
 		// Continue but mark as not sent for billing purposes
 	} else {
 		successfullySent = true
@@ -108,18 +109,16 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 		billingAttempted = true
 		deductChargedDCR, deductNewBalance, deductErr := utils.DeductBalance(ctx, s.dbManager, req.UserID[:], req.PriceUSD, s.debug, s.billingEnabled)
 		if deductErr != nil {
-			s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error processing payment after sending audio: %v. Please contact support.", deductErr))
+			// Only send billing errors in PMs
+			if req.IsPM {
+				s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error processing payment after sending audio: %v. Please contact support.", deductErr))
+			}
 			finalBalanceDCR = currentBalanceDCR // Use pre-deduction balance
 		} else {
 			billingSucceeded = true
 			chargedDCR = deductChargedDCR
 			finalBalanceDCR = deductNewBalance
 		}
-	} else if !s.billingEnabled {
-		// fmt.Printf("INFO: Billing disabled. No charge for speech for user %s.\n", req.UserNick) // Already Removed
-	} else {
-		// Billing enabled, but not sent successfully
-		// fmt.Printf("INFO: Audio not sent successfully for user %s. No billing occurred.\n", req.UserNick) // Removed
 	}
 
 	// 8. Send final confirmation
@@ -128,21 +127,28 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 		finalMessage = "Speech generation completed, but failed to send the result.\n\n"
 	}
 
-	if s.billingEnabled {
-		if billingAttempted && billingSucceeded {
-			finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
-				chargedDCR, req.PriceUSD, finalBalanceDCR)
-		} else if billingAttempted && !billingSucceeded {
-			finalMessage += fmt.Sprintf("⚠️ Billing failed after sending audio. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
+	// Only send billing information in PMs
+	if req.IsPM {
+		if s.billingEnabled {
+			if billingAttempted && billingSucceeded {
+				finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
+					chargedDCR, req.PriceUSD, finalBalanceDCR)
+			} else if billingAttempted && !billingSucceeded {
+				finalMessage += fmt.Sprintf("⚠️ Billing failed after sending audio. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
+			} else {
+				finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
+			}
 		} else {
-			finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
+			finalMessage += "Billing is disabled. No charge was applied."
+		}
+		if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
+			// fmt.Printf("ERROR: Failed to send final confirmation message (speech) to %s: %v\n", req.UserNick, err) // Removed
 		}
 	} else {
-		finalMessage += "Billing is disabled. No charge was applied."
-	}
-
-	if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
-		// fmt.Printf("ERROR: Failed to send final confirmation message (speech) to %s: %v\n", req.UserNick, err) // Removed
+		// For group chats, just send a simple completion message
+		if err := s.bot.SendGC(ctx, req.GC, "Speech generation completed."); err != nil {
+			// fmt.Printf("ERROR: Failed to send final confirmation message (speech) to GC %s: %v\n", req.GC, err) // Removed
+		}
 	}
 
 	// Return overall success based on generation, even if sending/billing failed

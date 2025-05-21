@@ -5,112 +5,66 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/companyzero/bisonrelay/clientrpc/types"
+	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/faladapter"
-	"github.com/karamble/braibot/pkg/fal"
-	kit "github.com/vctt94/bisonbotkit"
-	"github.com/vctt94/bisonbotkit/config"
+	braibottypes "github.com/karamble/braibot/internal/types"
 )
 
 // ListModelsCommand returns the listmodels command
-func ListModelsCommand() Command {
-	return Command{
+func ListModelsCommand() braibottypes.Command {
+	return braibottypes.Command{
 		Name:        "listmodels",
-		Description: "📋 List available AI models for generation tasks (e.g., text2image, text2speech).",
+		Description: "List available models for a given task (e.g., text2image, text2speech)",
 		Category:    "🔧 Model Configuration",
-		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
-			if len(args) == 0 {
-				return bot.SendPM(ctx, pm.Nick, "Please specify a command (text2image, text2speech, image2image, or image2video). Usage: !listmodels [command]")
+		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
+			if len(args) < 1 {
+				return sender.SendMessage(ctx, msgCtx, "Usage: !listmodels [task]")
 			}
-
-			commandName := strings.ToLower(args[0])
-
-			var modelList string
-			var models map[string]fal.Model
-			var exists bool
-
-			switch commandName {
-			case "text2image":
-				models, exists = faladapter.GetModels("text2image")
-				modelList = "Available models for text2image:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
-			case "text2speech":
-				models, exists = faladapter.GetModels("text2speech")
-				modelList = "Available models for text2speech:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
-			case "image2image":
-				models, exists = faladapter.GetModels("image2image")
-				modelList = "Available models for image2image:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
-			case "image2video":
-				models, exists = faladapter.GetModels("image2video")
-				modelList = "Available models for image2video:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
-			case "text2video":
-				models, exists = faladapter.GetModels("text2video")
-				modelList = "Available models for text2video:\n| Model | Description | Price |\n| ----- | ----------- | ----- |\n"
-			default:
-				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', 'image2video', or 'text2video'.")
+			task := strings.ToLower(args[0])
+			models, exists := faladapter.GetModels(task)
+			if !exists || len(models) == 0 {
+				return sender.SendMessage(ctx, msgCtx, "Invalid command or no models found for that task.")
 			}
-
-			if !exists {
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("No models found for command: %s", commandName))
-			}
-
+			msg := fmt.Sprintf("Available models for %s:\n", task)
 			for _, model := range models {
-				modelList += fmt.Sprintf("| %s | %s | $%.2f |\n", model.Name, model.Description, model.PriceUSD)
+				msg += fmt.Sprintf("• %s: %s ($%.2f USD)\n", model.Name, model.Description, model.PriceUSD)
 			}
-
-			return bot.SendPM(ctx, pm.Nick, modelList)
-		},
+			return sender.SendMessage(ctx, msgCtx, msg)
+		}),
 	}
 }
 
 // SetModelCommand returns the setmodel command
-func SetModelCommand(registry *Registry) Command {
-	return Command{
+func SetModelCommand(registry *Registry) braibottypes.Command {
+	return braibottypes.Command{
 		Name:        "setmodel",
-		Description: "⚙️ Set the default model for a specific task (e.g., !setmodel text2image stable-diffusion-xl)",
+		Description: "Set the default model for a given task (e.g., text2image, text2speech)",
 		Category:    "🔧 Model Configuration",
-		Handler: func(ctx context.Context, bot *kit.Bot, cfg *config.BotConfig, pm types.ReceivedPM, args []string) error {
+		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			if len(args) < 2 {
-				return bot.SendPM(ctx, pm.Nick, "Please specify a command and a model name. Usage: !setmodel [command] [modelname]")
+				return sender.SendMessage(ctx, msgCtx, "Usage: !setmodel [task] [model]")
 			}
-			commandName := args[0]
-			modelName := args[1]
+			task := strings.ToLower(args[0])
+			modelName := strings.ToLower(args[1])
 
-			// Check if the command is valid
-			if _, exists := registry.Get(commandName); !exists {
-				return bot.SendPM(ctx, pm.Nick, "Invalid command name. Use !listmodels to see available commands.")
-			}
-
-			// Check if the model is valid for the specific command
-			var models map[string]fal.Model
-			var exists bool
-			switch commandName {
-			case "text2image":
-				models, exists = faladapter.GetModels("text2image")
-			case "text2speech":
-				models, exists = faladapter.GetModels("text2speech")
-			case "image2image":
-				models, exists = faladapter.GetModels("image2image")
-			case "image2video":
-				models, exists = faladapter.GetModels("image2video")
-			case "text2video":
-				models, exists = faladapter.GetModels("text2video")
-			default:
-				return bot.SendPM(ctx, pm.Nick, "Invalid command. Use 'text2image', 'text2speech', 'image2image', 'image2video', or 'text2video'.")
+			// Convert user ID to string for PMs
+			var userID string
+			if msgCtx.IsPM {
+				var uid zkidentity.ShortID
+				uid.FromBytes(msgCtx.Uid)
+				userID = uid.String()
 			}
 
-			if !exists {
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("No models found for command: %s", commandName))
+			if err := faladapter.SetCurrentModel(task, modelName, userID); err != nil {
+				return sender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("failed to set model: %v", err))
 			}
 
-			if _, exists := models[modelName]; exists {
-				err := faladapter.SetCurrentModel(commandName, modelName)
-				if err != nil {
-					return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Error setting model: %v", err))
-				}
-				return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Model for %s set to: %s", commandName, modelName))
+			// Different message based on context
+			if msgCtx.IsPM {
+				return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Your personal model for %s set to: %s", task, modelName))
+			} else {
+				return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Group chat model for %s set to: %s", task, modelName))
 			}
-
-			return bot.SendPM(ctx, pm.Nick, fmt.Sprintf("Invalid model name for %s. Use !listmodels %s to see available models.", commandName, commandName))
-		},
+		}),
 	}
 }

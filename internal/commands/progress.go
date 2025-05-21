@@ -6,14 +6,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/companyzero/bisonrelay/zkidentity"
+	braibottypes "github.com/karamble/braibot/internal/types"
 	kit "github.com/vctt94/bisonbotkit"
 )
 
 // CommandProgressCallback implements fal.ProgressCallback for sending updates to users via the bot.
 type CommandProgressCallback struct {
-	bot      *kit.Bot
+	bot      *braibottypes.BisonBotAdapter
 	userNick string
+	userID   zkidentity.ShortID
 	cmdType  string
+	isPM     bool
+	gc       string
 
 	// Throttling fields
 	lastQueueUpdate    time.Time
@@ -39,16 +44,28 @@ type CommandProgressCallback struct {
 }
 
 // NewCommandProgressCallback creates a new CommandProgressCallback with default throttling intervals.
-func NewCommandProgressCallback(bot *kit.Bot, userNick, cmdType string) *CommandProgressCallback {
+func NewCommandProgressCallback(bot *kit.Bot, userNick string, userID zkidentity.ShortID, cmdType string, isPM bool, gc string) *CommandProgressCallback {
 	return &CommandProgressCallback{
-		bot:      bot,
+		bot:      braibottypes.NewBisonBotAdapter(bot),
 		userNick: userNick,
+		userID:   userID,
 		cmdType:  cmdType,
+		isPM:     isPM,
+		gc:       gc,
 		// Default intervals: 30 seconds for queue updates, 20 seconds for progress, 15 seconds for logs, 2 minutes for special messages
 		queueUpdateInterval:    30 * time.Second,
 		progressUpdateInterval: 20 * time.Second,
 		logMessageInterval:     15 * time.Second,
 		specialMessageInterval: 2 * time.Minute,
+	}
+}
+
+// sendMessage sends a message to the appropriate channel based on the message context
+func (c *CommandProgressCallback) sendMessage(msg string) {
+	if c.isPM {
+		c.bot.SendPM(context.Background(), c.userID, msg)
+	} else {
+		c.bot.SendGC(context.Background(), c.gc, msg)
 	}
 }
 
@@ -67,7 +84,7 @@ func (c *CommandProgressCallback) OnQueueUpdate(position int, eta time.Duration)
 		return
 	}
 
-	c.bot.SendPM(context.Background(), c.userNick, c.latestQueueMessage)
+	c.sendMessage(c.latestQueueMessage)
 	c.lastQueueUpdate = time.Now()
 	c.lastSentQueueMessage = c.latestQueueMessage // Update last sent queue message
 }
@@ -88,7 +105,7 @@ func (c *CommandProgressCallback) OnProgress(status string) {
 	}
 
 	// Send the progress message
-	c.bot.SendPM(context.Background(), c.userNick, c.latestProgressMessage)
+	c.sendMessage(c.latestProgressMessage)
 	c.lastProgressUpdate = time.Now()
 	c.lastSentProgressMessage = c.latestProgressMessage // Update last sent progress message
 
@@ -108,14 +125,14 @@ func (c *CommandProgressCallback) OnProgress(status string) {
 		default:
 			message = "The generation is in process\nThis may take a few minutes\nDuring the process the bot does not respond to any commands, please be patient"
 		}
-		c.bot.SendPM(context.Background(), c.userNick, message)
+		c.sendMessage(message)
 		c.lastSpecialMessage = time.Now()
 	}
 }
 
 // OnError sends error messages to the user (no throttling for errors).
 func (c *CommandProgressCallback) OnError(err error) {
-	c.bot.SendPM(context.Background(), c.userNick, fmt.Sprintf("Error: %v", err))
+	c.sendMessage(fmt.Sprintf("Error: %v", err))
 }
 
 // OnLogMessage sends log messages to the user with throttling.
@@ -140,7 +157,7 @@ func (c *CommandProgressCallback) OnLogMessage(message string) {
 	}
 
 	// Send the message
-	c.bot.SendPM(context.Background(), c.userNick, c.latestLogMessage)
+	c.sendMessage(c.latestLogMessage)
 	c.lastLogMessage = time.Now()
 	c.lastSentMessage = c.latestLogMessage
 }
