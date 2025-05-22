@@ -38,18 +38,7 @@ Quick setup using the managed cloud service:
 
 ### 2. Self-hosted n8n (Recommended)
 
-For privacy and control, use the [local-ai-packaged](https://github.com/coleam00/local-ai-packaged) solution:
-
-```bash
-# Clone the repository
-git clone https://github.com/coleam00/local-ai-packaged.git
-
-# Navigate to the directory
-cd local-ai-packaged
-
-# Start the services
-docker-compose up -d
-```
+For privacy and control, use the [local-ai-packaged](https://github.com/coleam00/local-ai-packaged) solution. Please follow the detailed setup guide in the repository's [README.md](https://github.com/coleam00/local-ai-packaged/blob/main/README.md) for installation and configuration instructions.
 
 This package includes a comprehensive suite of AI and automation tools:
 
@@ -136,12 +125,7 @@ BraiBot comes with a collection of pre-built n8n workflows in the `n8n/workflows
    - Open your n8n instance
    - Navigate to Workflows
    - Click "Import from File"
-
-3. **Import via UI**
-   - Click "Import from File"
-   - Select the workflow JSON file
-   - Click "Import"
-   - Do this for all provided workflow files
+   - Import all workflows from the `n8n/workflows` directory
 
 ### Configuring Credentials
 
@@ -154,6 +138,7 @@ Each workflow requires specific credentials to function. You can click on the no
    - Import `Decred Assistant BRaiBot.json`
    - Configure webhook trigger
    - Set up API credentials for the authentication between braibot and n8n
+   - On first launch use the `Create Database Tables` nodes to prepare the
    - Activate the workflow to listen as production environment
    - Use the provided webhook URL in your braibot configuration file
    - Test with sample queries
