@@ -22,7 +22,6 @@ The `!ai` command in BraiBot uses n8n webhooks to create flexible and powerful A
 - Chain multiple AI operations
 - Integrate with external services
 - Handle complex workflows
-- Manage rate limits and costs
 
 ## Setup Options
 
@@ -69,7 +68,7 @@ This package includes a comprehensive suite of AI and automation tools:
 
 #### Search and Web Tools
 - **SearXNG**: Privacy-focused meta search engine
-- **Caddy**: Modern web server with automatic HTTPS
+- **Caddy**: Modern web server with automatic HTTPS for production deployment
 
 #### Additional Features
 - **Local File System Access**: Shared folder for file operations
@@ -99,7 +98,9 @@ This package includes a comprehensive suite of AI and automation tools:
 
 ## Importing Workflows to n8n
 
-BraiBot comes with a collection of pre-built n8n workflows in the `n8n/workflows` directory. These workflows provide various AI-powered capabilities. By configuring and activating the `Decred Assistant BRaiBot` workflow the webhook is enabled that the bot listens to.
+BraiBot comes with a collection of pre-built n8n workflows in the `n8n/workflows` directory. These workflows provide various AI-powered capabilities. By configuring and activating the `Decred Assistant BRaiBot` workflow the webhook is enabled that the bot communicates with. You have to configure the authentication credentials for the webhook. It uses generic->header auth->X-BRAIBOT-API-KEY->yourAPIkey
+
+Make sure to configure an API key in the n8n webhook and use that in combination with the production-url in your braibot.conf
 
 ### Available Workflows
 
@@ -113,58 +114,31 @@ BraiBot comes with a collection of pre-built n8n workflows in the `n8n/workflows
    - AI RAG workflow with access to a Supabase vector database
 
 3. **CoinMarketCap Integration**
-   - Crypto price and market data
+   - Crypto price and market data, using generic->header auth->X-CMC_PRO_API_KEY->yourAPIkey
    - DEX scanning capabilities
    - AI-powered market analysis
    - Sizes: 12KB - 31KB
 
 3. **Specialized Agents**
-   - Technical Analysis Agent
-   - Content Creator Agent
-   - Gmail Email Agent (disconnected, only for private use)
-   - Google Calendar Agent (disconnected, only for private use)
-   - Nextcloud Agent (disconnected, only for private use)
-   - SearXNG Agent gives the AI Agent web search capabilities
+   - Technical Analysis Agent, using chart-img.com api for chart snapshots
+   - Content Creator Agent, using web search and LLM model for summarizing
+   - Gmail Email Agent (disconnected by default, only for private use), uses oauth2 auth from google console
+   - Google Calendar Agent (disconnected by default, only for private use), uses oauth2 auth from google console
+   - Nextcloud Agent (disconnected by default, only for private use), api key from your nextcloud instance, where Web DAV URL is https://yourNextcloud/remote.php/webdav/
+   - SearXNG Agent gives the AI Agent web search capabilities, when using the local ai package the API URL is listening on http://searxng:8080
 
 ### Importing Workflows
 
 1. **Access n8n Interface**
    - Open your n8n instance
    - Navigate to Workflows
-   - Click "Import from File"
-
-3. **Import via UI**
-   - Click "Import from File"
-   - Select the workflow JSON file
-   - Click "Import"
-   - Do this for all provided workflow files
+   - Click "Create Workflow"
+   - Copy-Paste the workflow json content into the dashboard, hit save
+   - Repeat steps for all workflows json files you want to make available to the AI Agent
 
 ### Configuring Credentials
 
 Each workflow requires specific credentials to function. You can click on the nodes to add required credentials and store it in n8n's private credential store.
-
-
-### Workflow Setup
-
-1. **Main Workflow (Decred Assistant)**
-   - Import `Decred Assistant BRaiBot.json`
-   - Configure webhook trigger
-   - Set up API credentials for the authentication between braibot and n8n
-   - Activate the workflow to listen as production environment
-   - Use the provided webhook URL in your braibot configuration file
-   - Test with sample queries
-
-2. **Market Data Workflows**
-   - Import CoinMarketCap workflows
-   - Configure API keys
-   - Test market queries
-
-3. **Specialized Agents**
-   - Import required agent workflows
-   - Configure service credentials
-   - Set up webhook connections
-   - Test agent functionality
-
 
 ## Security
 
@@ -183,34 +157,51 @@ Each workflow requires specific credentials to function. You can click on the no
 ### Common Issues
 
 1. **Webhook Not Receiving**
-   - Check webhook URL
+   - Check webhook URL - `Production URL` is active when workflow is activated, test URL is active and runs only once when hitting `Test workflow` for detailed flow debugging
    - Verify authentication
    - Make sure Decred Assistant BraiBot workflow is activated and running
 
 2. **Processing Errors**
-   - Check input format
-   - Verify AI model access
-   - Check rate limits
+   - Run the webhook in `Test workflow` mode. Will execute once and give ability to follow flow state and input and outputs for each node. Use the `Test URL` in your braibot.conf to hit the test-webhook endpoint.
 
-3. **Response Issues**
-   - Verify response format
-   - Check error handling
-   - Monitor logs
-
-### Debugging
-
-1. **Enable Debug Mode**
-   ```yaml
-   n8n:
-     debug: true
-   ```
-
-2. **Check Logs**
-   - Monitor n8n logs
-   - Check BraiBot logs
-   - Review error messages
-
-3. **Test Workflow**
-   - Use n8n test mode
-   - Verify each node
-   - Check data flow 
+3. **CURL example BRaiBot sends to n8n webhook**
+```
+curl -X POST \
+  'https://your-webhook-url' \
+  -H 'Content-Type: application/json' \
+  -H 'X-BRAIBOT-API-KEY: your-api-key' \
+  -d '{
+    "message": "!ai Hello, how are you?",
+    "user": "username"
+  }'
+  ```
+  What the webhook response looks like
+  ```
+[
+  {
+    "query": "!ai Hello, how are you?",
+    "session_id": "username",
+    "bruser": "username"
+  },
+  {
+    "output": "Hello, i am good.",
+    "intermediateSteps": [
+      {
+        "action": {
+          "tool": "example tool",
+          "toolInput": {
+            "input": "example input created by LLM"
+          },
+          "toolCallId": "call_YV...B0",
+          "log": "Invoking \"Example_Tool\" with {\"input\":\"example input\"}\n",
+          "messageLog": [
+            { ....detailed AI Agent workflow processing and tool flow information here
+            }
+          ]
+        },
+        "observation": "more thinking process and tool responses here"
+      }
+    ]
+  }
+]
+```

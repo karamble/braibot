@@ -169,3 +169,28 @@ func FormatThousands(n float64) string {
 
 	return string(result)
 }
+
+// IsAudioNote checks if a message contains an audio note embed
+func IsAudioNote(message string) bool {
+	return strings.Contains(message, "--embed[alt=Audio note,type=audio/ogg")
+}
+
+// ExtractAudioNoteData extracts the base64 audio data from an audio note message
+func ExtractAudioNoteData(message string) (string, error) {
+	// Find the data field in the embed
+	dataStart := strings.Index(message, "data=")
+	if dataStart == -1 {
+		return "", fmt.Errorf("no data field found in audio note")
+	}
+	dataStart += 5 // Skip "data="
+
+	// Find the end of the data (last ]--)
+	dataEnd := strings.LastIndex(message, "]--")
+	if dataEnd == -1 {
+		return "", fmt.Errorf("invalid audio note format")
+	}
+
+	// Extract the base64 data
+	data := message[dataStart:dataEnd]
+	return data, nil
+}

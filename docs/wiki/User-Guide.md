@@ -19,8 +19,6 @@ Before you can use BraiBot, you'll need:
 * Funded Bison Relay LN wallet with open inbound and outbound channel capacity
 * Basic understanding of Bison Relay commands
 
-[Learn more about prerequisites →](User-Guide#prerequisites)
-
 ## Installation
 
 Follow these steps to install and configure BraiBot:
@@ -28,7 +26,7 @@ Follow these steps to install and configure BraiBot:
 1. Set up Bison Relay
    * Install Bison Relay Client
    * Run Bison Relay Client and create an account
-   * Fund your account with Decred
+   * Fund your account with Decred or use a paid invite key
    * Stop the Client
    * Enable RPC interface in `~/.brclient/brclient.conf`:
      ```ini
@@ -48,7 +46,7 @@ Follow these steps to install and configure BraiBot:
 
 2. Configure your Lightning Network wallet
    * Ensure your wallet is funded
-   * Verify channel capacity for payments
+   * Verify channel capacity for inbound and outbound payments
 
 3. Install BraiBot
    * Clone the repository
@@ -65,11 +63,11 @@ Follow these steps to install and configure BraiBot:
        * Set up n8n webhook URL (if enabled)
    * The configuration will be saved for future launches
 
-[View installation guide →](User-Guide#installation)
+[View n8n integration guide →](n8n-Integration)
 
 ## Basic Commands
 
-BraiBot offers several basic commands for AI generation:
+BraiBot offers several basic commands for AI generation with fal.ai:
 
 * `!text2imgage` - Generate images from text
 * `!text2video` - Create videos from text
@@ -77,21 +75,19 @@ BraiBot offers several basic commands for AI generation:
 * `!imgage2imge` - Transform images
 * `!imgage2video` - Create videos from images
 
-[Learn about basic commands →](User-Guide#basic-commands)
-
 ## Advanced AI Commands
 
-For advanced users, BraiBot offers:
+For advanced AI Agents with n8n integration, BraiBot offers:
 
 * `!ai` command with n8n webhook integration
 * Custom AI workflows
-* Advanced model selection
+* Run in cloud or as local ai solution
 
-[Explore advanced features →](User-Guide#advanced-ai-commands)
+[Explore the n8n Integration Guide →](n8n-integration)
 
 ## Billing
 
-BraiBot uses a local balance system with Lightning Network integration for payments. Each user's balance is stored in a local SQLite database and can be managed through various commands.
+BraiBot uses a local balance system with Lightning Network integration for payments. Each user's balance is stored in a local SQLite database and can be managed through various commands. Users can fund their balance trough Bison Relay's tipping feature.
 
 ### Balance Management
 
@@ -133,5 +129,3 @@ Common issues and solutions:
 * Payment issues
 * Generation errors
 * Bison Relay specific issues
-
-[Get help with issues →](User-Guide#troubleshooting) 
