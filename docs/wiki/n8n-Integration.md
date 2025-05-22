@@ -38,18 +38,14 @@ Quick setup using the managed cloud service:
 
 ### 2. Self-hosted n8n (Recommended)
 
-For privacy and control, use the [local-ai-packaged](https://github.com/coleam00/local-ai-packaged) solution:
+For privacy and control, use the [local-ai-packaged](https://github.com/coleam00/local-ai-packaged) solution. Please follow the detailed setup guide in the repository's [README.md](https://github.com/coleam00/local-ai-packaged/blob/main/README.md) for installation and configuration instructions. The guide includes:
 
-```bash
-# Clone the repository
-git clone https://github.com/coleam00/local-ai-packaged.git
-
-# Navigate to the directory
-cd local-ai-packaged
-
-# Start the services
-docker-compose up -d
-```
+- System requirements
+- Installation steps
+- Configuration options
+- GPU support setup
+- Troubleshooting steps
+- Security considerations
 
 This package includes a comprehensive suite of AI and automation tools:
 
