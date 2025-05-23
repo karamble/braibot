@@ -38,7 +38,6 @@ BraiBot is open source and welcomes contributions! Check out the [Developer Guid
 
 * [FAQ](FAQ) - Common questions and answers
 * [Troubleshooting](User-Guide#troubleshooting) - Solutions to common issues
-* [API Reference](API-Reference) - Technical documentation
 
 ## License
 

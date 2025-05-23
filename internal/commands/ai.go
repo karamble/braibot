@@ -61,11 +61,15 @@ func AICommand(bot *kit.Bot, cfg *botconfig.BotConfig, debug bool) braibottypes.
 
 			// Create HTTP client with longer timeout
 			client := &http.Client{
-				Timeout: 60 * time.Second, // 60 second timeout
+				Timeout: 120 * time.Second, // 120 second timeout (2 minutes)
 			}
 
-			// Create request
-			req, err := http.NewRequest("POST", webhookURL, bytes.NewBuffer(jsonBody))
+			// Create a context with timeout
+			ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+			defer cancel()
+
+			// Create request with context
+			req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewBuffer(jsonBody))
 			if err != nil {
 				return msgSender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("failed to create request: %v", err))
 			}
@@ -104,6 +108,9 @@ func AICommand(bot *kit.Bot, cfg *botconfig.BotConfig, debug bool) braibottypes.
 			// Parse response as array of WebhookResponse
 			var responses []WebhookResponse
 			if err := json.Unmarshal(body, &responses); err != nil {
+				if debug {
+					fmt.Printf("DEBUG [ai] User %s: Failed to parse response as JSON: %v\n", msgCtx.Nick, err)
+				}
 				return msgSender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("failed to parse response as JSON: %v", err))
 			}
 
@@ -112,25 +119,46 @@ func AICommand(bot *kit.Bot, cfg *botconfig.BotConfig, debug bool) braibottypes.
 				fmt.Printf("DEBUG [ai] User %s: Number of responses: %d\n", msgCtx.Nick, len(responses))
 			}
 
-			// Check if we have at least two responses (query and output)
-			if len(responses) < 2 {
-				return msgSender.SendMessage(ctx, msgCtx, "Unable to process your query.")
+			// Check if we have at least one response
+			if len(responses) == 0 {
+				return msgSender.SendMessage(ctx, msgCtx, "Unable to process your query: no response received.")
 			}
 
-			// Get session_id from first response and output from second response
-			sessionID := responses[0].SessionID
-			output := responses[1].Output
+			// Handle different response formats
+			var output string
+			var sessionID string
+			if len(responses) == 2 {
+				// Voice command format: second response contains the output
+				output = responses[1].Output
+				sessionID = responses[0].SessionID
+			} else {
+				// Text command format: first response contains the output
+				output = responses[0].Output
+				sessionID = responses[0].SessionID
+			}
 
-			// Validate required fields
-			if sessionID == "" || output == "" {
-				return msgSender.SendMessage(ctx, msgCtx, "Unable to process your query.")
+			// Validate output
+			if output == "" {
+				if debug {
+					fmt.Printf("DEBUG [ai] User %s: Missing output in response\n", msgCtx.Nick)
+				}
+				return msgSender.SendMessage(ctx, msgCtx, "Unable to process your query: no output received.")
+			}
+
+			// Validate session_id
+			if sessionID == "" {
+				if debug {
+					fmt.Printf("DEBUG [ai] User %s: Missing session_id in response\n", msgCtx.Nick)
+				}
+				// Fallback to original nick if session_id is missing
+				sessionID = msgCtx.Nick
 			}
 
 			if debug {
-				fmt.Printf("DEBUG [ai] User %s: Sending response to session %s\n", msgCtx.Nick, sessionID)
+				fmt.Printf("DEBUG [ai] User %s: Sending response output to session %s\n", msgCtx.Nick, sessionID)
 			}
 
-			// Send the output back to the appropriate channel based on the original message context
+			// Send only the output field back to the appropriate channel based on the original message context
 			if msgCtx.IsPM {
 				return bot.SendPM(ctx, sessionID, output)
 			} else {

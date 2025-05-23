@@ -172,6 +172,43 @@ func realMain() error {
 					// Send error message for unknown command
 					bot.SendPM(context.Background(), pm.Nick, fmt.Sprintf("👋 Hi %s!\n\nI don't recognize that command. Use **!help** to see available commands.", pm.Nick))
 				}
+			} else if utils.IsAudioNote(pm.Msg.Message) {
+				// Handle audio note
+				audioData, err := utils.ExtractAudioNoteData(pm.Msg.Message)
+				if err != nil {
+					log.Warnf("Failed to extract audio data from message: %v", err)
+					bot.SendPM(context.Background(), pm.Nick, "Sorry, I couldn't process your audio note. Please try again.")
+					continue
+				}
+
+				// Construct MessageContext for PM
+				var senderID zkidentity.ShortID
+				senderID.FromBytes(pm.Uid)
+				msgCtx := braibottypes.MessageContext{
+					Nick:    pm.Nick,
+					Uid:     pm.Uid,
+					Message: pm.Msg.Message,
+					IsPM:    true,
+					Sender:  senderID,
+				}
+
+				// Create a message sender
+				msgSender := braibottypes.NewMessageSender(braibottypes.NewBisonBotAdapter(bot))
+
+				// Get the AI command handler
+				aiCommand, exists := commandRegistry.Get("ai")
+				if !exists {
+					log.Warnf("AI command not found in registry")
+					bot.SendPM(context.Background(), pm.Nick, "Sorry, the AI processing feature is currently unavailable.")
+					continue
+				}
+
+				// Execute the AI command with the audio data
+				handleErr := aiCommand.Handler.Handle(context.Background(), msgCtx, []string{audioData}, msgSender, dbManager)
+				if handleErr != nil {
+					log.Warnf("Error processing audio note: %v", handleErr)
+					bot.SendPM(context.Background(), pm.Nick, "Sorry, I couldn't process your audio note. Please try again.")
+				}
 			} else if !welcomeSent[userIDStr] {
 				// Send welcome message for non-command messages if not sent before
 				welcomeMsg := fmt.Sprintf("👋 Hi %s! I'm BraiBot, your AI assistant powered by Decred.\n\n"+
