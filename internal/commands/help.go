@@ -19,6 +19,14 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 		Description: "📚 Show this help message or details for a specific command (e.g., !help text2image)",
 		Category:    "Basic",
 		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
+			// Get user ID for PMs
+			var userIDStr string
+			if msgCtx.IsPM {
+				var uid zkidentity.ShortID
+				uid.FromBytes(msgCtx.Uid)
+				userIDStr = uid.String()
+			}
+
 			// If no args, show general help with contextual information
 			if len(args) == 0 {
 				// Get user's balance for contextual information
@@ -56,7 +64,7 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 				// Get current model selections
 				helpMsg += "🎯 **Your Current Model Selections:**\n"
 				for _, cmdType := range []string{"text2image", "text2speech", "image2image", "image2video", "text2video"} {
-					if model, exists := faladapter.GetCurrentModel(cmdType, ""); exists {
+					if model, exists := faladapter.GetCurrentModel(cmdType, userIDStr); exists {
 						helpMsg += fmt.Sprintf("• %s: %s ($%.2f USD)\n", cmdType, model.Name, model.PriceUSD)
 					}
 				}
@@ -112,7 +120,7 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 
 				for cmdName, description := range aiCommands {
 					if _, exists := registry.Get(cmdName); exists {
-						if model, exists := faladapter.GetCurrentModel(cmdName, ""); exists {
+						if model, exists := faladapter.GetCurrentModel(cmdName, userIDStr); exists {
 							helpMsg += fmt.Sprintf("| !%s | %s | $%.2f |\n", cmdName, description, model.PriceUSD)
 						} else {
 							helpMsg += fmt.Sprintf("| !%s | %s | - |\n", cmdName, description)
@@ -157,7 +165,7 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 				}
 
 				// Get current model selection
-				currentModel, hasCurrentModel := faladapter.GetCurrentModel(commandName, "")
+				currentModel, hasCurrentModel := faladapter.GetCurrentModel(commandName, userIDStr)
 				currentModelInfo := ""
 				if hasCurrentModel {
 					currentModelInfo = fmt.Sprintf("\n\n**Currently Selected Model:** %s ($%.2f USD)\n\n%s",
