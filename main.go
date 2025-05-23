@@ -14,7 +14,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -124,8 +123,19 @@ func realMain() error {
 	// Initialize command registry
 	commandRegistry := commands.InitializeCommands(dbManager, cfg, bot, debug)
 
-	// Use a WaitGroup to ensure clean shutdown coordination
-	var wg sync.WaitGroup
+	// Set up context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle shutdown signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		sig := <-sigChan
+		log.Infof("Received shutdown signal: %v", sig)
+		bot.Close()
+		cancel()
+	}()
 
 	// Add a goroutine to handle PMs using our bidirectional channel
 	go func() {
@@ -154,13 +164,13 @@ func realMain() error {
 						Sender:  senderID,
 					}
 					msgSender := braibottypes.NewMessageSender(braibottypes.NewBisonBotAdapter(bot))
-					handleErr := command.Handler.Handle(context.Background(), msgCtx, args, msgSender, dbManager)
+					handleErr := command.Handler.Handle(ctx, msgCtx, args, msgSender, dbManager)
 					if handleErr != nil {
 						// Check if the error is specifically ErrInsufficientBalance
 						var insufErr *utils.ErrInsufficientBalance
 						if errors.Is(handleErr, insufErr) {
 							// Send the specific error message as PM, don't log as warning
-							if pmErr := bot.SendPM(context.Background(), pm.Nick, handleErr.Error()); pmErr != nil {
+							if pmErr := bot.SendPM(ctx, pm.Nick, handleErr.Error()); pmErr != nil {
 								log.Warnf("Failed to send insufficient balance PM to %s: %v", pm.Nick, pmErr)
 							}
 						} else {
@@ -170,14 +180,14 @@ func realMain() error {
 					}
 				} else {
 					// Send error message for unknown command
-					bot.SendPM(context.Background(), pm.Nick, fmt.Sprintf("👋 Hi %s!\n\nI don't recognize that command. Use **!help** to see available commands.", pm.Nick))
+					bot.SendPM(ctx, pm.Nick, fmt.Sprintf("👋 Hi %s!\n\nI don't recognize that command. Use **!help** to see available commands.", pm.Nick))
 				}
 			} else if utils.IsAudioNote(pm.Msg.Message) {
 				// Handle audio note
 				audioData, err := utils.ExtractAudioNoteData(pm.Msg.Message)
 				if err != nil {
 					log.Warnf("Failed to extract audio data from message: %v", err)
-					bot.SendPM(context.Background(), pm.Nick, "Sorry, I couldn't process your audio note. Please try again.")
+					bot.SendPM(ctx, pm.Nick, "Sorry, I couldn't process your audio note. Please try again.")
 					continue
 				}
 
@@ -199,15 +209,15 @@ func realMain() error {
 				aiCommand, exists := commandRegistry.Get("ai")
 				if !exists {
 					log.Warnf("AI command not found in registry")
-					bot.SendPM(context.Background(), pm.Nick, "Sorry, the AI processing feature is currently unavailable.")
+					bot.SendPM(ctx, pm.Nick, "Sorry, the AI processing feature is currently unavailable.")
 					continue
 				}
 
 				// Execute the AI command with the audio data
-				handleErr := aiCommand.Handler.Handle(context.Background(), msgCtx, []string{audioData}, msgSender, dbManager)
+				handleErr := aiCommand.Handler.Handle(ctx, msgCtx, []string{audioData}, msgSender, dbManager)
 				if handleErr != nil {
 					log.Warnf("Error processing audio note: %v", handleErr)
-					bot.SendPM(context.Background(), pm.Nick, "Sorry, I couldn't process your audio note. Please try again.")
+					bot.SendPM(ctx, pm.Nick, "Sorry, I couldn't process your audio note. Please try again.")
 				}
 			} else if !welcomeSent[userIDStr] {
 				// Send welcome message for non-command messages if not sent before
@@ -216,7 +226,7 @@ func realMain() error {
 					"You can also send me a tip to use AI features or\ncheck your balance with **!balance**.",
 					pm.Nick)
 
-				if err := bot.SendPM(context.Background(), pm.Nick, welcomeMsg); err != nil {
+				if err := bot.SendPM(ctx, pm.Nick, welcomeMsg); err != nil {
 					log.Warnf("Error sending welcome message: %v", err)
 				} else {
 					// Mark welcome as sent for this user
@@ -249,13 +259,13 @@ func realMain() error {
 						GC:      gc.GcAlias,
 					}
 					msgSender := braibottypes.NewMessageSender(braibottypes.NewBisonBotAdapter(bot))
-					handleErr := command.Handler.Handle(context.Background(), msgCtx, args, msgSender, dbManager)
+					handleErr := command.Handler.Handle(ctx, msgCtx, args, msgSender, dbManager)
 					if handleErr != nil {
 						// Check if the error is specifically ErrInsufficientBalance
 						var insufErr *utils.ErrInsufficientBalance
 						if errors.Is(handleErr, insufErr) {
 							// Send the specific error message to the group chat
-							if gcErr := bot.SendGC(context.Background(), gc.GcAlias, handleErr.Error()); gcErr != nil {
+							if gcErr := bot.SendGC(ctx, gc.GcAlias, handleErr.Error()); gcErr != nil {
 								log.Warnf("Failed to send insufficient balance message to GC %s: %v", gc.GcAlias, gcErr)
 							}
 						} else {
@@ -265,33 +275,34 @@ func realMain() error {
 					}
 				} else {
 					// Send error message for unknown command to the group chat
-					bot.SendGC(context.Background(), gc.GcAlias, fmt.Sprintf("👋 Hi %s!\n\nI don't recognize that command. Use **!help** to see available commands.", gc.Nick))
+					bot.SendGC(ctx, gc.GcAlias, fmt.Sprintf("👋 Hi %s!\n\nI don't recognize that command. Use **!help** to see available commands.", gc.Nick))
 				}
 			}
 		}
 	}()
 
-	// Set up context with cancellation
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Add input handling goroutine
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			tokens := strings.SplitN(line, " ", 2)
-			if len(tokens) != 2 {
-				log.Warn("Invalid format. Use: <nick> <message>")
-				continue
-			}
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				line := strings.TrimSpace(scanner.Text())
+				tokens := strings.SplitN(line, " ", 2)
+				if len(tokens) != 2 {
+					log.Warn("Invalid format. Use: <nick> <message>")
+					continue
+				}
 
-			nick, msg := tokens[0], tokens[1]
-			if err := bot.SendPM(ctx, nick, msg); err != nil {
-				log.Warnf("Failed to send PM: %v", err)
-				continue
+				nick, msg := tokens[0], tokens[1]
+				if err := bot.SendPM(ctx, nick, msg); err != nil {
+					log.Warnf("Failed to send PM: %v", err)
+					continue
+				}
+				log.Infof("-> %s: %s", nick, msg)
 			}
-			log.Infof("-> %s: %s", nick, msg)
 		}
 		if err := scanner.Err(); err != nil {
 			log.Errorf("Error reading input: %v", err)
@@ -329,47 +340,18 @@ func realMain() error {
 		}
 	}()
 
-	// Set up signal handling for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	wg.Add(1) // Increment counter for the signal handler goroutine
-	go func() {
-		defer wg.Done() // Decrement counter when this goroutine finishes
-		sig := <-sigChan
-		log.Infof("Received shutdown signal: %v", sig)
-		// Attempt to close the bot resources cleanly first
-		if bot != nil {
-			log.Infof("Attempting to close bot resources...")
-			bot.Close()
-			log.Infof("Bot resources closed.")
-			// Add a small delay to allow network cleanup before cancelling context
-			time.Sleep(1 * time.Second) // Keep the delay
-		}
-		// Close the channels used by main.go goroutines
-		close(pmChan)
-		close(tipChan)
-		close(gcChan) // Close group chat channel
-		// Then, cancel the main context to signal Run() to stop
-		cancel()
-	}()
-
-	// Run the bot with the cancellable context
-	if err := bot.Run(ctx); err != nil {
-		// Log the error from Run(), potentially filtering out context canceled errors
-		if !errors.Is(err, context.Canceled) {
-			log.Errorf("Bot run error: %v", err)
-		}
-	}
-
-	// Wait for the signal handling goroutine to complete its cleanup.
-	wg.Wait()
-
-	return nil
+	// Run the bot
+	err = bot.Run(ctx)
+	log.Infof("Bot exited: %v", err)
+	return err
 }
 
 func main() {
 	if err := realMain(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		// Don't treat context canceled as an error since it's expected during shutdown
+		if !errors.Is(err, context.Canceled) {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }

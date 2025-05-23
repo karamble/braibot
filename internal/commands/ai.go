@@ -26,8 +26,8 @@ type WebhookResponse struct {
 func AICommand(bot *kit.Bot, cfg *botconfig.BotConfig, debug bool) braibottypes.Command {
 	return braibottypes.Command{
 		Name:        "ai",
-		Description: "🤖 Send a message to the AI webhook for processing",
-		Category:    "🎨 AI Generation",
+		Description: "🤖 Send a message to the AI for processing",
+		Category:    "AI Generation",
 		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			// Create a message sender using the adapter
 			msgSender := braibottypes.NewMessageSender(braibottypes.NewBisonBotAdapter(bot))

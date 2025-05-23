@@ -30,7 +30,7 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 	return braibottypes.Command{
 		Name:        "text2video",
 		Description: description,
-		Category:    "🎨 AI Generation",
+		Category:    "AI Generation",
 		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			// Create a message sender using the adapter
 			msgSender := braibottypes.NewMessageSender(braibottypes.NewBisonBotAdapter(bot))

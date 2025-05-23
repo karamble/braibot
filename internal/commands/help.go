@@ -17,7 +17,7 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 	return braibottypes.Command{
 		Name:        "help",
 		Description: "📚 Show this help message or details for a specific command (e.g., !help text2image)",
-		Category:    "🎯 Basic",
+		Category:    "Basic",
 		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			// If no args, show general help with contextual information
 			if len(args) == 0 {
@@ -68,7 +68,9 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 				helpMsg += "| ------- | ----------- | ----- |\n"
 				for _, cmdName := range []string{"help", "balance", "rate"} {
 					if cmd, exists := registry.Get(cmdName); exists {
-						helpMsg += fmt.Sprintf("| !%s | %s | !%s |\n", cmd.Name, cmd.Description, cmd.Name)
+						if cmd.Category == "Basic" {
+							helpMsg += fmt.Sprintf("| !%s | %s | !%s |\n", cmd.Name, cmd.Description, cmd.Name)
+						}
 					}
 				}
 
@@ -77,11 +79,13 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 				helpMsg += "| ------- | ----------- | ----- |\n"
 				for _, cmdName := range []string{"listmodels", "setmodel"} {
 					if cmd, exists := registry.Get(cmdName); exists {
-						usage := "!%s [task]"
-						if cmdName == "setmodel" {
-							usage = "!%s [task] [model]"
+						if cmd.Category == "Model Configuration" {
+							usage := "!%s [task]"
+							if cmdName == "setmodel" {
+								usage = "!%s [task] [model]"
+							}
+							helpMsg += fmt.Sprintf("| !%s | %s | "+usage+" |\n", cmd.Name, cmd.Description, cmd.Name)
 						}
-						helpMsg += fmt.Sprintf("| !%s | %s | "+usage+" |\n", cmd.Name, cmd.Description, cmd.Name)
 					}
 				}
 

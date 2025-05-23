@@ -14,8 +14,8 @@ import (
 func ListModelsCommand() braibottypes.Command {
 	return braibottypes.Command{
 		Name:        "listmodels",
-		Description: "List available models for a given task (e.g., text2image, text2speech)",
-		Category:    "🔧 Model Configuration",
+		Description: "📋 List available AI models for a specific task",
+		Category:    "Model Configuration",
 		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			if len(args) < 1 {
 				return sender.SendMessage(ctx, msgCtx, "Usage: !listmodels [task]")
@@ -38,8 +38,8 @@ func ListModelsCommand() braibottypes.Command {
 func SetModelCommand(registry *Registry) braibottypes.Command {
 	return braibottypes.Command{
 		Name:        "setmodel",
-		Description: "Set the default model for a given task (e.g., text2image, text2speech)",
-		Category:    "🔧 Model Configuration",
+		Description: "⚙️ Set the default AI model for a specific task",
+		Category:    "Model Configuration",
 		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
 			if len(args) < 2 {
 				return sender.SendMessage(ctx, msgCtx, "Usage: !setmodel [task] [model]")

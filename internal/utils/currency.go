@@ -4,16 +4,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
 
 var (
 	lastRateUpdate time.Time
-	dcrRate        float64
+	dcrUsdRate     float64
+	dcrBtcRate     float64
+	btcUsdRate     float64
+	rateMutex      sync.RWMutex
+	rateCacheTime  = 10 * time.Minute
 )
 
 // GetDCRPrice gets the current DCR price in USD and BTC from CoinGecko
 func GetDCRPrice() (float64, float64, error) {
+	rateMutex.RLock()
+	if time.Since(lastRateUpdate) < rateCacheTime {
+		usdRate := dcrUsdRate
+		btcRate := dcrBtcRate
+		rateMutex.RUnlock()
+		return usdRate, btcRate, nil
+	}
+	rateMutex.RUnlock()
+
 	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -58,11 +72,26 @@ func GetDCRPrice() (float64, float64, error) {
 		return 0, 0, fmt.Errorf("no BTC price found for DCR")
 	}
 
+	// Update cache
+	rateMutex.Lock()
+	dcrUsdRate = usdPrice
+	dcrBtcRate = btcPrice
+	lastRateUpdate = time.Now()
+	rateMutex.Unlock()
+
 	return usdPrice, btcPrice, nil
 }
 
 // GetBTCPrice gets the current BTC price in USD from CoinGecko
 func GetBTCPrice() (float64, error) {
+	rateMutex.RLock()
+	if time.Since(lastRateUpdate) < rateCacheTime {
+		rate := btcUsdRate
+		rateMutex.RUnlock()
+		return rate, nil
+	}
+	rateMutex.RUnlock()
+
 	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -101,6 +130,12 @@ func GetBTCPrice() (float64, error) {
 	if !ok {
 		return 0, fmt.Errorf("no USD price found for BTC")
 	}
+
+	// Update cache
+	rateMutex.Lock()
+	btcUsdRate = usdPrice
+	lastRateUpdate = time.Now()
+	rateMutex.Unlock()
 
 	return usdPrice, nil
 }

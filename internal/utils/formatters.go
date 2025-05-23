@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/companyzero/bisonrelay/zkidentity"
@@ -126,48 +124,38 @@ func FormatBillingMessage(chargedDCR float64, chargedUSD float64, remainingBalan
 		chargedDCR, chargedUSD, remainingBalance)
 }
 
-// FormatThousands formats a float64 with dots as thousands separators, rounded to the nearest integer.
+// FormatThousands formats a float64 with commas as thousands separators, rounded to the nearest integer.
 func FormatThousands(n float64) string {
-	// Round to the nearest integer
-	rounded := int64(math.Round(n)) // Use int64 for potentially large numbers
-	s := strconv.FormatInt(rounded, 10)
+	// Format with 8 decimal places first
+	str := fmt.Sprintf("%.8f", n)
 
-	nDigits := len(s)
-	if rounded < 0 {
-		nDigits-- // Sign doesn't count
-	}
-	if nDigits <= 3 {
-		return s // No separator needed
+	// Split into integer and decimal parts
+	parts := strings.Split(str, ".")
+	if len(parts) != 2 {
+		return str
 	}
 
-	// Calculate the number of separators needed
-	numSeparators := (nDigits - 1) / 3
-	resultLen := len(s) + numSeparators
-	result := make([]byte, resultLen)
+	intPart := parts[0]
+	decPart := parts[1]
 
-	sepIdx := resultLen - 1
-	srcIdx := len(s) - 1
-	digitsSinceSep := 0
-
-	for srcIdx >= 0 {
-		if s[srcIdx] == '-' {
-			result[0] = '-'
-			break
-		}
-
-		if digitsSinceSep == 3 {
-			result[sepIdx] = '.'
-			sepIdx--
-			digitsSinceSep = 0
-		}
-
-		result[sepIdx] = s[srcIdx]
-		sepIdx--
-		srcIdx--
-		digitsSinceSep++
+	// Handle negative numbers
+	negative := false
+	if strings.HasPrefix(intPart, "-") {
+		negative = true
+		intPart = intPart[1:]
 	}
 
-	return string(result)
+	// Add thousands separators
+	for i := len(intPart) - 3; i > 0; i -= 3 {
+		intPart = intPart[:i] + "," + intPart[i:]
+	}
+
+	// Recombine parts
+	if negative {
+		intPart = "-" + intPart
+	}
+
+	return intPart + "." + decPart
 }
 
 // IsAudioNote checks if a message contains an audio note embed
