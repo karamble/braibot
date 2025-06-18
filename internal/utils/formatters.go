@@ -158,6 +158,26 @@ func FormatThousands(n float64) string {
 	return intPart + "." + decPart
 }
 
+// FormatUSDThousands formats a float64 as USD with thousands separators and 2 decimal places.
+func FormatUSDThousands(n float64) string {
+	s := fmt.Sprintf("%.2f", n)
+	parts := strings.Split(s, ".")
+	intPart := parts[0]
+	decPart := parts[1]
+	negative := false
+	if strings.HasPrefix(intPart, "-") {
+		negative = true
+		intPart = intPart[1:]
+	}
+	for i := len(intPart) - 3; i > 0; i -= 3 {
+		intPart = intPart[:i] + "," + intPart[i:]
+	}
+	if negative {
+		intPart = "-" + intPart
+	}
+	return intPart + "." + decPart
+}
+
 // IsAudioNote checks if a message contains an audio note embed
 func IsAudioNote(message string) bool {
 	return strings.Contains(message, "--embed[alt=Audio note,type=audio/ogg")

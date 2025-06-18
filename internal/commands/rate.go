@@ -50,9 +50,9 @@ func RateCommand() braibottypes.Command {
 			}
 
 			msg := fmt.Sprintf("Current Exchange Rates:\n• DCR: $%s USD\n• DCR: %s BTC\n• BTC: $%s USD",
-				utils.FormatThousands(dcrUsdPrice),
+				utils.FormatUSDThousands(dcrUsdPrice),
 				utils.FormatThousands(dcrBtcPrice),
-				utils.FormatThousands(btcUsdPrice))
+				utils.FormatUSDThousands(btcUsdPrice))
 			return sender.SendMessage(ctx, msgCtx, msg)
 		}),
 	}

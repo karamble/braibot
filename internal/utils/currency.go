@@ -9,12 +9,13 @@ import (
 )
 
 var (
-	lastRateUpdate time.Time
-	dcrUsdRate     float64
-	dcrBtcRate     float64
-	btcUsdRate     float64
-	rateMutex      sync.RWMutex
-	rateCacheTime  = 10 * time.Minute
+	lastRateUpdate    time.Time
+	dcrUsdRate        float64
+	dcrBtcRate        float64
+	btcUsdRate        float64
+	rateMutex         sync.RWMutex
+	rateCacheTime     = 10 * time.Minute
+	lastBTCRateUpdate time.Time // Separate cache for BTC price
 )
 
 // GetDCRPrice gets the current DCR price in USD and BTC from CoinGecko
@@ -85,7 +86,7 @@ func GetDCRPrice() (float64, float64, error) {
 // GetBTCPrice gets the current BTC price in USD from CoinGecko
 func GetBTCPrice() (float64, error) {
 	rateMutex.RLock()
-	if time.Since(lastRateUpdate) < rateCacheTime {
+	if time.Since(lastBTCRateUpdate) < rateCacheTime {
 		rate := btcUsdRate
 		rateMutex.RUnlock()
 		return rate, nil
@@ -134,7 +135,7 @@ func GetBTCPrice() (float64, error) {
 	// Update cache
 	rateMutex.Lock()
 	btcUsdRate = usdPrice
-	lastRateUpdate = time.Now()
+	lastBTCRateUpdate = time.Now()
 	rateMutex.Unlock()
 
 	return usdPrice, nil
