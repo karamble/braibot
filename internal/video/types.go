@@ -16,6 +16,7 @@ type VideoRequest struct {
 	CFGScale                 *float64 // Optional, use pointer to track if set
 	PromptOptimizer          *bool    // Optional, for minimax-director model
 	ModelType                string   // "text2video" or "image2video"
+	ModelName                string   // Name of the model to use (set by handler)
 	Progress                 fal.ProgressCallback
 	UserNick                 string
 	UserID                   zkidentity.ShortID
