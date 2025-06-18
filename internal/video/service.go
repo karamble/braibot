@@ -65,22 +65,35 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 		infoMsg = "Processing your request (billing disabled)..."
 	}
 	if req.IsPM {
-		s.bot.SendPM(ctx, req.UserNick, infoMsg)
+		s.bot.SendPM(ctx, req.UserID.String(), infoMsg)
 	} else {
 		s.bot.SendGC(ctx, req.GC, "Processing your video request...")
 	}
 
 	// 4. Get current model name
-	model, exists := faladapter.GetCurrentModel(req.ModelType, "")
-	if !exists {
-		return &VideoResult{Success: false, Error: fmt.Errorf("no default model found for %s", req.ModelType)}, nil // No billing occurred
+	var model fal.Model
+	var exists bool
+	if req.ModelName != "" {
+		model, exists = faladapter.GetModel(req.ModelName, req.ModelType)
+		if !exists {
+			return &VideoResult{Success: false, Error: fmt.Errorf("model not found: %s", req.ModelName)}, nil
+		}
+	} else {
+		model, exists = faladapter.GetCurrentModel(req.ModelType, "")
+		if !exists {
+			return &VideoResult{Success: false, Error: fmt.Errorf("no default model found for %s", req.ModelType)}, nil // No billing occurred
+		}
 	}
 
 	// 5. Create the appropriate FAL request object using the helper function
 	falReq, err := createFalVideoRequest(req, model.Name)
 	if err != nil {
 		// Handle error from request creation (e.g., unsupported model)
-		s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error creating generation request: %v", err))
+		if req.IsPM {
+			s.bot.SendPM(ctx, req.UserID.String(), fmt.Sprintf("Error creating generation request: %v", err))
+		} else {
+			s.bot.SendGC(ctx, req.GC, fmt.Sprintf("Error creating generation request: %v", err))
+		}
 		return &VideoResult{Success: false, Error: err}, err // No billing occurred
 	}
 
@@ -105,10 +118,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 
 	successfullySent := false
 	if err := s.downloadAndSendVideo(ctx, req.UserNick, videoURL); err != nil {
-		// Log download/send error server-side, do not PM the user here.
 		fmt.Printf("ERROR [VideoService] User %s: Failed to download/send video: %v\n", req.UserNick, err)
-		// s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Failed to send video: %v", err))
-		// Continue but mark as not sent for billing purposes.
 	} else {
 		successfullySent = true
 	}
@@ -124,7 +134,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 		deductChargedDCR, deductNewBalance, deductErr := utils.DeductBalance(ctx, s.dbManager, req.UserID[:], req.PriceUSD, s.debug, s.billingEnabled)
 		if deductErr != nil {
 			if req.IsPM {
-				s.bot.SendPM(ctx, req.UserNick, fmt.Sprintf("Error processing payment after sending video: %v. Please contact support.", deductErr))
+				s.bot.SendPM(ctx, req.UserID.String(), fmt.Sprintf("Error processing payment after sending video: %v. Please contact support.", deductErr))
 			}
 			finalBalanceDCR = currentBalanceDCR
 		} else {
@@ -157,7 +167,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 		} else {
 			finalMessage += "Billing is disabled. No charge was applied."
 		}
-		if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
+		if err := s.bot.SendPM(ctx, req.UserID.String(), finalMessage); err != nil {
 			// fmt.Printf("ERROR: Failed to send final confirmation message (video) to %s: %v\n", req.UserNick, err) // Removed
 		}
 	} else {

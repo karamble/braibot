@@ -105,6 +105,9 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				UserNick:        msgCtx.Nick,
 				UserID:          userID,
 				PriceUSD:        model.PriceUSD,
+				IsPM:            msgCtx.IsPM,
+				GC:              msgCtx.GC,
+				ModelName:       model.Name,
 			}
 
 			// Process the video
