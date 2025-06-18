@@ -231,7 +231,7 @@ if err != nil {
         fal.registerModel(&myNewModelDefinition{})
     }
     ```
-5.  If your model requires specific options, define a struct for them (e.g., `YourModelOptions`) and implement the `fal.ModelOptions` interface (`GetDefaultValues()`, `Validate()`).
+5.  If your model requires specific options, define a struct for them (e.g., `YourModelOptions`) and implement `GetDefaultValues()` and `Validate()` methods for your struct. These methods are called by the framework for defaulting and validation.
 
 The model will now be available via `GetModel`, `GetModels`, and can be used in generation requests by its `Name`.
 

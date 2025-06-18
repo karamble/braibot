@@ -399,6 +399,25 @@ func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, er
 		}
 		falReq.BaseVideoRequest.ImageURL = "" // Ensure base ImageURL is empty
 		return falReq, nil
+	case "minimax/hailuo-02":
+		if base.ImageURL != "" {
+			return nil, fmt.Errorf("image_url is not supported for %s model", modelName)
+		}
+		// Get the default PromptOptimizer value from the model definition
+		model, _ := faladapter.GetModel(modelName, "text2video") // Ignore error as model should exist
+		defaultOptimizer := true                                 // Default fallback
+		if modelOpts, ok := model.Options.(*fal.MinimaxHailuo02Options); ok && modelOpts.PromptOptimizer != nil {
+			defaultOptimizer = *modelOpts.PromptOptimizer
+		}
+		promptOptimizer := derefBoolPtrOrDefault(req.PromptOptimizer, defaultOptimizer)
+
+		falReq := &fal.MinimaxHailuo02Request{
+			BaseVideoRequest: base, // Includes Prompt, Progress
+			Duration:         req.Duration,
+			PromptOptimizer:  &promptOptimizer,
+		}
+		falReq.BaseVideoRequest.ImageURL = "" // Ensure base ImageURL is empty
+		return falReq, nil
 	// Add cases for other specific video models here
 	default:
 		return nil, fmt.Errorf("unsupported or unhandled model for specific FAL video request creation: %s", modelName)

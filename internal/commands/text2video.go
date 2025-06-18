@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/faladapter"
@@ -87,6 +88,42 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				return msgSender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("no default model found for text2video"))
 			}
 
+			// Determine effective duration
+			originalUserDuration := duration
+			durInt := 0
+			if duration != "" {
+				durInt, err = strconv.Atoi(duration)
+				if err != nil || durInt <= 0 {
+					durInt = 0 // fallback to check model default
+				}
+			}
+			if durInt == 0 {
+				// Try to get model default duration (if available)
+				modelDefault := 0
+				// Check for known model default durations
+				switch model.Name {
+				case "kling-video-text":
+					modelDefault = 5
+				case "minimax/hailuo-02":
+					modelDefault = 6
+				case "minimax/video-01", "minimax/video-01-director":
+					modelDefault = 6
+					// Add more models as needed
+				}
+				if modelDefault > 0 {
+					durInt = modelDefault
+					duration = strconv.Itoa(modelDefault)
+				} else {
+					durInt = 6 // fallback to hardcoded default
+					duration = "6"
+				}
+			}
+
+			totalCost := model.PriceUSD
+			if model.PerSecondPricing {
+				totalCost = model.PriceUSD * float64(durInt)
+			}
+
 			// Create progress callback
 			progress := NewCommandProgressCallback(bot, msgCtx.Nick, msgCtx.Sender, "text2video", msgCtx.IsPM, msgCtx.GC)
 
@@ -104,10 +141,29 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				Progress:        progress,
 				UserNick:        msgCtx.Nick,
 				UserID:          userID,
-				PriceUSD:        model.PriceUSD,
+				PriceUSD:        totalCost,
 				IsPM:            msgCtx.IsPM,
 				GC:              msgCtx.GC,
 				ModelName:       model.Name,
+			}
+
+			// Inform user of pricing and total cost
+			if msgCtx.IsPM {
+				if model.PerSecondPricing {
+					msg := fmt.Sprintf(
+						"Model: %s\n💰 Price: $%.2f per video second\nRequested duration: %d seconds\nTotal cost: $%.2f = $%.2f/sec × %d sec",
+						model.Name, model.PriceUSD, durInt, totalCost, model.PriceUSD, durInt,
+					)
+					if originalUserDuration == "" {
+						msg += fmt.Sprintf("\n(No duration specified, using default duration of %d seconds.)", durInt)
+					}
+					msgSender.SendMessage(ctx, msgCtx, msg)
+				} else {
+					msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf(
+						"Model: %s\n💰 Flat fee: $%.2f per video",
+						model.Name, model.PriceUSD,
+					))
+				}
 			}
 
 			// Process the video
