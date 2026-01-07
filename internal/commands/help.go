@@ -156,6 +156,8 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 					models, modelExists = faladapter.GetModels("image2image")
 				case "image2video":
 					models, modelExists = faladapter.GetModels("image2video")
+				case "text2video":
+					models, modelExists = faladapter.GetModels("text2video")
 				default:
 					return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Command: !%s\nDescription: %s", cmd.Name, cmd.Description))
 				}
@@ -168,9 +170,15 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 				currentModel, hasCurrentModel := faladapter.GetCurrentModel(commandName, userIDStr)
 				currentModelInfo := ""
 				if hasCurrentModel {
-					currentModelInfo = fmt.Sprintf("\n\n**Currently Selected Model:** %s ($%.2f USD)\n\n%s",
+					// Add per-second price info if relevant
+					perSecondLine := ""
+					if commandName == "text2video" && currentModel.PerSecondPricing {
+						perSecondLine = fmt.Sprintf("\n💰 **Price: $%.2f per video second**\nExample: 10 seconds = $%.2f\nTotal cost = price per second × duration.\n", currentModel.PriceUSD, currentModel.PriceUSD*10)
+					}
+					currentModelInfo = fmt.Sprintf("\n\n**Currently Selected Model:** %s ($%.2f USD)\n%s\n%s",
 						currentModel.Name,
 						currentModel.PriceUSD,
+						perSecondLine,
 						currentModel.HelpDoc)
 				}
 
@@ -181,7 +189,13 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 					currentModelInfo)
 
 				for _, model := range models {
-					helpMsg += fmt.Sprintf("| %s | %s | $%.2f |\n", model.Name, model.Description, model.PriceUSD)
+					desc := model.Description
+					if model.PerSecondPricing {
+						desc += fmt.Sprintf(" 💰 $%.2f/sec", model.PriceUSD)
+					} else {
+						desc += fmt.Sprintf(" 💰 Flat fee: $%.2f", model.PriceUSD)
+					}
+					helpMsg += fmt.Sprintf("| %s | %s | $%.2f |\n", model.Name, desc, model.PriceUSD)
 				}
 
 				helpMsg += "\nUse !help " + commandName + " <model_name> for detailed information about a specific model."

@@ -274,14 +274,16 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			endpoint = "/kling-video/v2/master/image-to-video"
 		case "kling-video-text":
 			endpoint = "/kling-video/v2/master/text-to-video"
-		case "minimax/video-01-director": // Add case for endpoint determination
-			endpoint = "/minimax/video-01-director" // Corrected relative path
-		case "minimax/video-01-subject-reference": // Add case for endpoint determination
-			endpoint = "/minimax/video-01-subject-reference" // Corrected relative path
-		case "minimax/video-01-live": // Add case for endpoint determination
-			endpoint = "/minimax/video-01-live/image-to-video" // Corrected relative path
-		case "minimax/video-01": // Add case for endpoint determination
-			endpoint = "/minimax/video-01" // Corrected relative path
+		case "minimax/video-01-director":
+			endpoint = "/minimax/video-01-director"
+		case "minimax/video-01-subject-reference":
+			endpoint = "/minimax/video-01-subject-reference"
+		case "minimax/video-01-live":
+			endpoint = "/minimax/video-01-live/image-to-video"
+		case "minimax/video-01":
+			endpoint = "/minimax/video-01"
+		case "minimax/hailuo-02":
+			endpoint = "/minimax/hailuo-02/standard/text-to-video"
 		default:
 			return nil, fmt.Errorf("unsupported model: %s", model.Name)
 		}
@@ -296,10 +298,41 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if r.Prompt == "" {
 			delete(reqBody, "prompt")
 		}
-
-	// Deprecated: TextToVideoRequest is handled by KlingVideoRequest case now
-	// case *TextToVideoRequest: ...
-
+	case *MinimaxHailuo02Request:
+		modelName = "minimax/hailuo-02"
+		endpoint = "/minimax/hailuo-02/standard/text-to-video"
+		model, exists := GetModel(modelName, "text2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*MinimaxHailuo02Options)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		// Set defaults from options if not provided
+		defaults := options.GetDefaultValues()
+		if r.Duration == "" {
+			r.Duration = defaults["duration"].(string)
+		}
+		if r.PromptOptimizer == nil {
+			r.PromptOptimizer = defaults["prompt_optimizer"].(*bool)
+		}
+		// Validate using the options struct
+		opts := MinimaxHailuo02Options{
+			Duration:        r.Duration,
+			PromptOptimizer: r.PromptOptimizer,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		reqBody = map[string]interface{}{
+			"prompt":           r.Prompt,
+			"duration":         r.Duration,
+			"prompt_optimizer": r.PromptOptimizer,
+		}
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt cannot be empty for %s", modelName)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported request type: %T", req)
 	}

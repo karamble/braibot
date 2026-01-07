@@ -19,6 +19,7 @@ type ProgressCallback interface {
 }
 
 // ModelOptions represents the common interface for all model options
+// This interface is used for compile-time type safety and generic handling.
 type ModelOptions interface {
 	GetDefaultValues() map[string]interface{}
 	Validate() error
@@ -302,12 +303,13 @@ type ModelDefinition interface {
 
 // Model represents a Fal.ai model
 type Model struct {
-	Name        string
-	Description string
-	PriceUSD    float64
-	Type        string
-	HelpDoc     string
-	Options     ModelOptions // Model-specific options
+	Name             string
+	Description      string
+	PriceUSD         float64
+	Type             string
+	HelpDoc          string
+	Options          interface{} // Model-specific options
+	PerSecondPricing bool        // Indicates if model uses per-second billing
 }
 
 // BaseImageRequest represents the base fields for an image generation request
@@ -760,4 +762,11 @@ func (o *MinimaxVideo01Options) Validate() error {
 type MinimaxVideo01Request struct {
 	BaseVideoRequest       // Embeds Prompt, Progress, Model, Options (ImageURL should be empty)
 	PromptOptimizer  *bool `json:"prompt_optimizer,omitempty"` // Mirrored option
+}
+
+// MiniMax Hailuo-02 Text To Video request
+type MinimaxHailuo02Request struct {
+	BaseVideoRequest
+	Duration        string `json:"duration,omitempty"`
+	PromptOptimizer *bool  `json:"prompt_optimizer,omitempty"`
 }

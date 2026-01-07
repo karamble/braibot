@@ -246,12 +246,11 @@ This guide explains how to integrate new fal.ai endpoints into BraiBot. The inte
    - `BaseVideoRequest`: For video generation
    - `BaseSpeechRequest`: For text-to-speech
 
-2. **Model Options Interface**
+2. **Model Options Methods**
    ```go
-   type ModelOptions interface {
-       GetDefaultValues() map[string]interface{}
-       Validate() error
-   }
+   // Your options struct should implement these methods:
+   func (o *MyModelOptions) GetDefaultValues() map[string]interface{} { /* ... */ }
+   func (o *MyModelOptions) Validate() error { /* ... */ }
    ```
 
 ### Integration Steps
