@@ -770,3 +770,67 @@ type MinimaxHailuo02Request struct {
 	Duration        string `json:"duration,omitempty"`
 	PromptOptimizer *bool  `json:"prompt_optimizer,omitempty"`
 }
+
+// Veo3Options represents options for the fal-ai/veo3/image-to-video model
+type Veo3Options struct {
+	AspectRatio   string `json:"aspect_ratio,omitempty"`   // auto, 16:9, 9:16
+	Duration      string `json:"duration,omitempty"`       // 4s, 6s, 8s
+	Resolution    string `json:"resolution,omitempty"`     // 720p, 1080p
+	GenerateAudio *bool  `json:"generate_audio,omitempty"` // default: true
+	AutoFix       *bool  `json:"auto_fix,omitempty"`       // auto-fix failed prompts
+}
+
+// GetDefaultValues returns default values for Veo3 options
+func (o *Veo3Options) GetDefaultValues() map[string]interface{} {
+	defaultAudio := true
+	defaultAutoFix := false
+	return map[string]interface{}{
+		"aspect_ratio":   "16:9",
+		"duration":       "8s",
+		"resolution":     "720p",
+		"generate_audio": &defaultAudio,
+		"auto_fix":       &defaultAutoFix,
+	}
+}
+
+// Validate validates Veo3 options
+func (o *Veo3Options) Validate() error {
+	validAspectRatios := map[string]bool{
+		"auto": true,
+		"16:9": true,
+		"9:16": true,
+		"":     true,
+	}
+	validDurations := map[string]bool{
+		"4s": true,
+		"6s": true,
+		"8s": true,
+		"":   true,
+	}
+	validResolutions := map[string]bool{
+		"720p":  true,
+		"1080p": true,
+		"":      true,
+	}
+
+	if !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s (must be one of: auto, 16:9, 9:16)", o.AspectRatio)
+	}
+	if !validDurations[o.Duration] {
+		return fmt.Errorf("invalid duration: %s (must be one of: 4s, 6s, 8s)", o.Duration)
+	}
+	if !validResolutions[o.Resolution] {
+		return fmt.Errorf("invalid resolution: %s (must be one of: 720p, 1080p)", o.Resolution)
+	}
+	return nil
+}
+
+// Veo3Request represents a request for fal-ai/veo3/image-to-video
+type Veo3Request struct {
+	BaseVideoRequest
+	AspectRatio   string `json:"aspect_ratio,omitempty"`
+	Duration      string `json:"duration,omitempty"`
+	Resolution    string `json:"resolution,omitempty"`
+	GenerateAudio *bool  `json:"generate_audio,omitempty"`
+	AutoFix       *bool  `json:"auto_fix,omitempty"`
+}

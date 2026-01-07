@@ -78,9 +78,34 @@ func (m *minimaxLiveModel) Define() Model {
 	}
 }
 
+// --- veo3 ---
+
+type veo3Model struct{}
+
+func (m *veo3Model) Define() Model {
+	defaultAudio := true
+	defaultAutoFix := false
+	return Model{
+		Name:             "veo3",
+		Description:      "Google's Veo 3 - state-of-the-art video generation with audio support",
+		PriceUSD:         0.45, // $0.45 per second
+		Type:             "image2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --duration 8s --resolution 1080p --audio\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --aspect: Aspect ratio (auto, 16:9, 9:16). Default: 16:9\n• --duration: Video duration (4s, 6s, 8s). Default: 8s\n• --resolution: Video resolution (720p, 1080p). Default: 720p\n• --audio: Enable audio generation. Default: true\n• --auto-fix: Auto-fix failed prompts. Default: false\n\nPricing:\n• $0.45 per second of video generated",
+		Options: &Veo3Options{
+			AspectRatio:   "16:9",
+			Duration:      "8s",
+			Resolution:    "720p",
+			GenerateAudio: &defaultAudio,
+			AutoFix:       &defaultAutoFix,
+		},
+	}
+}
+
 func init() {
 	registerModel(&veo2Model{})
 	registerModel(&klingVideoImageModel{})
 	registerModel(&minimaxSubjectReferenceModel{})
 	registerModel(&minimaxLiveModel{})
+	registerModel(&veo3Model{})
 }
