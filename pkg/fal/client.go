@@ -119,6 +119,12 @@ type FinalResponseDecoder func(data []byte) (interface{}, error)
 // 3. GET the final result from the response URL.
 // 4. Decode the final result using the provided decoder.
 func (c *Client) executeAsyncWorkflow(ctx context.Context, path string, reqBody interface{}, progress ProgressCallback, decodeFinalResponse FinalResponseDecoder) (interface{}, error) {
+	return c.executeAsyncWorkflowWithCallback(ctx, path, reqBody, progress, decodeFinalResponse, nil)
+}
+
+// executeAsyncWorkflowWithCallback is like executeAsyncWorkflow but calls queueCallback when queue info is available
+// This enables storing queue info for recovery before polling starts
+func (c *Client) executeAsyncWorkflowWithCallback(ctx context.Context, path string, reqBody interface{}, progress ProgressCallback, decodeFinalResponse FinalResponseDecoder, queueCallback QueueInfoCallback) (interface{}, error) {
 	// 1. Make initial POST request
 	initialResp, err := c.makeRequest(ctx, "POST", path, reqBody)
 	if err != nil {
@@ -145,6 +151,11 @@ func (c *Client) executeAsyncWorkflow(ctx context.Context, path string, reqBody 
 
 	if queueResp.ResponseURL == "" {
 		return nil, fmt.Errorf("initial queue response did not contain a response URL")
+	}
+
+	// 2.5 Call queue callback if provided (for recovery purposes)
+	if queueCallback != nil {
+		queueCallback(queueResp.QueueID, queueResp.ResponseURL)
 	}
 
 	// 3. Notify initial queue position
@@ -183,4 +194,107 @@ func (c *Client) executeAsyncWorkflow(ctx context.Context, path string, reqBody 
 	}
 
 	return finalData, nil
+}
+
+// JobStatusResult contains the status check result for a fal.ai job
+type JobStatusResult struct {
+	Status   string // IN_QUEUE, IN_PROGRESS, COMPLETED, FAILED
+	Position int    // Queue position (if in queue)
+	ETA      int    // Estimated time in seconds
+}
+
+// CheckJobStatus checks the current status of a fal.ai job using its response URL
+// This is useful for recovery after server restart
+func (c *Client) CheckJobStatus(ctx context.Context, responseURL string) (*JobStatusResult, error) {
+	if responseURL == "" {
+		return nil, fmt.Errorf("response URL is required")
+	}
+
+	statusURL := responseURL + "/status"
+	if c.debug {
+		fmt.Printf("DEBUG - Checking job status at: %s\n", statusURL)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", statusURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create status request: %w", err)
+	}
+	req.Header.Set("Authorization", "Key "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check status: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read status response: %w", err)
+	}
+
+	if c.debug {
+		fmt.Printf("DEBUG - Status response: %s\n", string(body))
+	}
+
+	// Handle 404 - job not found (expired or invalid)
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("job not found (may have expired)")
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("status check failed with code %d: %s", resp.StatusCode, string(body))
+	}
+
+	var statusResp struct {
+		Status   string `json:"status"`
+		Position int    `json:"position"`
+		ETA      int    `json:"eta"`
+	}
+	if err := json.Unmarshal(body, &statusResp); err != nil {
+		return nil, fmt.Errorf("failed to parse status response: %w", err)
+	}
+
+	return &JobStatusResult{
+		Status:   statusResp.Status,
+		Position: statusResp.Position,
+		ETA:      statusResp.ETA,
+	}, nil
+}
+
+// GetJobResult fetches the result of a completed fal.ai job
+// Returns the video response if the job is complete
+func (c *Client) GetJobResult(ctx context.Context, responseURL string) (*VideoResponse, error) {
+	if responseURL == "" {
+		return nil, fmt.Errorf("response URL is required")
+	}
+
+	if c.debug {
+		fmt.Printf("DEBUG - Getting job result from: %s\n", responseURL)
+	}
+
+	resp, err := c.makeRequest(ctx, "GET", responseURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get job result: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read result response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get result failed with code %d: %s", resp.StatusCode, string(body))
+	}
+
+	var videoResp VideoResponse
+	if err := json.Unmarshal(body, &videoResp); err != nil {
+		return nil, fmt.Errorf("failed to parse video response: %w", err)
+	}
+
+	if videoResp.GetURL() == "" {
+		return nil, fmt.Errorf("no video URL in response")
+	}
+
+	return &videoResp, nil
 }
