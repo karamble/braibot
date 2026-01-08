@@ -102,10 +102,35 @@ func (m *veo3Model) Define() Model {
 	}
 }
 
+// --- veo31fast ---
+
+type veo31FastModel struct{}
+
+func (m *veo31FastModel) Define() Model {
+	defaultAudio := true
+	defaultAutoFix := false
+	return Model{
+		Name:             "veo31fast",
+		Description:      "Google's Veo 3.1 Fast - fast video generation with audio support",
+		PriceUSD:         0.10, // $0.10 per second (no audio), $0.15 per second (with audio)
+		Type:             "image2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --duration 8s --resolution 1080p --audio\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --aspect: Aspect ratio (auto, 16:9, 9:16). Default: auto\n• --duration: Video duration (4s, 6s, 8s). Default: 8s\n• --resolution: Video resolution (720p, 1080p). Default: 720p\n• --audio: Enable audio generation. Default: true\n• --auto-fix: Auto-fix failed prompts. Default: false\n\nPricing:\n• $0.10 per second (no audio)\n• $0.15 per second (with audio)",
+		Options: &Veo31FastOptions{
+			AspectRatio:   "auto",
+			Duration:      "8s",
+			Resolution:    "720p",
+			GenerateAudio: &defaultAudio,
+			AutoFix:       &defaultAutoFix,
+		},
+	}
+}
+
 func init() {
 	registerModel(&veo2Model{})
 	registerModel(&klingVideoImageModel{})
 	registerModel(&minimaxSubjectReferenceModel{})
 	registerModel(&minimaxLiveModel{})
 	registerModel(&veo3Model{})
+	registerModel(&veo31FastModel{})
 }

@@ -272,6 +272,8 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			endpoint = "/veo2/image-to-video"
 		case "veo3":
 			endpoint = "/veo3/image-to-video"
+		case "veo31fast":
+			endpoint = "/veo3.1/fast/image-to-video"
 		case "kling-video-image":
 			endpoint = "/kling-video/v2/master/image-to-video"
 		case "kling-video-text":
@@ -355,6 +357,69 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			AutoFix:       r.AutoFix,
 		}
 		if err := veo3Opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		// Set default values from model options if not provided in request
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+		if r.Duration == "" {
+			r.Duration = options.Duration
+		}
+		if r.Resolution == "" {
+			r.Resolution = options.Resolution
+		}
+		if r.GenerateAudio == nil {
+			r.GenerateAudio = options.GenerateAudio
+		}
+		if r.AutoFix == nil {
+			r.AutoFix = options.AutoFix
+		}
+		// Validate image_url is required
+		if r.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s", modelName)
+		}
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt":    r.Prompt,
+			"image_url": r.ImageURL,
+		}
+		// Add optional fields only if they have values
+		if r.AspectRatio != "" {
+			reqBody["aspect_ratio"] = r.AspectRatio
+		}
+		if r.Duration != "" {
+			reqBody["duration"] = r.Duration
+		}
+		if r.Resolution != "" {
+			reqBody["resolution"] = r.Resolution
+		}
+		if r.GenerateAudio != nil {
+			reqBody["generate_audio"] = *r.GenerateAudio
+		}
+		if r.AutoFix != nil {
+			reqBody["auto_fix"] = *r.AutoFix
+		}
+	case *Veo31FastRequest:
+		modelName = "veo31fast"
+		endpoint = "/veo3.1/fast/image-to-video"
+		model, exists := GetModel(modelName, "image2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*Veo31FastOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		// Validate request options
+		veo31FastOpts := Veo31FastOptions{
+			AspectRatio:   r.AspectRatio,
+			Duration:      r.Duration,
+			Resolution:    r.Resolution,
+			GenerateAudio: r.GenerateAudio,
+			AutoFix:       r.AutoFix,
+		}
+		if err := veo31FastOpts.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
 		}
 		// Set default values from model options if not provided in request
