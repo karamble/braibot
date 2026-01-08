@@ -431,18 +431,29 @@ type Progressable interface {
 	GetProgress() ProgressCallback
 }
 
+// QueueInfoable is an interface for types that can receive queue info callbacks
+type QueueInfoable interface {
+	GetQueueInfo() QueueInfoCallback
+}
+
 // BaseVideoRequest contains common fields for all video generation requests
 type BaseVideoRequest struct {
-	Prompt   string                 `json:"prompt"`
-	ImageURL string                 `json:"image_url"`
-	Model    string                 `json:"-"`
-	Options  map[string]interface{} `json:"-"`
-	Progress ProgressCallback
+	Prompt    string                 `json:"prompt"`
+	ImageURL  string                 `json:"image_url"`
+	Model     string                 `json:"-"`
+	Options   map[string]interface{} `json:"-"`
+	Progress  ProgressCallback
+	QueueInfo QueueInfoCallback // Called when queue info is available (for recovery)
 }
 
 // GetProgress returns the progress callback
 func (r *BaseVideoRequest) GetProgress() ProgressCallback {
 	return r.Progress
+}
+
+// GetQueueInfo returns the queue info callback
+func (r *BaseVideoRequest) GetQueueInfo() QueueInfoCallback {
+	return r.QueueInfo
 }
 
 // GetOptions returns the options map
@@ -499,6 +510,10 @@ type QueueResponse struct {
 	Position    int    `json:"position"`
 	ETA         int    `json:"eta"`
 }
+
+// QueueInfoCallback is called when queue info is available, before polling starts
+// This allows storing queue info for recovery purposes
+type QueueInfoCallback func(queueID, responseURL string)
 
 // Error represents a Fal.ai API error
 type Error struct {
