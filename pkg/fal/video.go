@@ -15,10 +15,16 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 	var endpoint string
 	var reqBody map[string]interface{}
 	var progress ProgressCallback
+	var queueInfo QueueInfoCallback
 
 	// Extract progress callback if available
 	if progressable, ok := req.(Progressable); ok {
 		progress = progressable.GetProgress()
+	}
+
+	// Extract queue info callback if available (for recovery)
+	if queueInfoable, ok := req.(QueueInfoable); ok {
+		queueInfo = queueInfoable.GetQueueInfo()
 	}
 
 	// Determine model name, endpoint and create request body based on request type
@@ -490,8 +496,8 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		return &videoResp, nil
 	}
 
-	// Execute the workflow
-	result, err := c.executeAsyncWorkflow(ctx, endpoint, reqBody, progress, decodeFunc)
+	// Execute the workflow (with queue info callback for recovery support)
+	result, err := c.executeAsyncWorkflowWithCallback(ctx, endpoint, reqBody, progress, decodeFunc, queueInfo)
 	if err != nil {
 		return nil, err // Error already wrapped
 	}

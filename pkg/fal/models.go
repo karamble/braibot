@@ -106,4 +106,5 @@ func init() {
 	setDefaultModel("text2speech", "minimax-tts/text-to-speech")
 	setDefaultModel("image2video", "veo2")
 	setDefaultModel("text2video", "kling-video-text")
+	setDefaultModel("audio2text", "elevenlabs/speech-to-text/scribe-v2")
 }

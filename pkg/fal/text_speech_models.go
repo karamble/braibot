@@ -40,6 +40,115 @@ func (m *minimaxTTSModel) Define() Model {
 	}
 }
 
+// --- chatterbox-tts ---
+
+type chatterboxTTSModel struct{}
+
+func (m *chatterboxTTSModel) Define() Model {
+	defaultOpts := &ChatterboxTTSOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:        "chatterbox-tts",
+		Description: "Chatterbox TTS Turbo - Fast, natural text-to-speech",
+		PriceUSD:    0.05, // Per 1000 characters
+		Type:        "text2speech",
+		HelpDoc:     "Usage: !text2speech [text] [options]\n\n💰 **Price: $0.05 per 1000 characters\n\nParameters:\n• text: Text to convert to speech (required)\n• --audio_prompt_url: Reference audio URL for voice cloning (optional)\n• --exaggeration: Expression intensity 0-1 (default: 0.5)\n• --cfg_weight: Adherence to prompt 0-1 (default: 0.5)",
+		Options: &ChatterboxTTSOptions{
+			Exaggeration: defaults["exaggeration"].(float64),
+			CFGWeight:    defaults["cfg_weight"].(float64),
+		},
+	}
+}
+
+// --- elevenlabs-dialog ---
+
+type elevenlabsDialogModel struct{}
+
+func (m *elevenlabsDialogModel) Define() Model {
+	defaultOpts := &ElevenLabsDialogOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:        "elevenlabs-dialog",
+		Description: "ElevenLabs Text-to-Dialogue V3 - Multi-speaker dialogue generation",
+		PriceUSD:    0.30, // Per 1000 characters
+		Type:        "text2speech",
+		HelpDoc:     "Usage: !text2speech [text] [options]\n\n💰 **Price: $0.30 per 1000 characters\n\nParameters:\n• text: Dialogue text with speaker labels (required)\n• --voice_id: Voice ID (default: Rachel)\n• --output_format: Audio format (default: mp3_22050_32)\n• --stability: Voice stability 0-1 (default: 0.5)\n• --similarity_boost: Voice similarity 0-1 (default: 0.75)",
+		Options: &ElevenLabsDialogOptions{
+			VoiceID:         defaults["voice_id"].(string),
+			OutputFormat:    defaults["output_format"].(string),
+			Stability:       defaults["stability"].(float64),
+			SimilarityBoost: defaults["similarity_boost"].(float64),
+		},
+	}
+}
+
+// --- elevenlabs-tts-turbo ---
+
+type elevenlabsTTSTurboModel struct{}
+
+func (m *elevenlabsTTSTurboModel) Define() Model {
+	defaultOpts := &ElevenLabsTTSOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	var defaultStability *float64
+	if v, ok := defaults["stability"].(*float64); ok {
+		defaultStability = v
+	}
+	var defaultSimilarity *float64
+	if v, ok := defaults["similarity_boost"].(*float64); ok {
+		defaultSimilarity = v
+	}
+	var defaultStyle *float64
+	if v, ok := defaults["style"].(*float64); ok {
+		defaultStyle = v
+	}
+	var defaultSpeed *float64
+	if v, ok := defaults["speed"].(*float64); ok {
+		defaultSpeed = v
+	}
+	var defaultTimestamps *bool
+	if v, ok := defaults["timestamps"].(*bool); ok {
+		defaultTimestamps = v
+	}
+
+	return Model{
+		Name:        "elevenlabs/tts/turbo-v2.5",
+		Description: "ElevenLabs TTS Turbo v2.5 - High-quality, low-latency text-to-speech",
+		PriceUSD:    0.05, // Per 1000 characters
+		Type:        "text2speech",
+		HelpDoc: `Usage: !text2speech [text] [options]
+
+💰 **Price: $0.05 per 1000 characters
+
+Parameters:
+• text: Text to convert to speech (required, max 5000 chars)
+• --voice: Voice name (default: Rachel)
+• --stability: Voice stability 0-1 (default: 0.5)
+• --similarity_boost: Voice similarity 0-1 (default: 0.75)
+• --style: Style exaggeration 0-1 (default: 0.0)
+• --speed: Speech speed 0.25-4.0 (default: 1.0)
+• --language_code: Language code (optional)
+
+Available Voices:
+• Aria, Roger, Sarah, Laura, Charlie, George, Callum
+• River, Liam, Charlotte, Alice, Matilda, Will, Jessica
+• Eric, Chris, Brian, Daniel, Lily, Bill`,
+		Options: &ElevenLabsTTSOptions{
+			Voice:           defaults["voice"].(string),
+			Stability:       defaultStability,
+			SimilarityBoost: defaultSimilarity,
+			Style:           defaultStyle,
+			Speed:           defaultSpeed,
+			Timestamps:      defaultTimestamps,
+		},
+	}
+}
+
 func init() {
 	registerModel(&minimaxTTSModel{})
+	registerModel(&chatterboxTTSModel{})
+	registerModel(&elevenlabsDialogModel{})
+	registerModel(&elevenlabsTTSTurboModel{})
 }

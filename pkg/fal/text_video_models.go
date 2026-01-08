@@ -118,6 +118,57 @@ func (m *minimaxHailuo02Model) Define() Model {
 	}
 }
 
+// --- hunyuan-video ---
+
+type hunyuanVideoModel struct{}
+
+func (m *hunyuanVideoModel) Define() Model {
+	defaultOpts := &HunyuanVideoOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+	defaultSafetyChecker := defaults["enable_safety_checker"].(*bool)
+
+	return Model{
+		Name:        "hunyuan-video",
+		Description: "Tencent Hunyuan Video - High visual quality, motion diversity and text alignment",
+		PriceUSD:    0.50,
+		Type:        "text2video",
+		HelpDoc:     "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.50 per video\n\nParameters:\n• prompt: Text description (required)\n• --aspect_ratio: 16:9, 9:16, 4:3, 3:4, 1:1 (default: 16:9)\n• --resolution: 480p, 580p, 720p, 1080p (default: 720p)\n• --video_length: 5s, 10s (default: 5s)\n• --num_inference_steps: Number of steps (default: 50)\n• --seed: Specific seed (optional)\n• --enable_safety_checker: Enable safety filter (default: true)",
+		Options: &HunyuanVideoOptions{
+			AspectRatio:         defaults["aspect_ratio"].(string),
+			Resolution:          defaults["resolution"].(string),
+			VideoLength:         defaults["video_length"].(string),
+			NumInferenceSteps:   defaults["num_inference_steps"].(int),
+			EnableSafetyChecker: defaultSafetyChecker,
+		},
+	}
+}
+
+// --- kling-video-v25-text ---
+
+type klingVideoV25TextModel struct{}
+
+func (m *klingVideoV25TextModel) Define() Model {
+	defaultOpts := &KlingVideoV25Options{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:             "kling-video-v25-text",
+		Description:      "Kling 2.5 Turbo Pro Text-to-Video - High quality video generation from text",
+		PriceUSD:         0.32, // Per second
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.32 per second\n\nParameters:\n• prompt: Text description (required)\n• --duration: Video duration in seconds (5 or 10, default: 5)\n• --aspect_ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --negative_prompt: Things to avoid (default: blur, distort, and low quality)\n• --cfg_scale: Configuration scale 0-1 (default: 0.5)",
+		Options: &KlingVideoV25Options{
+			Duration:       defaults["duration"].(string),
+			AspectRatio:    defaults["aspect_ratio"].(string),
+			NegativePrompt: defaults["negative_prompt"].(string),
+			CFGScale:       defaults["cfg_scale"].(float64),
+		},
+	}
+}
+
 func init() {
 	registerModel(&minimaxHailuo02Model{})
+	registerModel(&hunyuanVideoModel{})
+	registerModel(&klingVideoV25TextModel{})
 }

@@ -183,6 +183,61 @@ func (m *fluxSchnellModel) Define() Model {
 	}
 }
 
+// --- flux/dev ---
+
+type fluxDevModel struct{}
+
+func (m *fluxDevModel) Define() Model {
+	defaultOpts := &FluxDevOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+	defaultSafetyChecker := defaults["enable_safety_checker"].(*bool)
+
+	return Model{
+		Name:        "flux/dev",
+		Description: "FLUX.1 [dev] - 12B parameter flow transformer for high-quality image generation",
+		PriceUSD:    0.025,
+		Type:        "text2image",
+		HelpDoc:     "Usage: !text2image [prompt] [--option value]...\nExample: !text2image a futuristic city --num_images 2 --image_size square\n\nParameters:\n• prompt: Text description of the image (required)\n• --image_size: Output dimensions (default: landscape_4_3). Options: square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9\n• --num_inference_steps: Number of steps (default: 28)\n• --seed: Specific seed for reproducibility (optional)\n• --guidance_scale: Prompt adherence (default: 3.5)\n• --num_images: Number of images to generate (default: 1)\n• --enable_safety_checker: Enable safety filter (default: true)\n• --output_format: jpeg, png (default: jpeg)",
+		Options: &FluxDevOptions{
+			ImageSize:           defaults["image_size"].(string),
+			NumInferenceSteps:   defaults["num_inference_steps"].(int),
+			GuidanceScale:       defaults["guidance_scale"].(float64),
+			NumImages:           defaults["num_images"].(int),
+			EnableSafetyChecker: defaultSafetyChecker,
+			OutputFormat:        defaults["output_format"].(string),
+		},
+	}
+}
+
+// --- stable-diffusion-v35-large ---
+
+type stableDiffusionV35LargeModel struct{}
+
+func (m *stableDiffusionV35LargeModel) Define() Model {
+	defaultOpts := &StableDiffusionV35LargeOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+	defaultSafetyChecker := defaults["enable_safety_checker"].(*bool)
+	defaultPromptExpansion := defaults["prompt_expansion"].(*bool)
+
+	return Model{
+		Name:        "stable-diffusion-v35-large",
+		Description: "Stable Diffusion 3.5 Large - Image quality, typography, complex prompt understanding",
+		PriceUSD:    0.065,
+		Type:        "text2image",
+		HelpDoc:     "Usage: !text2image [prompt] [--option value]...\nExample: !text2image a hyperrealistic portrait --negative_prompt blur --guidance_scale 5\n\nParameters:\n• prompt: Text description of the image (required)\n• --negative_prompt: Things to avoid (optional)\n• --image_size: Output dimensions (default: square_hd). Options: square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9\n• --num_inference_steps: Number of steps (default: 40)\n• --seed: Specific seed for reproducibility (optional)\n• --guidance_scale: Prompt adherence (default: 4.5)\n• --num_images: Number of images to generate (default: 1)\n• --enable_safety_checker: Enable safety filter (default: true)\n• --prompt_expansion: Use prompt expansion (default: true)\n• --output_format: jpeg, png (default: jpeg)",
+		Options: &StableDiffusionV35LargeOptions{
+			ImageSize:           defaults["image_size"].(string),
+			NumInferenceSteps:   defaults["num_inference_steps"].(int),
+			GuidanceScale:       defaults["guidance_scale"].(float64),
+			NumImages:           defaults["num_images"].(int),
+			EnableSafetyChecker: defaultSafetyChecker,
+			OutputFormat:        defaults["output_format"].(string),
+			NegativePrompt:      defaults["negative_prompt"].(string),
+			PromptExpansion:     defaultPromptExpansion,
+		},
+	}
+}
+
 func init() {
 	registerModel(&fastSDXLModel{})
 	registerModel(&hidreamI1FullModel{})
@@ -191,4 +246,6 @@ func init() {
 	registerModel(&fluxProV1_1Model{})
 	registerModel(&fluxProV1_1UltraModel{})
 	registerModel(&fluxSchnellModel{})
+	registerModel(&fluxDevModel{})
+	registerModel(&stableDiffusionV35LargeModel{})
 }

@@ -126,6 +126,78 @@ func (m *veo31FastModel) Define() Model {
 	}
 }
 
+// --- kling-video-v25-image ---
+
+type klingVideoV25ImageModel struct{}
+
+func (m *klingVideoV25ImageModel) Define() Model {
+	defaultOpts := &KlingVideoV25Options{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:             "kling-video-v25-image",
+		Description:      "Kling 2.5 Turbo Pro Image-to-Video - High quality video from images",
+		PriceUSD:         0.32, // Per second
+		Type:             "image2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.32 per second\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired animation\n• --duration: Video duration in seconds (5 or 10, default: 5)\n• --aspect_ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --negative_prompt: Things to avoid (default: blur, distort, and low quality)\n• --cfg_scale: Configuration scale 0-1 (default: 0.5)",
+		Options: &KlingVideoV25Options{
+			Duration:       defaults["duration"].(string),
+			AspectRatio:    defaults["aspect_ratio"].(string),
+			NegativePrompt: defaults["negative_prompt"].(string),
+			CFGScale:       defaults["cfg_scale"].(float64),
+		},
+	}
+}
+
+// --- luma-dream-machine ---
+
+type lumaDreamMachineModel struct{}
+
+func (m *lumaDreamMachineModel) Define() Model {
+	defaultOpts := &LumaDreamMachineOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+	defaultLoop := defaults["loop"].(*bool)
+
+	return Model{
+		Name:        "luma-dream-machine",
+		Description: "Luma Dream Machine 1.5 - High quality video generation from images",
+		PriceUSD:    0.40,
+		Type:        "image2video",
+		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.40 per video\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired animation\n• --aspect_ratio: 16:9, 9:16, 4:3, 3:4, 21:9, 9:21, 1:1 (default: 16:9)\n• --loop: Create looping video (default: false)",
+		Options: &LumaDreamMachineOptions{
+			AspectRatio: defaults["aspect_ratio"].(string),
+			Loop:        defaultLoop,
+		},
+	}
+}
+
+// --- ltx-video-13b ---
+
+type ltxVideo13BModel struct{}
+
+func (m *ltxVideo13BModel) Define() Model {
+	defaultOpts := &LTXVideo13BOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+	defaultSafetyChecker := defaults["enable_safety_checker"].(*bool)
+
+	return Model{
+		Name:        "ltx-video-13b",
+		Description: "LTX Video 13B Distilled - Generate videos from prompts and images",
+		PriceUSD:    0.30,
+		Type:        "image2video",
+		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.30 per video\n\nParameters:\n• image_url: URL of the source image (for first/last frame)\n• prompt: Description of the desired animation\n• --num_frames: Number of frames (default: 97)\n• --frame_rate: Frame rate (default: 25)\n• --num_inference_steps: Number of steps (default: 30)\n• --guidance_scale: Prompt adherence (default: 3.0)\n• --negative_prompt: Things to avoid (optional)\n• --seed: Specific seed (optional)\n• --enable_safety_checker: Enable safety filter (default: true)",
+		Options: &LTXVideo13BOptions{
+			NumFrames:           defaults["num_frames"].(int),
+			FrameRate:           defaults["frame_rate"].(int),
+			NumInferenceSteps:   defaults["num_inference_steps"].(int),
+			GuidanceScale:       defaults["guidance_scale"].(float64),
+			NegativePrompt:      defaults["negative_prompt"].(string),
+			EnableSafetyChecker: defaultSafetyChecker,
+		},
+	}
+}
+
 func init() {
 	registerModel(&veo2Model{})
 	registerModel(&klingVideoImageModel{})
@@ -133,4 +205,7 @@ func init() {
 	registerModel(&minimaxLiveModel{})
 	registerModel(&veo3Model{})
 	registerModel(&veo31FastModel{})
+	registerModel(&klingVideoV25ImageModel{})
+	registerModel(&lumaDreamMachineModel{})
+	registerModel(&ltxVideo13BModel{})
 }

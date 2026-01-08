@@ -83,9 +83,65 @@ func (c *Client) GenerateSpeech(ctx context.Context, req interface{}) (*AudioRes
 		}
 
 		r.Model = modelName // Set model name internally
-	// Add cases for other specific speech requests here
-	// case *OtherSpeechRequest:
-	// ...
+
+	case *ElevenLabsTTSRequest:
+		modelName = "elevenlabs/tts/turbo-v2.5"
+		endpoint = "/elevenlabs/tts/turbo-v2.5"
+
+		// Validate options
+		currentOpts := ElevenLabsTTSOptions{
+			Voice:           r.Voice,
+			Stability:       r.Stability,
+			SimilarityBoost: r.SimilarityBoost,
+			Style:           r.Style,
+			Speed:           r.Speed,
+			Timestamps:      r.Timestamps,
+			LanguageCode:    r.LanguageCode,
+		}
+		if err := currentOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"text": r.Text,
+		}
+
+		// Add voice (required)
+		if r.Voice != "" {
+			reqBody["voice"] = r.Voice
+		} else {
+			reqBody["voice"] = "Rachel" // Default voice
+		}
+
+		// Add optional parameters
+		if r.Stability != nil {
+			reqBody["stability"] = *r.Stability
+		}
+		if r.SimilarityBoost != nil {
+			reqBody["similarity_boost"] = *r.SimilarityBoost
+		}
+		if r.Style != nil {
+			reqBody["style"] = *r.Style
+		}
+		if r.Speed != nil {
+			reqBody["speed"] = *r.Speed
+		}
+		if r.Timestamps != nil {
+			reqBody["timestamps"] = *r.Timestamps
+		}
+		if r.LanguageCode != "" {
+			reqBody["language_code"] = r.LanguageCode
+		}
+		if r.PreviousText != "" {
+			reqBody["previous_text"] = r.PreviousText
+		}
+		if r.NextText != "" {
+			reqBody["next_text"] = r.NextText
+		}
+
+		r.Model = modelName
+
 	default:
 		return nil, fmt.Errorf("unsupported speech request type: %T", req)
 	}
