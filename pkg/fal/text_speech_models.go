@@ -40,6 +40,52 @@ func (m *minimaxTTSModel) Define() Model {
 	}
 }
 
+// --- chatterbox-tts ---
+
+type chatterboxTTSModel struct{}
+
+func (m *chatterboxTTSModel) Define() Model {
+	defaultOpts := &ChatterboxTTSOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:        "chatterbox-tts",
+		Description: "Chatterbox TTS Turbo - Fast, natural text-to-speech",
+		PriceUSD:    0.05, // Per 1000 characters
+		Type:        "text2speech",
+		HelpDoc:     "Usage: !text2speech [text] [options]\n\n💰 **Price: $0.05 per 1000 characters\n\nParameters:\n• text: Text to convert to speech (required)\n• --audio_prompt_url: Reference audio URL for voice cloning (optional)\n• --exaggeration: Expression intensity 0-1 (default: 0.5)\n• --cfg_weight: Adherence to prompt 0-1 (default: 0.5)",
+		Options: &ChatterboxTTSOptions{
+			Exaggeration: defaults["exaggeration"].(float64),
+			CFGWeight:    defaults["cfg_weight"].(float64),
+		},
+	}
+}
+
+// --- elevenlabs-dialog ---
+
+type elevenlabsDialogModel struct{}
+
+func (m *elevenlabsDialogModel) Define() Model {
+	defaultOpts := &ElevenLabsDialogOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:        "elevenlabs-dialog",
+		Description: "ElevenLabs Text-to-Dialogue V3 - Multi-speaker dialogue generation",
+		PriceUSD:    0.30, // Per 1000 characters
+		Type:        "text2speech",
+		HelpDoc:     "Usage: !text2speech [text] [options]\n\n💰 **Price: $0.30 per 1000 characters\n\nParameters:\n• text: Dialogue text with speaker labels (required)\n• --voice_id: Voice ID (default: Rachel)\n• --output_format: Audio format (default: mp3_22050_32)\n• --stability: Voice stability 0-1 (default: 0.5)\n• --similarity_boost: Voice similarity 0-1 (default: 0.75)",
+		Options: &ElevenLabsDialogOptions{
+			VoiceID:         defaults["voice_id"].(string),
+			OutputFormat:    defaults["output_format"].(string),
+			Stability:       defaults["stability"].(float64),
+			SimilarityBoost: defaults["similarity_boost"].(float64),
+		},
+	}
+}
+
 func init() {
 	registerModel(&minimaxTTSModel{})
+	registerModel(&chatterboxTTSModel{})
+	registerModel(&elevenlabsDialogModel{})
 }
