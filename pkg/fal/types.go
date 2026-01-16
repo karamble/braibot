@@ -1578,3 +1578,74 @@ type ElevenLabsTTSRequest struct {
 func (r *ElevenLabsTTSRequest) GetProgress() ProgressCallback {
 	return r.Progress
 }
+
+// ==================== Scribe V2 (Audio Transcription) ====================
+
+// ScribeV2Options represents options for fal-ai/scribe/v2
+type ScribeV2Options struct {
+	Task        string `json:"task,omitempty"`         // transcribe (default), translate
+	Language    string `json:"language,omitempty"`     // ISO 639-1 code, auto-detected if not specified
+	ChunkLevel  string `json:"chunk_level,omitempty"`  // segment (default), word
+	Diarize     *bool  `json:"diarize,omitempty"`      // Speaker diarization (default: true)
+	NumSpeakers *int   `json:"num_speakers,omitempty"` // Number of speakers (optional)
+}
+
+// GetDefaultValues returns default values for Scribe V2 options
+func (o *ScribeV2Options) GetDefaultValues() map[string]interface{} {
+	defaultDiarize := true
+	return map[string]interface{}{
+		"task":        "transcribe",
+		"chunk_level": "segment",
+		"diarize":     &defaultDiarize,
+	}
+}
+
+// Validate validates Scribe V2 options
+func (o *ScribeV2Options) Validate() error {
+	validTasks := map[string]bool{"transcribe": true, "translate": true, "": true}
+	validChunkLevels := map[string]bool{"segment": true, "word": true, "": true}
+
+	if !validTasks[o.Task] {
+		return fmt.Errorf("invalid task: %s (must be transcribe or translate)", o.Task)
+	}
+	if !validChunkLevels[o.ChunkLevel] {
+		return fmt.Errorf("invalid chunk_level: %s (must be segment or word)", o.ChunkLevel)
+	}
+	if o.NumSpeakers != nil && (*o.NumSpeakers < 1 || *o.NumSpeakers > 50) {
+		return fmt.Errorf("invalid num_speakers: %d (must be between 1 and 50)", *o.NumSpeakers)
+	}
+	return nil
+}
+
+// ScribeV2Request represents a request for fal-ai/scribe/v2
+type ScribeV2Request struct {
+	AudioURL    string           `json:"audio_url"`
+	Task        string           `json:"task,omitempty"`
+	Language    string           `json:"language,omitempty"`
+	ChunkLevel  string           `json:"chunk_level,omitempty"`
+	Diarize     *bool            `json:"diarize,omitempty"`
+	NumSpeakers *int             `json:"num_speakers,omitempty"`
+	Progress    ProgressCallback `json:"-"`
+}
+
+// GetProgress returns the progress callback
+func (r *ScribeV2Request) GetProgress() ProgressCallback {
+	return r.Progress
+}
+
+// ScribeWord represents a transcribed word with timing
+type ScribeWord struct {
+	Text      string  `json:"text"`
+	Start     float64 `json:"start"`     // Start time in seconds
+	End       float64 `json:"end"`       // End time in seconds
+	Type      string  `json:"type"`      // word, spacing, punctuation
+	SpeakerID *int    `json:"speaker_id"` // Speaker ID if diarization enabled
+}
+
+// ScribeV2Response represents the response from Scribe V2
+type ScribeV2Response struct {
+	Text                string       `json:"text"`
+	LanguageCode        string       `json:"language_code"`
+	LanguageProbability float64      `json:"language_probability"`
+	Words               []ScribeWord `json:"words"`
+}
