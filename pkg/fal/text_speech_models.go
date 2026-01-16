@@ -132,9 +132,9 @@ Parameters:
 • --language_code: Language code (optional)
 
 Available Voices:
-• Rachel, Domi, Bella, Antoni, Elli, Josh, Arnold
-• Adam, Sam, Nicole, Clyde, Fin, Emily, Daniel
-• Charlotte, Thomas, Grace`,
+• Aria, Roger, Sarah, Laura, Charlie, George, Callum
+• River, Liam, Charlotte, Alice, Matilda, Will, Jessica
+• Eric, Chris, Brian, Daniel, Lily, Bill`,
 		Options: &ElevenLabsTTSOptions{
 			Voice:           defaults["voice"].(string),
 			Stability:       defaultStability,
