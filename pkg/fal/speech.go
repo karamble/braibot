@@ -86,7 +86,7 @@ func (c *Client) GenerateSpeech(ctx context.Context, req interface{}) (*AudioRes
 
 	case *ElevenLabsTTSRequest:
 		modelName = "elevenlabs/tts/turbo-v2.5"
-		endpoint = "/fal-ai/elevenlabs/tts/turbo-v2.5"
+		endpoint = "/elevenlabs/tts/turbo-v2.5"
 
 		// Validate options
 		currentOpts := ElevenLabsTTSOptions{
