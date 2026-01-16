@@ -1514,3 +1514,67 @@ type ElevenLabsDialogRequest struct {
 func (r *ElevenLabsDialogRequest) GetProgress() ProgressCallback {
 	return r.Progress
 }
+
+// ElevenLabsTTSOptions represents options for fal-ai/elevenlabs/tts/turbo-v2.5
+type ElevenLabsTTSOptions struct {
+	Voice           string   `json:"voice,omitempty"`            // Default: Rachel
+	Stability       *float64 `json:"stability,omitempty"`        // 0-1. Default: 0.5
+	SimilarityBoost *float64 `json:"similarity_boost,omitempty"` // 0-1. Default: 0.75
+	Style           *float64 `json:"style,omitempty"`            // 0-1. Default: 0.0
+	Speed           *float64 `json:"speed,omitempty"`            // 0.25-4.0. Default: 1.0
+	Timestamps      *bool    `json:"timestamps,omitempty"`       // Default: false
+	LanguageCode    string   `json:"language_code,omitempty"`    // Optional language code
+}
+
+// GetDefaultValues returns the default values for ElevenLabs TTS options
+func (o *ElevenLabsTTSOptions) GetDefaultValues() map[string]interface{} {
+	defaultStability := 0.5
+	defaultSimilarity := 0.75
+	defaultStyle := 0.0
+	defaultSpeed := 1.0
+	defaultTimestamps := false
+	return map[string]interface{}{
+		"voice":            "Rachel",
+		"stability":        &defaultStability,
+		"similarity_boost": &defaultSimilarity,
+		"style":            &defaultStyle,
+		"speed":            &defaultSpeed,
+		"timestamps":       &defaultTimestamps,
+	}
+}
+
+// Validate validates ElevenLabs TTS options
+func (o *ElevenLabsTTSOptions) Validate() error {
+	if o.Stability != nil && (*o.Stability < 0 || *o.Stability > 1) {
+		return fmt.Errorf("stability must be between 0 and 1: %f", *o.Stability)
+	}
+	if o.SimilarityBoost != nil && (*o.SimilarityBoost < 0 || *o.SimilarityBoost > 1) {
+		return fmt.Errorf("similarity_boost must be between 0 and 1: %f", *o.SimilarityBoost)
+	}
+	if o.Style != nil && (*o.Style < 0 || *o.Style > 1) {
+		return fmt.Errorf("style must be between 0 and 1: %f", *o.Style)
+	}
+	if o.Speed != nil && (*o.Speed < 0.25 || *o.Speed > 4.0) {
+		return fmt.Errorf("speed must be between 0.25 and 4.0: %f", *o.Speed)
+	}
+	return nil
+}
+
+// ElevenLabsTTSRequest represents a request for fal-ai/elevenlabs/tts/turbo-v2.5
+type ElevenLabsTTSRequest struct {
+	BaseSpeechRequest
+	Voice           string   `json:"voice,omitempty"`
+	Stability       *float64 `json:"stability,omitempty"`
+	SimilarityBoost *float64 `json:"similarity_boost,omitempty"`
+	Style           *float64 `json:"style,omitempty"`
+	Speed           *float64 `json:"speed,omitempty"`
+	Timestamps      *bool    `json:"timestamps,omitempty"`
+	LanguageCode    string   `json:"language_code,omitempty"`
+	PreviousText    string   `json:"previous_text,omitempty"`
+	NextText        string   `json:"next_text,omitempty"`
+}
+
+// GetProgress returns the progress callback
+func (r *ElevenLabsTTSRequest) GetProgress() ProgressCallback {
+	return r.Progress
+}
