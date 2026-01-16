@@ -1534,7 +1534,7 @@ func (o *ElevenLabsTTSOptions) GetDefaultValues() map[string]interface{} {
 	defaultSpeed := 1.0
 	defaultTimestamps := false
 	return map[string]interface{}{
-		"voice":            "Rachel",
+		"voice":            "Aria",
 		"stability":        &defaultStability,
 		"similarity_boost": &defaultSimilarity,
 		"style":            &defaultStyle,
