@@ -1636,10 +1636,10 @@ func (r *ScribeV2Request) GetProgress() ProgressCallback {
 // ScribeWord represents a transcribed word with timing
 type ScribeWord struct {
 	Text      string  `json:"text"`
-	Start     float64 `json:"start"`     // Start time in seconds
-	End       float64 `json:"end"`       // End time in seconds
-	Type      string  `json:"type"`      // word, spacing, punctuation
-	SpeakerID *int    `json:"speaker_id"` // Speaker ID if diarization enabled
+	Start     float64 `json:"start"`      // Start time in seconds
+	End       float64 `json:"end"`        // End time in seconds
+	Type      string  `json:"type"`       // word, spacing, punctuation
+	SpeakerID *string `json:"speaker_id"` // Speaker ID if diarization enabled (e.g., "speaker_0")
 }
 
 // ScribeV2Response represents the response from Scribe V2
