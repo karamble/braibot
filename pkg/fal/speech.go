@@ -142,15 +142,71 @@ func (c *Client) GenerateSpeech(ctx context.Context, req interface{}) (*AudioRes
 
 		r.Model = modelName
 
+	case *ElevenLabsVoiceChangerRequest:
+		modelName = "elevenlabs-voice-changer"
+		endpoint = "/elevenlabs/voice-changer"
+
+		// Validate required field
+		if r.AudioURL == "" {
+			return nil, fmt.Errorf("audio_url is required for %s", modelName)
+		}
+
+		// Validate options
+		opts := ElevenLabsVoiceChangerOptions{
+			Voice:                 r.Voice,
+			RemoveBackgroundNoise: r.RemoveBackgroundNoise,
+			OutputFormat:          r.OutputFormat,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Get model defaults
+		model, exists := GetModel(modelName, "audio2audio")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*ElevenLabsVoiceChangerOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Set defaults if not provided
+		if r.Voice == "" {
+			r.Voice = options.Voice
+		}
+		if r.OutputFormat == "" {
+			r.OutputFormat = options.OutputFormat
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"audio_url": r.AudioURL,
+			"voice":     r.Voice,
+		}
+
+		// Add optional fields
+		if r.RemoveBackgroundNoise != nil {
+			reqBody["remove_background_noise"] = *r.RemoveBackgroundNoise
+		}
+		if r.Seed != nil {
+			reqBody["seed"] = *r.Seed
+		}
+		if r.OutputFormat != "" {
+			reqBody["output_format"] = r.OutputFormat
+		}
+
 	default:
 		return nil, fmt.Errorf("unsupported speech request type: %T", req)
 	}
 
-	// Validate the requested model
+	// Validate the requested model (check both text2speech and audio2audio types)
 	if _, exists := GetModel(modelName, "text2speech"); !exists {
-		return nil, &Error{
-			Code:    "INVALID_MODEL",
-			Message: fmt.Sprintf("invalid or unsupported model %s for text2speech", modelName),
+		if _, exists := GetModel(modelName, "audio2audio"); !exists {
+			return nil, &Error{
+				Code:    "INVALID_MODEL",
+				Message: fmt.Sprintf("invalid or unsupported model %s", modelName),
+			}
 		}
 	}
 
