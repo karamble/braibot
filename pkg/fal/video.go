@@ -469,6 +469,59 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if r.AutoFix != nil {
 			reqBody["auto_fix"] = *r.AutoFix
 		}
+	case *KlingVideoV26MotionControlRequest:
+		modelName = "kling-video-v26-motion-control"
+		endpoint = "/kling-video/v2.6/standard/motion-control"
+
+		model, exists := GetModel(modelName, "video2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+
+		options, ok := model.Options.(*KlingVideoV26MotionControlOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Validate required fields
+		if r.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s", modelName)
+		}
+		if r.VideoURL == "" {
+			return nil, fmt.Errorf("video_url is required for %s", modelName)
+		}
+		if r.CharacterOrientation == "" {
+			return nil, fmt.Errorf("character_orientation is required for %s (must be 'image' or 'video')", modelName)
+		}
+
+		// Validate options
+		opts := KlingVideoV26MotionControlOptions{
+			CharacterOrientation: r.CharacterOrientation,
+			KeepOriginalSound:    r.KeepOriginalSound,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Set defaults if not provided
+		if r.KeepOriginalSound == nil {
+			r.KeepOriginalSound = options.KeepOriginalSound
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"image_url":             r.ImageURL,
+			"video_url":             r.VideoURL,
+			"character_orientation": r.CharacterOrientation,
+		}
+
+		// Add optional fields
+		if r.Prompt != "" {
+			reqBody["prompt"] = r.Prompt
+		}
+		if r.KeepOriginalSound != nil {
+			reqBody["keep_original_sound"] = *r.KeepOriginalSound
+		}
 	default:
 		return nil, fmt.Errorf("unsupported request type: %T", req)
 	}

@@ -47,7 +47,31 @@ func (m *syncLipsyncV2Model) Define() Model {
 	}
 }
 
+// --- kling-video-v26-motion-control ---
+
+type klingVideoV26MotionControlModel struct{}
+
+func (m *klingVideoV26MotionControlModel) Define() Model {
+	defaultOpts := &KlingVideoV26MotionControlOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+	defaultKeepSound := defaults["keep_original_sound"].(*bool)
+
+	return Model{
+		Name:             "kling-video-v26-motion-control",
+		Description:      "Kling Video v2.6 Motion Control - Generate videos with character motion from reference video",
+		PriceUSD:         1.50, // Placeholder: $0.10/sec, using 15s average estimate
+		Type:             "video2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !video2video [image_url] [video_url] [options]\n\n💰 **Price: $0.10 per second\n\nParameters:\n• image_url: Reference image URL (character/background source)\n• video_url: Reference video URL (motion source)\n• --prompt: Text description (optional)\n• --orientation: 'image' (max 10s) or 'video' (max 30s). Default: video\n• --keep-sound: Keep original audio (default: true)\n\nConstraints:\n• Character must occupy >5% of image with visible body",
+		Options: &KlingVideoV26MotionControlOptions{
+			CharacterOrientation: defaults["character_orientation"].(string),
+			KeepOriginalSound:    defaultKeepSound,
+		},
+	}
+}
+
 func init() {
 	registerModel(&topazUpscaleVideoModel{})
 	registerModel(&syncLipsyncV2Model{})
+	registerModel(&klingVideoV26MotionControlModel{})
 }
