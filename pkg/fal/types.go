@@ -1649,3 +1649,99 @@ type ScribeV2Response struct {
 	LanguageProbability float64      `json:"language_probability"`
 	Words               []ScribeWord `json:"words"`
 }
+
+// ==================== ElevenLabs Voice Changer ====================
+
+// ElevenLabsVoiceChangerOptions represents options for elevenlabs/voice-changer
+type ElevenLabsVoiceChangerOptions struct {
+	Voice                 string `json:"voice,omitempty"`                   // Default: Rachel
+	RemoveBackgroundNoise *bool  `json:"remove_background_noise,omitempty"` // Optional
+	OutputFormat          string `json:"output_format,omitempty"`           // Default: mp3_44100_128
+}
+
+// GetDefaultValues returns default values for ElevenLabs Voice Changer options
+func (o *ElevenLabsVoiceChangerOptions) GetDefaultValues() map[string]interface{} {
+	return map[string]interface{}{
+		"voice":         "Rachel",
+		"output_format": "mp3_44100_128",
+	}
+}
+
+// Validate validates ElevenLabs Voice Changer options
+func (o *ElevenLabsVoiceChangerOptions) Validate() error {
+	validFormats := map[string]bool{
+		"mp3_22050_32": true, "mp3_44100_32": true, "mp3_44100_64": true,
+		"mp3_44100_96": true, "mp3_44100_128": true, "mp3_44100_192": true,
+		"pcm_8000": true, "pcm_16000": true, "pcm_22050": true,
+		"pcm_24000": true, "pcm_44100": true, "pcm_48000": true,
+		"ulaw_8000": true, "alaw_8000": true,
+		"opus_48000_32": true, "opus_48000_64": true, "opus_48000_96": true,
+		"opus_48000_128": true, "opus_48000_192": true, "": true,
+	}
+	if !validFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s", o.OutputFormat)
+	}
+	return nil
+}
+
+// ElevenLabsVoiceChangerRequest represents a request for elevenlabs/voice-changer
+type ElevenLabsVoiceChangerRequest struct {
+	AudioURL              string           `json:"audio_url"`                         // Required
+	Voice                 string           `json:"voice,omitempty"`                   // Optional
+	RemoveBackgroundNoise *bool            `json:"remove_background_noise,omitempty"` // Optional
+	Seed                  *int             `json:"seed,omitempty"`                    // Optional
+	OutputFormat          string           `json:"output_format,omitempty"`           // Optional
+	Progress              ProgressCallback `json:"-"`
+}
+
+// GetProgress returns the progress callback
+func (r *ElevenLabsVoiceChangerRequest) GetProgress() ProgressCallback {
+	return r.Progress
+}
+
+// ==================== Kling Video v2.6 Motion Control ====================
+
+// KlingVideoV26MotionControlOptions represents options for kling-video v2.6 motion control
+type KlingVideoV26MotionControlOptions struct {
+	CharacterOrientation string `json:"character_orientation"` // Required: "image" or "video"
+	KeepOriginalSound    *bool  `json:"keep_original_sound,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns default values for Kling Video v2.6 Motion Control options
+func (o *KlingVideoV26MotionControlOptions) GetDefaultValues() map[string]interface{} {
+	defaultKeepSound := true
+	return map[string]interface{}{
+		"character_orientation": "video", // sensible default for longer duration (max 30s vs 10s)
+		"keep_original_sound":   &defaultKeepSound,
+	}
+}
+
+// Validate validates the Kling Video v2.6 Motion Control options
+func (o *KlingVideoV26MotionControlOptions) Validate() error {
+	validOrientations := map[string]bool{"image": true, "video": true, "": true}
+	if !validOrientations[o.CharacterOrientation] {
+		return fmt.Errorf("invalid character_orientation: %s (must be 'image' or 'video')", o.CharacterOrientation)
+	}
+	return nil
+}
+
+// KlingVideoV26MotionControlRequest represents a request for kling-video v2.6 motion control
+type KlingVideoV26MotionControlRequest struct {
+	ImageURL             string           `json:"image_url"`              // Required: reference image
+	VideoURL             string           `json:"video_url"`              // Required: reference video for motion
+	Prompt               string           `json:"prompt,omitempty"`       // Optional text description
+	CharacterOrientation string           `json:"character_orientation"`  // Required: "image" or "video"
+	KeepOriginalSound    *bool            `json:"keep_original_sound,omitempty"` // Optional, default true
+	Progress             ProgressCallback `json:"-"`
+	QueueInfo            QueueInfoCallback `json:"-"`
+}
+
+// GetProgress returns the progress callback
+func (r *KlingVideoV26MotionControlRequest) GetProgress() ProgressCallback {
+	return r.Progress
+}
+
+// GetQueueInfo returns the queue info callback
+func (r *KlingVideoV26MotionControlRequest) GetQueueInfo() QueueInfoCallback {
+	return r.QueueInfo
+}
