@@ -154,6 +154,8 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 				UserNick:        msgCtx.Nick,
 				UserID:          userID,
 				PriceUSD:        totalCost,
+				IsPM:            msgCtx.IsPM,
+				GC:              msgCtx.GC,
 			}
 
 			// Set the correct image URL field based on the model
