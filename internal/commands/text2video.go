@@ -170,12 +170,13 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 
 			// Process the video
 			result, err := videoService.GenerateVideo(ctx, req)
-			if err != nil {
-				return msgSender.SendErrorMessage(ctx, msgCtx, err)
+
+			// Handle result/error using the utility function
+			if handleErr := utils.HandleServiceResultOrError(ctx, bot, msgCtx, "text2video", result, err); handleErr != nil {
+				return handleErr
 			}
 
-			// Send the result
-			return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Generated video: %s", result.VideoURL))
+			return nil
 		}),
 	}
 }
