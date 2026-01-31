@@ -198,6 +198,29 @@ func (m *ltxVideo13BModel) Define() Model {
 	}
 }
 
+// --- grok-imagine-video ---
+
+type grokImagineVideoModel struct{}
+
+func (m *grokImagineVideoModel) Define() Model {
+	defaultOpts := &GrokImagineVideoOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:             "grok-imagine-video",
+		Description:      "Grok Imagine Video - Image-to-video generation by xAI",
+		PriceUSD:         0.08, // $0.08 per second
+		Type:             "image2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --duration 6 --aspect auto --resolution 720p\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --duration: Video duration in seconds (1-15, default: 6)\n• --aspect: Aspect ratio (auto, 16:9, 4:3, 3:2, 1:1, 2:3, 3:4, 9:16). Default: auto\n• --resolution: Video resolution (480p, 720p). Default: 720p\n\nPricing:\n• $0.08 per second of video generated",
+		Options: &GrokImagineVideoOptions{
+			Duration:    defaults["duration"].(int),
+			AspectRatio: defaults["aspect_ratio"].(string),
+			Resolution:  defaults["resolution"].(string),
+		},
+	}
+}
+
 func init() {
 	registerModel(&veo2Model{})
 	registerModel(&klingVideoImageModel{})
@@ -208,4 +231,5 @@ func init() {
 	registerModel(&klingVideoV25ImageModel{})
 	registerModel(&lumaDreamMachineModel{})
 	registerModel(&ltxVideo13BModel{})
+	registerModel(&grokImagineVideoModel{})
 }

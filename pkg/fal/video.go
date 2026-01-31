@@ -294,6 +294,8 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			endpoint = "/minimax/video-01"
 		case "minimax/hailuo-02":
 			endpoint = "/minimax/hailuo-02/standard/text-to-video"
+		case "grok-imagine-video":
+			endpoint = "https://queue.fal.run/xai/grok-imagine-video/image-to-video"
 		default:
 			return nil, fmt.Errorf("unsupported model: %s", model.Name)
 		}
@@ -521,6 +523,57 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 		if r.KeepOriginalSound != nil {
 			reqBody["keep_original_sound"] = *r.KeepOriginalSound
+		}
+	case *GrokImagineVideoRequest:
+		modelName = "grok-imagine-video"
+		endpoint = "https://queue.fal.run/xai/grok-imagine-video/image-to-video"
+
+		model, exists := GetModel(modelName, "image2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+
+		options, ok := model.Options.(*GrokImagineVideoOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Validate required fields
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+		if r.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s", modelName)
+		}
+
+		// Validate options
+		opts := GrokImagineVideoOptions{
+			Duration:    r.Duration,
+			AspectRatio: r.AspectRatio,
+			Resolution:  r.Resolution,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Set defaults if not provided
+		if r.Duration == 0 {
+			r.Duration = options.Duration
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+		if r.Resolution == "" {
+			r.Resolution = options.Resolution
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt":       r.Prompt,
+			"image_url":    r.ImageURL,
+			"duration":     r.Duration,
+			"aspect_ratio": r.AspectRatio,
+			"resolution":   r.Resolution,
 		}
 	default:
 		return nil, fmt.Errorf("unsupported request type: %T", req)
