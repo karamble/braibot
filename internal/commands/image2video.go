@@ -106,6 +106,7 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 			progress := NewCommandProgressCallback(bot, msgCtx.Nick, msgCtx.Sender, "image2video", msgCtx.IsPM, msgCtx.GC)
 
 			// Determine effective duration for per-second pricing
+			originalUserDuration := duration
 			durInt := 0
 			if duration != "" {
 				durInt, err = strconv.Atoi(duration)
@@ -160,6 +161,25 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 				req.SubjectReferenceImageURL = imageURL // Parsed URL is the subject reference
 			} else {
 				req.ImageURL = imageURL // For other models, it's the standard image URL
+			}
+
+			// Inform user of pricing and total cost
+			if msgCtx.IsPM {
+				if model.PerSecondPricing {
+					msg := fmt.Sprintf(
+						"Model: %s\n💰 Price: $%.2f per video second\nRequested duration: %d seconds\nTotal cost: $%.2f = $%.2f/sec × %d sec",
+						model.Name, model.PriceUSD, durInt, totalCost, model.PriceUSD, durInt,
+					)
+					if originalUserDuration == "" {
+						msg += fmt.Sprintf("\n(No duration specified, using default duration of %d seconds.)", durInt)
+					}
+					msgSender.SendMessage(ctx, msgCtx, msg)
+				} else {
+					msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf(
+						"Model: %s\n💰 Flat fee: $%.2f per video",
+						model.Name, model.PriceUSD,
+					))
+				}
 			}
 
 			// Generate video using the service
