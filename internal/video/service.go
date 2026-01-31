@@ -418,7 +418,26 @@ func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, er
 		}
 		falReq.BaseVideoRequest.ImageURL = "" // Ensure base ImageURL is empty
 		return falReq, nil
-	// Add cases for other specific video models here
+	case "grok-imagine-video-text":
+		if base.ImageURL != "" {
+			return nil, fmt.Errorf("image_url is not supported for %s model", modelName)
+		}
+		duration := 0
+		if req.Duration != "" {
+			d, err := strconv.Atoi(req.Duration)
+			if err == nil && d > 0 {
+				duration = d
+			}
+		}
+
+		falReq := &fal.GrokImagineVideoTextRequest{
+			BaseVideoRequest: base,
+			Duration:         duration,
+			AspectRatio:      req.AspectRatio,
+			Resolution:       req.Resolution,
+		}
+		falReq.BaseVideoRequest.ImageURL = ""
+		return falReq, nil
 	default:
 		return nil, fmt.Errorf("unsupported or unhandled model for specific FAL video request creation: %s", modelName)
 	}

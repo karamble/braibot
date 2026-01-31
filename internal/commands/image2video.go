@@ -71,7 +71,7 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, err := parser.Parse(args, true) // Expect Image URL, ignore promptOptimizer
+			prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, _, err := parser.Parse(args, true) // Expect Image URL, ignore promptOptimizer
 			if err != nil {
 				return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Argument error: %v", err))
 			}

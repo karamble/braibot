@@ -1790,3 +1790,46 @@ type GrokImagineVideoRequest struct {
 	AspectRatio string `json:"aspect_ratio,omitempty"`
 	Resolution  string `json:"resolution,omitempty"`
 }
+
+// GrokImagineVideoTextOptions represents options for grok-imagine-video-text (text-to-video)
+type GrokImagineVideoTextOptions struct {
+	Duration    int    `json:"duration"`     // 1-15 seconds
+	AspectRatio string `json:"aspect_ratio"` // 16:9, 4:3, 3:2, 1:1, 2:3, 3:4, 9:16
+	Resolution  string `json:"resolution"`   // 480p, 720p
+}
+
+// GetDefaultValues returns default values for Grok Imagine Video Text options
+func (o *GrokImagineVideoTextOptions) GetDefaultValues() map[string]interface{} {
+	return map[string]interface{}{
+		"duration":     6,
+		"aspect_ratio": "16:9",
+		"resolution":   "720p",
+	}
+}
+
+// Validate validates the Grok Imagine Video Text options
+func (o *GrokImagineVideoTextOptions) Validate() error {
+	if o.Duration != 0 && (o.Duration < 1 || o.Duration > 15) {
+		return fmt.Errorf("invalid duration: %d (must be between 1 and 15)", o.Duration)
+	}
+	validAspectRatios := map[string]bool{
+		"16:9": true, "4:3": true, "3:2": true,
+		"1:1": true, "2:3": true, "3:4": true, "9:16": true, "": true,
+	}
+	if !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s (must be 16:9, 4:3, 3:2, 1:1, 2:3, 3:4, or 9:16)", o.AspectRatio)
+	}
+	validResolutions := map[string]bool{"480p": true, "720p": true, "": true}
+	if !validResolutions[o.Resolution] {
+		return fmt.Errorf("invalid resolution: %s (must be 480p or 720p)", o.Resolution)
+	}
+	return nil
+}
+
+// GrokImagineVideoTextRequest represents a request for grok-imagine-video-text (text-to-video)
+type GrokImagineVideoTextRequest struct {
+	BaseVideoRequest
+	Duration    int    `json:"duration,omitempty"`
+	AspectRatio string `json:"aspect_ratio,omitempty"`
+	Resolution  string `json:"resolution,omitempty"`
+}

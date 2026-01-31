@@ -12,6 +12,7 @@ type VideoRequest struct {
 	SubjectReferenceImageURL string   // Optional, used by minimax-subject-reference
 	Duration                 string   // Optional, defaults handled by FAL
 	AspectRatio              string   // Optional, defaults handled by FAL
+	Resolution               string   // Optional, defaults handled by FAL
 	NegativePrompt           string   // Optional, defaults handled by FAL
 	CFGScale                 *float64 // Optional, use pointer to track if set
 	PromptOptimizer          *bool    // Optional, for minimax-director model

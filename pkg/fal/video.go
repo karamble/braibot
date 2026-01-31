@@ -296,6 +296,8 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			endpoint = "/minimax/hailuo-02/standard/text-to-video"
 		case "grok-imagine-video":
 			endpoint = "https://queue.fal.run/xai/grok-imagine-video/image-to-video"
+		case "grok-imagine-video-text":
+			endpoint = "https://queue.fal.run/xai/grok-imagine-video/text-to-video"
 		default:
 			return nil, fmt.Errorf("unsupported model: %s", model.Name)
 		}
@@ -571,6 +573,53 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		reqBody = map[string]interface{}{
 			"prompt":       r.Prompt,
 			"image_url":    r.ImageURL,
+			"duration":     r.Duration,
+			"aspect_ratio": r.AspectRatio,
+			"resolution":   r.Resolution,
+		}
+	case *GrokImagineVideoTextRequest:
+		modelName = "grok-imagine-video-text"
+		endpoint = "https://queue.fal.run/xai/grok-imagine-video/text-to-video"
+
+		model, exists := GetModel(modelName, "text2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+
+		options, ok := model.Options.(*GrokImagineVideoTextOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Validate required fields
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+
+		// Validate options
+		opts := GrokImagineVideoTextOptions{
+			Duration:    r.Duration,
+			AspectRatio: r.AspectRatio,
+			Resolution:  r.Resolution,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Set defaults if not provided
+		if r.Duration == 0 {
+			r.Duration = options.Duration
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+		if r.Resolution == "" {
+			r.Resolution = options.Resolution
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt":       r.Prompt,
 			"duration":     r.Duration,
 			"aspect_ratio": r.AspectRatio,
 			"resolution":   r.Resolution,
