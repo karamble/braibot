@@ -133,8 +133,8 @@ func realMain() error {
 	go func() {
 		sig := <-sigChan
 		log.Infof("Received shutdown signal: %v", sig)
-		bot.Close()
 		cancel()
+		bot.Close()
 	}()
 
 	// Add a goroutine to handle PMs using our bidirectional channel
