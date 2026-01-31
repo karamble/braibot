@@ -171,4 +171,21 @@ func init() {
 	registerModel(&minimaxHailuo02Model{})
 	registerModel(&hunyuanVideoModel{})
 	registerModel(&klingVideoV25TextModel{})
+	registerModel(&grokImagineVideoTextModel{})
+}
+
+// --- grok-imagine-video-text ---
+
+type grokImagineVideoTextModel struct{}
+
+func (m *grokImagineVideoTextModel) Define() Model {
+	return Model{
+		Name:             "grok-imagine-video-text",
+		Description:      "Grok Imagine Video - Text-to-video generation by xAI",
+		PriceUSD:         0.08,
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.08 per video second**\nExample: A 6-second video will cost $0.48.\nTotal cost = price per second × duration.\n\nParameters:\n• prompt: Text description (required, max 4096 chars)\n• --duration: Video duration in seconds (1-15, default: 6)\n• --aspect: Aspect ratio: 16:9, 4:3, 3:2, 1:1, 2:3, 3:4, 9:16 (default: 16:9)\n• --resolution: 480p, 720p (default: 720p)",
+		Options:          &GrokImagineVideoTextOptions{Duration: 6, AspectRatio: "16:9", Resolution: "720p"},
+	}
 }

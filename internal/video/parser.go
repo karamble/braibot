@@ -79,7 +79,7 @@ func (p *ArgumentParser) ParsePromptOptimizer(args []string) *bool {
 
 // Parse parses all arguments, separating prompt, image URL (optional), and options.
 // It returns the parsed values individually.
-func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imageURL, duration, aspectRatio, negativePrompt string, cfgScale *float64, promptOptimizer *bool, err error) {
+func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imageURL, duration, aspectRatio, negativePrompt string, cfgScale *float64, promptOptimizer *bool, resolution string, err error) {
 	var promptParts []string
 	// Set defaults
 	duration = "5"
@@ -87,6 +87,7 @@ func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imag
 	negativePrompt = "blur, distort, and low quality"
 	cfgScale = nil        // Default to nil, only set if parsed
 	promptOptimizer = nil // Default to nil
+	resolution = ""       // Default to empty, let model defaults apply
 
 	parsedArgs := make(map[int]bool) // Track indices consumed by flags
 	currentIndex := 0
@@ -197,6 +198,16 @@ func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imag
 				err = fmt.Errorf("missing value for %s", flag)
 				return
 			}
+		case "--resolution":
+			if value != "" {
+				resolution = value
+				parsedArgs[originalIndex] = true
+				parsedArgs[originalIndex+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
 		default:
 			// Unknown flag, treat as part of prompt later or ignore
 			i++
@@ -213,5 +224,5 @@ func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imag
 
 	// No final validation here anymore - that will happen in the FAL layer
 
-	return prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScale, promptOptimizer, nil
+	return prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScale, promptOptimizer, resolution, nil
 }
