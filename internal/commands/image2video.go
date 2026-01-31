@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/faladapter"
@@ -104,6 +105,39 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 			// Create progress callback
 			progress := NewCommandProgressCallback(bot, msgCtx.Nick, msgCtx.Sender, "image2video", msgCtx.IsPM, msgCtx.GC)
 
+			// Determine effective duration for per-second pricing
+			durInt := 0
+			if duration != "" {
+				durInt, err = strconv.Atoi(duration)
+				if err != nil || durInt <= 0 {
+					durInt = 0 // fallback to check model default
+				}
+			}
+			if durInt == 0 {
+				// Check for known model default durations
+				modelDefault := 0
+				switch model.Name {
+				case "grok-imagine-video":
+					modelDefault = 6
+				case "kling-video-v25-image":
+					modelDefault = 5
+				case "veo3", "veo31fast":
+					modelDefault = 8
+				}
+				if modelDefault > 0 {
+					durInt = modelDefault
+					duration = strconv.Itoa(modelDefault)
+				} else {
+					durInt = 6 // fallback to hardcoded default
+					duration = "6"
+				}
+			}
+
+			totalCost := model.PriceUSD
+			if model.PerSecondPricing {
+				totalCost = model.PriceUSD * float64(durInt)
+			}
+
 			// Create video request using parsed values
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
@@ -118,7 +152,7 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 				Progress:        progress,
 				UserNick:        msgCtx.Nick,
 				UserID:          userID,
-				PriceUSD:        model.PriceUSD,
+				PriceUSD:        totalCost,
 			}
 
 			// Set the correct image URL field based on the model
