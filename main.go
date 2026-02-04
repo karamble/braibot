@@ -140,6 +140,12 @@ func realMain() error {
 	// Add a goroutine to handle PMs using our bidirectional channel
 	go func() {
 		for pm := range pmChan {
+			// During shutdown, keep draining the channel so bisonbotkit
+			// handlers don't block on their unbuffered sends, but skip
+			// processing.
+			if ctx.Err() != nil {
+				continue
+			}
 			log.Infof("Received PM from %s: %s", pm.Nick, pm.Msg.Message)
 
 			// Convert UID to string ID for tracking
@@ -239,6 +245,9 @@ func realMain() error {
 	// Add a goroutine to handle group chat messages
 	go func() {
 		for gc := range gcChan {
+			if ctx.Err() != nil {
+				continue
+			}
 			log.Infof("Received GC message from %s in %s: %s", gc.Nick, gc.GcAlias, gc.Msg.Message)
 
 			// Convert UID to string ID for tracking
@@ -309,9 +318,18 @@ func realMain() error {
 		}
 	}()
 
+	// Drain tip progress events (must be consumed to prevent bisonbotkit handlers from blocking)
+	go func() {
+		for range tipProgressChan {
+		}
+	}()
+
 	// Handle received tips
 	go func() {
 		for tip := range tipChan {
+			if ctx.Err() != nil {
+				continue
+			}
 			// Convert UID to string ID for database
 			var userID zkidentity.ShortID
 			userID.FromBytes(tip.Uid)
