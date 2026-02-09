@@ -79,7 +79,7 @@ func (p *ArgumentParser) ParsePromptOptimizer(args []string) *bool {
 
 // Parse parses all arguments, separating prompt, image URL (optional), and options.
 // It returns the parsed values individually.
-func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imageURL, duration, aspectRatio, negativePrompt string, cfgScale *float64, promptOptimizer *bool, resolution string, err error) {
+func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imageURL, duration, aspectRatio, negativePrompt string, cfgScale *float64, promptOptimizer *bool, resolution string, generateAudio *bool, endImageURL string, err error) {
 	var promptParts []string
 	// Set defaults
 	duration = "5"
@@ -208,6 +208,39 @@ func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imag
 				err = fmt.Errorf("missing value for %s", flag)
 				return
 			}
+		case "--audio":
+			if value != "" {
+				valStr := strings.ToLower(value)
+				if valStr == "true" {
+					result := true
+					generateAudio = &result
+					parsedArgs[originalIndex] = true
+					parsedArgs[originalIndex+1] = true
+					i += 2
+				} else if valStr == "false" {
+					result := false
+					generateAudio = &result
+					parsedArgs[originalIndex] = true
+					parsedArgs[originalIndex+1] = true
+					i += 2
+				} else {
+					err = fmt.Errorf("invalid value for %s: %s (must be true or false)", flag, value)
+					return
+				}
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		case "--end_image", "--end-image":
+			if value != "" {
+				endImageURL = value
+				parsedArgs[originalIndex] = true
+				parsedArgs[originalIndex+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
 		default:
 			// Unknown flag, treat as part of prompt later or ignore
 			i++
@@ -224,5 +257,5 @@ func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imag
 
 	// No final validation here anymore - that will happen in the FAL layer
 
-	return prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScale, promptOptimizer, resolution, nil
+	return prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScale, promptOptimizer, resolution, generateAudio, endImageURL, nil
 }

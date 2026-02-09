@@ -1833,3 +1833,56 @@ type GrokImagineVideoTextRequest struct {
 	AspectRatio string `json:"aspect_ratio,omitempty"`
 	Resolution  string `json:"resolution,omitempty"`
 }
+
+// ==================== Kling Video v3 (Standard + Pro, Text2Video + Image2Video) ====================
+
+// KlingVideoV3Options represents options for fal-ai/kling-video/v3 models
+type KlingVideoV3Options struct {
+	Duration       string  `json:"duration,omitempty"`        // 3-15 seconds. Default: "5"
+	AspectRatio    string  `json:"aspect_ratio,omitempty"`    // 16:9, 9:16, 1:1. Default: 16:9
+	NegativePrompt string  `json:"negative_prompt,omitempty"` // Default: blur, distort, and low quality
+	CFGScale       float64 `json:"cfg_scale,omitempty"`       // 0-1. Default: 0.5
+	GenerateAudio  *bool   `json:"generate_audio,omitempty"`  // Default: true
+}
+
+// GetDefaultValues returns the default values for Kling Video v3 options
+func (o *KlingVideoV3Options) GetDefaultValues() map[string]interface{} {
+	defaultAudio := true
+	return map[string]interface{}{
+		"duration":        "5",
+		"aspect_ratio":    "16:9",
+		"negative_prompt": "blur, distort, and low quality",
+		"cfg_scale":       0.5,
+		"generate_audio":  &defaultAudio,
+	}
+}
+
+// Validate validates Kling Video v3 options
+func (o *KlingVideoV3Options) Validate() error {
+	validAspectRatios := map[string]bool{"16:9": true, "9:16": true, "1:1": true, "": true}
+
+	if !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s (must be 16:9, 9:16, or 1:1)", o.AspectRatio)
+	}
+	if o.Duration != "" {
+		dur, err := strconv.Atoi(o.Duration)
+		if err != nil || dur < 3 || dur > 15 {
+			return fmt.Errorf("invalid duration: %s (must be between 3 and 15 seconds)", o.Duration)
+		}
+	}
+	if o.CFGScale < 0 || o.CFGScale > 1 {
+		return fmt.Errorf("invalid cfg_scale: %f (must be between 0 and 1)", o.CFGScale)
+	}
+	return nil
+}
+
+// KlingVideoV3Request represents a request for Kling Video v3 models
+type KlingVideoV3Request struct {
+	BaseVideoRequest
+	Duration       string  `json:"duration,omitempty"`
+	AspectRatio    string  `json:"aspect_ratio,omitempty"`
+	NegativePrompt string  `json:"negative_prompt,omitempty"`
+	CFGScale       float64 `json:"cfg_scale,omitempty"`
+	GenerateAudio  *bool   `json:"generate_audio,omitempty"`
+	EndImageURL    string  `json:"end_image_url,omitempty"` // For image2video end frame
+}

@@ -207,7 +207,9 @@ func (s *VideoService) validateRequest(req *VideoRequest) error {
 				req.Duration += "s" // Modify in place
 			}
 		}
-	case "kling-video-text", "kling-video-image":
+	case "kling-video-text", "kling-video-image",
+		"kling-video-v3-text", "kling-video-v3-pro-text",
+		"kling-video-v3-image", "kling-video-v3-pro-image":
 		// Ensure duration does NOT have 's' suffix for Kling
 		if strings.HasSuffix(req.Duration, "s") {
 			req.Duration = strings.TrimSuffix(req.Duration, "s") // Modify in place
@@ -437,6 +439,35 @@ func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, er
 			Resolution:       req.Resolution,
 		}
 		falReq.BaseVideoRequest.ImageURL = ""
+		return falReq, nil
+	case "kling-video-v3-text", "kling-video-v3-pro-text":
+		cfgScale := derefFloat64PtrOrDefault(req.CFGScale, 0.5)
+		falReq := &fal.KlingVideoV3Request{
+			BaseVideoRequest: base,
+			Duration:         req.Duration,
+			AspectRatio:      req.AspectRatio,
+			NegativePrompt:   req.NegativePrompt,
+			CFGScale:         cfgScale,
+			GenerateAudio:    req.GenerateAudio,
+		}
+		falReq.BaseVideoRequest.Model = modelName
+		falReq.BaseVideoRequest.ImageURL = "" // Ensure empty for text2video
+		return falReq, nil
+	case "kling-video-v3-image", "kling-video-v3-pro-image":
+		if base.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s model", modelName)
+		}
+		cfgScale := derefFloat64PtrOrDefault(req.CFGScale, 0.5)
+		falReq := &fal.KlingVideoV3Request{
+			BaseVideoRequest: base,
+			Duration:         req.Duration,
+			AspectRatio:      req.AspectRatio,
+			NegativePrompt:   req.NegativePrompt,
+			CFGScale:         cfgScale,
+			GenerateAudio:    req.GenerateAudio,
+			EndImageURL:      req.EndImageURL,
+		}
+		falReq.BaseVideoRequest.Model = modelName
 		return falReq, nil
 	default:
 		return nil, fmt.Errorf("unsupported or unhandled model for specific FAL video request creation: %s", modelName)
