@@ -213,6 +213,48 @@ func (m *klingVideoV3ProTextModel) Define() Model {
 	}
 }
 
+// --- kling-video-o3-text ---
+
+type klingVideoO3TextModel struct{}
+
+func (m *klingVideoO3TextModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:             "kling-video-o3-text",
+		Description:      "Kling O3 Standard Text-to-Video - Multi-scene consistency with audio",
+		PriceUSD:         0.28, // Per second
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.28 per second**\nExample: A 5-second video will cost $1.40.\nTotal cost = price per second × duration.\n\nParameters:\n• prompt: Text description (required)\n• --duration: Video duration in seconds (3-15, default: 5)\n• --aspect: Aspect ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --audio: Enable audio generation (default: true)",
+		Options: &KlingVideoO3TextOptions{
+			Duration:      "5",
+			AspectRatio:   "16:9",
+			GenerateAudio: &defaultAudio,
+		},
+	}
+}
+
+// --- kling-video-o3-pro-text ---
+
+type klingVideoO3ProTextModel struct{}
+
+func (m *klingVideoO3ProTextModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:             "kling-video-o3-pro-text",
+		Description:      "Kling O3 Pro Text-to-Video - Premium multi-scene consistency with audio",
+		PriceUSD:         0.33, // Per second
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.33 per second**\nExample: A 5-second video will cost $1.65.\nTotal cost = price per second × duration.\n\nParameters:\n• prompt: Text description (required)\n• --duration: Video duration in seconds (3-15, default: 5)\n• --aspect: Aspect ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --audio: Enable audio generation (default: true)",
+		Options: &KlingVideoO3TextOptions{
+			Duration:      "5",
+			AspectRatio:   "16:9",
+			GenerateAudio: &defaultAudio,
+		},
+	}
+}
+
 func init() {
 	registerModel(&minimaxHailuo02Model{})
 	registerModel(&hunyuanVideoModel{})
@@ -220,6 +262,8 @@ func init() {
 	registerModel(&grokImagineVideoTextModel{})
 	registerModel(&klingVideoV3TextModel{})
 	registerModel(&klingVideoV3ProTextModel{})
+	registerModel(&klingVideoO3TextModel{})
+	registerModel(&klingVideoO3ProTextModel{})
 }
 
 // --- grok-imagine-video-text ---

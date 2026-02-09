@@ -112,6 +112,8 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 					modelDefault = 6
 				case "kling-video-v3-text", "kling-video-v3-pro-text":
 					modelDefault = 5
+				case "kling-video-o3-text", "kling-video-o3-pro-text":
+					modelDefault = 5
 				}
 				if modelDefault > 0 {
 					durInt = modelDefault

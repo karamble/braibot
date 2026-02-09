@@ -269,7 +269,10 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if !exists {
 			model, exists = GetModel(modelName, "text2video")
 			if !exists {
-				return nil, fmt.Errorf("model not found: %s", modelName)
+				model, exists = GetModel(modelName, "video2video")
+				if !exists {
+					return nil, fmt.Errorf("model not found: %s", modelName)
+				}
 			}
 		}
 		// Determine endpoint based on retrieved model
@@ -306,6 +309,14 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 			endpoint = "/kling-video/v3/standard/image-to-video"
 		case "kling-video-v3-pro-image":
 			endpoint = "/kling-video/v3/pro/image-to-video"
+		case "kling-video-o3-text":
+			endpoint = "/kling-video/o3/standard/text-to-video"
+		case "kling-video-o3-pro-text":
+			endpoint = "/kling-video/o3/pro/text-to-video"
+		case "kling-video-o3-edit":
+			endpoint = "/kling-video/o3/standard/video-to-video/edit"
+		case "kling-video-o3-pro-edit":
+			endpoint = "/kling-video/o3/pro/video-to-video/edit"
 		default:
 			return nil, fmt.Errorf("unsupported model: %s", model.Name)
 		}
@@ -675,6 +686,107 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		// Remove empty fields
 		if r.Prompt == "" {
 			delete(reqBody, "prompt")
+		}
+	case *KlingVideoO3TextRequest:
+		modelName = r.BaseVideoRequest.Model
+		// Map model name to endpoint
+		switch modelName {
+		case "kling-video-o3-text":
+			endpoint = "/kling-video/o3/standard/text-to-video"
+		case "kling-video-o3-pro-text":
+			endpoint = "/kling-video/o3/pro/text-to-video"
+		default:
+			return nil, fmt.Errorf("unsupported Kling O3 text model: %s", modelName)
+		}
+
+		model, exists := GetModel(modelName, "text2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*KlingVideoO3TextOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Validate options
+		o3TextOpts := KlingVideoO3TextOptions{
+			Duration:      r.Duration,
+			AspectRatio:   r.AspectRatio,
+			GenerateAudio: r.GenerateAudio,
+		}
+		if err := o3TextOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Set default values from model options if not provided
+		if r.Duration == "" {
+			r.Duration = options.Duration
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+		if r.GenerateAudio == nil {
+			r.GenerateAudio = options.GenerateAudio
+		}
+
+		// Validate prompt
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt":       r.Prompt,
+			"duration":     r.Duration,
+			"aspect_ratio": r.AspectRatio,
+		}
+		if r.GenerateAudio != nil {
+			reqBody["generate_audio"] = *r.GenerateAudio
+		}
+	case *KlingVideoO3EditRequest:
+		modelName = r.BaseVideoRequest.Model
+		// Map model name to endpoint
+		switch modelName {
+		case "kling-video-o3-edit":
+			endpoint = "/kling-video/o3/standard/video-to-video/edit"
+		case "kling-video-o3-pro-edit":
+			endpoint = "/kling-video/o3/pro/video-to-video/edit"
+		default:
+			return nil, fmt.Errorf("unsupported Kling O3 edit model: %s", modelName)
+		}
+
+		model, exists := GetModel(modelName, "video2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*KlingVideoO3EditOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Validate required fields
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+		if r.VideoURL == "" {
+			return nil, fmt.Errorf("video_url is required for %s", modelName)
+		}
+
+		// Set defaults if not provided
+		if r.KeepAudio == nil {
+			r.KeepAudio = options.KeepAudio
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt":    r.Prompt,
+			"video_url": r.VideoURL,
+		}
+		if r.KeepAudio != nil {
+			reqBody["keep_audio"] = *r.KeepAudio
+		}
+		if len(r.ImageURLs) > 0 {
+			reqBody["image_urls"] = r.ImageURLs
 		}
 	case *GrokImagineVideoTextRequest:
 		modelName = "grok-imagine-video-text"

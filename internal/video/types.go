@@ -16,8 +16,11 @@ type VideoRequest struct {
 	NegativePrompt           string   // Optional, defaults handled by FAL
 	CFGScale                 *float64 // Optional, use pointer to track if set
 	PromptOptimizer          *bool    // Optional, for minimax-director model
-	GenerateAudio            *bool    // Optional, for Kling v3 audio toggle
+	GenerateAudio            *bool    // Optional, for Kling v3/O3 audio toggle
 	EndImageURL              string   // Optional, for Kling v3 image2video end frame
+	VideoURL                 string   // Required for video2video edit models
+	KeepAudio                *bool    // Optional, for O3 edit (default: true)
+	ImageURLs                []string // Optional, up to 4 reference images for O3 edit
 	ModelType                string   // "text2video" or "image2video"
 	ModelName                string   // Name of the model to use (set by handler)
 	Progress                 fal.ProgressCallback
