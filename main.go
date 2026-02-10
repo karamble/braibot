@@ -180,7 +180,8 @@ func realMain() error {
 								log.Warnf("Failed to send insufficient balance PM to %s: %v", pm.Nick, pmErr)
 							}
 						} else {
-							// Log other command execution errors as warnings
+							// Send user-friendly error PM
+							bot.SendPM(ctx, pm.Nick, "Your request could not be processed by the AI datacenter. Please try again later.")
 							log.Warnf("Error executing command %s for user %s: %v", cmd, pm.Nick, handleErr)
 						}
 					}
@@ -278,7 +279,8 @@ func realMain() error {
 								log.Warnf("Failed to send insufficient balance message to GC %s: %v", gc.GcAlias, gcErr)
 							}
 						} else {
-							// Log other command execution errors as warnings
+							// Send user-friendly error message to GC
+							bot.SendGC(ctx, gc.GcAlias, fmt.Sprintf("%s, your request could not be processed by the AI datacenter. Please try again later.", gc.Nick))
 							log.Warnf("Error executing command %s for user %s in GC %s: %v", cmd, gc.Nick, gc.GcAlias, handleErr)
 						}
 					}
