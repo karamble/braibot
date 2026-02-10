@@ -68,7 +68,7 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			prompt, _, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, resolution, err := parser.Parse(args, false) // No Image URL expected
+			prompt, _, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, resolution, generateAudioPtr, _, err := parser.Parse(args, false) // No Image URL expected
 			if err != nil {
 				return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Argument error: %v", err))
 			}
@@ -110,6 +110,10 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 					modelDefault = 6
 				case "grok-imagine-video-text":
 					modelDefault = 6
+				case "kling-video-v3-text", "kling-video-v3-pro-text":
+					modelDefault = 5
+				case "kling-video-o3-text", "kling-video-o3-pro-text":
+					modelDefault = 5
 				}
 				if modelDefault > 0 {
 					durInt = modelDefault
@@ -139,6 +143,7 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				NegativePrompt:  negativePrompt,
 				CFGScale:        cfgScalePtr,
 				PromptOptimizer: promptOptimizerPtr,
+				GenerateAudio:   generateAudioPtr,
 				ModelType:       "text2video",
 				Progress:        progress,
 				UserNick:        msgCtx.Nick,

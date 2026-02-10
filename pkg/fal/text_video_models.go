@@ -167,11 +167,103 @@ func (m *klingVideoV25TextModel) Define() Model {
 	}
 }
 
+// --- kling-video-v3-text ---
+
+type klingVideoV3TextModel struct{}
+
+func (m *klingVideoV3TextModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:             "kling-video-v3-text",
+		Description:      "Kling 3.0 Standard Text-to-Video - High quality video generation with audio",
+		PriceUSD:         0.30, // Per second
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.30 per second**\nExample: A 5-second video will cost $1.50.\nTotal cost = price per second × duration.\n\nParameters:\n• prompt: Text description (required)\n• --duration: Video duration in seconds (3-15, default: 5)\n• --aspect: Aspect ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --negative_prompt: Things to avoid (default: blur, distort, and low quality)\n• --cfg_scale: Configuration scale 0-1 (default: 0.5)\n• --audio: Enable audio generation (default: true)",
+		Options: &KlingVideoV3Options{
+			Duration:       "5",
+			AspectRatio:    "16:9",
+			NegativePrompt: "blur, distort, and low quality",
+			CFGScale:       0.5,
+			GenerateAudio:  &defaultAudio,
+		},
+	}
+}
+
+// --- kling-video-v3-pro-text ---
+
+type klingVideoV3ProTextModel struct{}
+
+func (m *klingVideoV3ProTextModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:             "kling-video-v3-pro-text",
+		Description:      "Kling 3.0 Pro Text-to-Video - Premium quality video generation with audio",
+		PriceUSD:         0.39, // Per second
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.39 per second**\nExample: A 5-second video will cost $1.95.\nTotal cost = price per second × duration.\n\nParameters:\n• prompt: Text description (required)\n• --duration: Video duration in seconds (3-15, default: 5)\n• --aspect: Aspect ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --negative_prompt: Things to avoid (default: blur, distort, and low quality)\n• --cfg_scale: Configuration scale 0-1 (default: 0.5)\n• --audio: Enable audio generation (default: true)",
+		Options: &KlingVideoV3Options{
+			Duration:       "5",
+			AspectRatio:    "16:9",
+			NegativePrompt: "blur, distort, and low quality",
+			CFGScale:       0.5,
+			GenerateAudio:  &defaultAudio,
+		},
+	}
+}
+
+// --- kling-video-o3-text ---
+
+type klingVideoO3TextModel struct{}
+
+func (m *klingVideoO3TextModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:             "kling-video-o3-text",
+		Description:      "Kling O3 Standard Text-to-Video - Multi-scene consistency with audio",
+		PriceUSD:         0.28, // Per second
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.28 per second**\nExample: A 5-second video will cost $1.40.\nTotal cost = price per second × duration.\n\nParameters:\n• prompt: Text description (required)\n• --duration: Video duration in seconds (3-15, default: 5)\n• --aspect: Aspect ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --audio: Enable audio generation (default: true)",
+		Options: &KlingVideoO3TextOptions{
+			Duration:      "5",
+			AspectRatio:   "16:9",
+			GenerateAudio: &defaultAudio,
+		},
+	}
+}
+
+// --- kling-video-o3-pro-text ---
+
+type klingVideoO3ProTextModel struct{}
+
+func (m *klingVideoO3ProTextModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:             "kling-video-o3-pro-text",
+		Description:      "Kling O3 Pro Text-to-Video - Premium multi-scene consistency with audio",
+		PriceUSD:         0.33, // Per second
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.33 per second**\nExample: A 5-second video will cost $1.65.\nTotal cost = price per second × duration.\n\nParameters:\n• prompt: Text description (required)\n• --duration: Video duration in seconds (3-15, default: 5)\n• --aspect: Aspect ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --audio: Enable audio generation (default: true)",
+		Options: &KlingVideoO3TextOptions{
+			Duration:      "5",
+			AspectRatio:   "16:9",
+			GenerateAudio: &defaultAudio,
+		},
+	}
+}
+
 func init() {
 	registerModel(&minimaxHailuo02Model{})
 	registerModel(&hunyuanVideoModel{})
 	registerModel(&klingVideoV25TextModel{})
 	registerModel(&grokImagineVideoTextModel{})
+	registerModel(&klingVideoV3TextModel{})
+	registerModel(&klingVideoV3ProTextModel{})
+	registerModel(&klingVideoO3TextModel{})
+	registerModel(&klingVideoO3ProTextModel{})
 }
 
 // --- grok-imagine-video-text ---

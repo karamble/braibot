@@ -207,12 +207,25 @@ func (s *VideoService) validateRequest(req *VideoRequest) error {
 				req.Duration += "s" // Modify in place
 			}
 		}
-	case "kling-video-text", "kling-video-image":
+	case "kling-video-text", "kling-video-image",
+		"kling-video-v3-text", "kling-video-v3-pro-text",
+		"kling-video-v3-image", "kling-video-v3-pro-image",
+		"kling-video-o3-text", "kling-video-o3-pro-text":
 		// Ensure duration does NOT have 's' suffix for Kling
 		if strings.HasSuffix(req.Duration, "s") {
 			req.Duration = strings.TrimSuffix(req.Duration, "s") // Modify in place
 		}
 		// Optional: Add validation that it's a number if needed
+	}
+
+	// For video2video, check if the required video URL field is provided
+	if req.ModelType == "video2video" {
+		switch model.Name {
+		case "kling-video-o3-edit", "kling-video-o3-pro-edit":
+			if req.VideoURL == "" {
+				return fmt.Errorf("video URL is required for model %s", model.Name)
+			}
+		}
 	}
 
 	// Option validation for other parameters is now handled within the fal.GenerateVideo function
@@ -437,6 +450,58 @@ func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, er
 			Resolution:       req.Resolution,
 		}
 		falReq.BaseVideoRequest.ImageURL = ""
+		return falReq, nil
+	case "kling-video-v3-text", "kling-video-v3-pro-text":
+		cfgScale := derefFloat64PtrOrDefault(req.CFGScale, 0.5)
+		falReq := &fal.KlingVideoV3Request{
+			BaseVideoRequest: base,
+			Duration:         req.Duration,
+			AspectRatio:      req.AspectRatio,
+			NegativePrompt:   req.NegativePrompt,
+			CFGScale:         cfgScale,
+			GenerateAudio:    req.GenerateAudio,
+		}
+		falReq.BaseVideoRequest.Model = modelName
+		falReq.BaseVideoRequest.ImageURL = "" // Ensure empty for text2video
+		return falReq, nil
+	case "kling-video-v3-image", "kling-video-v3-pro-image":
+		if base.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s model", modelName)
+		}
+		cfgScale := derefFloat64PtrOrDefault(req.CFGScale, 0.5)
+		falReq := &fal.KlingVideoV3Request{
+			BaseVideoRequest: base,
+			Duration:         req.Duration,
+			AspectRatio:      req.AspectRatio,
+			NegativePrompt:   req.NegativePrompt,
+			CFGScale:         cfgScale,
+			GenerateAudio:    req.GenerateAudio,
+			EndImageURL:      req.EndImageURL,
+		}
+		falReq.BaseVideoRequest.Model = modelName
+		return falReq, nil
+	case "kling-video-o3-text", "kling-video-o3-pro-text":
+		falReq := &fal.KlingVideoO3TextRequest{
+			BaseVideoRequest: base,
+			Duration:         req.Duration,
+			AspectRatio:      req.AspectRatio,
+			GenerateAudio:    req.GenerateAudio,
+		}
+		falReq.BaseVideoRequest.Model = modelName
+		falReq.BaseVideoRequest.ImageURL = "" // Ensure empty for text2video
+		return falReq, nil
+	case "kling-video-o3-edit", "kling-video-o3-pro-edit":
+		if req.VideoURL == "" {
+			return nil, fmt.Errorf("video_url is required for %s model", modelName)
+		}
+		falReq := &fal.KlingVideoO3EditRequest{
+			BaseVideoRequest: base,
+			VideoURL:         req.VideoURL,
+			ImageURLs:        req.ImageURLs,
+			KeepAudio:        req.KeepAudio,
+		}
+		falReq.BaseVideoRequest.Model = modelName
+		falReq.BaseVideoRequest.ImageURL = "" // Not used for video2video edit
 		return falReq, nil
 	default:
 		return nil, fmt.Errorf("unsupported or unhandled model for specific FAL video request creation: %s", modelName)

@@ -70,8 +70,48 @@ func (m *klingVideoV26MotionControlModel) Define() Model {
 	}
 }
 
+// --- kling-video-o3-edit ---
+
+type klingVideoO3EditModel struct{}
+
+func (m *klingVideoO3EditModel) Define() Model {
+	defaultKeepAudio := true
+	return Model{
+		Name:             "kling-video-o3-edit",
+		Description:      "Kling O3 Standard Video Edit - Edit videos with multi-scene consistency",
+		PriceUSD:         0.30, // Per second
+		Type:             "video2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !video2video [video_url] [prompt] [options]\n\n💰 **Price: $0.30 per second**\nExample: A 5-second video will cost $1.50.\nTotal cost = price per second × duration.\n\nParameters:\n• video_url: URL of the source video (.mp4/.mov, 3-10s, 720-2160px)\n• prompt: Edit description (required, use @Image1-4 to reference images)\n• --keep_audio: Keep original audio (default: true)\n• --image1..--image4: Up to 4 reference image URLs\n• --duration: Duration for billing estimation (default: 5)",
+		Options: &KlingVideoO3EditOptions{
+			KeepAudio: &defaultKeepAudio,
+		},
+	}
+}
+
+// --- kling-video-o3-pro-edit ---
+
+type klingVideoO3ProEditModel struct{}
+
+func (m *klingVideoO3ProEditModel) Define() Model {
+	defaultKeepAudio := true
+	return Model{
+		Name:             "kling-video-o3-pro-edit",
+		Description:      "Kling O3 Pro Video Edit - Premium video editing with multi-scene consistency",
+		PriceUSD:         0.39, // Per second
+		Type:             "video2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !video2video [video_url] [prompt] [options]\n\n💰 **Price: $0.39 per second**\nExample: A 5-second video will cost $1.95.\nTotal cost = price per second × duration.\n\nParameters:\n• video_url: URL of the source video (.mp4/.mov, 3-10s, 720-2160px)\n• prompt: Edit description (required, use @Image1-4 to reference images)\n• --keep_audio: Keep original audio (default: true)\n• --image1..--image4: Up to 4 reference image URLs\n• --duration: Duration for billing estimation (default: 5)",
+		Options: &KlingVideoO3EditOptions{
+			KeepAudio: &defaultKeepAudio,
+		},
+	}
+}
+
 func init() {
 	registerModel(&topazUpscaleVideoModel{})
 	registerModel(&syncLipsyncV2Model{})
 	registerModel(&klingVideoV26MotionControlModel{})
+	registerModel(&klingVideoO3EditModel{})
+	registerModel(&klingVideoO3ProEditModel{})
 }

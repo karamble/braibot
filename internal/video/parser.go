@@ -79,7 +79,7 @@ func (p *ArgumentParser) ParsePromptOptimizer(args []string) *bool {
 
 // Parse parses all arguments, separating prompt, image URL (optional), and options.
 // It returns the parsed values individually.
-func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imageURL, duration, aspectRatio, negativePrompt string, cfgScale *float64, promptOptimizer *bool, resolution string, err error) {
+func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imageURL, duration, aspectRatio, negativePrompt string, cfgScale *float64, promptOptimizer *bool, resolution string, generateAudio *bool, endImageURL string, err error) {
 	var promptParts []string
 	// Set defaults
 	duration = "5"
@@ -208,6 +208,39 @@ func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imag
 				err = fmt.Errorf("missing value for %s", flag)
 				return
 			}
+		case "--audio":
+			if value != "" {
+				valStr := strings.ToLower(value)
+				if valStr == "true" {
+					result := true
+					generateAudio = &result
+					parsedArgs[originalIndex] = true
+					parsedArgs[originalIndex+1] = true
+					i += 2
+				} else if valStr == "false" {
+					result := false
+					generateAudio = &result
+					parsedArgs[originalIndex] = true
+					parsedArgs[originalIndex+1] = true
+					i += 2
+				} else {
+					err = fmt.Errorf("invalid value for %s: %s (must be true or false)", flag, value)
+					return
+				}
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		case "--end_image", "--end-image":
+			if value != "" {
+				endImageURL = value
+				parsedArgs[originalIndex] = true
+				parsedArgs[originalIndex+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
 		default:
 			// Unknown flag, treat as part of prompt later or ignore
 			i++
@@ -224,5 +257,100 @@ func (p *ArgumentParser) Parse(args []string, expectImageURL bool) (prompt, imag
 
 	// No final validation here anymore - that will happen in the FAL layer
 
-	return prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScale, promptOptimizer, resolution, nil
+	return prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScale, promptOptimizer, resolution, generateAudio, endImageURL, nil
+}
+
+// ParseVideo2Video parses arguments for the video2video command.
+// Usage: !video2video [video_url] [prompt text] [--keep_audio true|false] [--image1 url] ... [--image4 url] [--duration N]
+func (p *ArgumentParser) ParseVideo2Video(args []string) (videoURL, prompt, duration string, keepAudio *bool, imageURLs []string, err error) {
+	if len(args) == 0 {
+		err = fmt.Errorf("video URL is required as the first argument")
+		return
+	}
+
+	// First non-flag arg is the video URL
+	if strings.HasPrefix(args[0], "--") {
+		err = fmt.Errorf("video URL is required as the first argument")
+		return
+	}
+	videoURL = args[0]
+
+	var promptParts []string
+	parsedArgs := make(map[int]bool)
+	parsedArgs[0] = true // video URL consumed
+	duration = "5"       // Default duration for billing
+
+	// Parse flags
+	i := 1
+	for i < len(args) {
+		arg := args[i]
+		if !strings.HasPrefix(arg, "--") {
+			i++
+			continue
+		}
+
+		flag := strings.ToLower(arg)
+
+		// Check for value
+		var value string
+		if i+1 < len(args) {
+			value = args[i+1]
+		}
+
+		switch flag {
+		case "--keep_audio", "--keep-audio":
+			if value != "" {
+				valStr := strings.ToLower(value)
+				if valStr == "true" {
+					result := true
+					keepAudio = &result
+				} else if valStr == "false" {
+					result := false
+					keepAudio = &result
+				} else {
+					err = fmt.Errorf("invalid value for %s: %s (must be true or false)", flag, value)
+					return
+				}
+				parsedArgs[i] = true
+				parsedArgs[i+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		case "--image1", "--image2", "--image3", "--image4":
+			if value != "" {
+				imageURLs = append(imageURLs, value)
+				parsedArgs[i] = true
+				parsedArgs[i+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		case "--duration":
+			if value != "" {
+				duration = strings.TrimSuffix(value, "s")
+				parsedArgs[i] = true
+				parsedArgs[i+1] = true
+				i += 2
+			} else {
+				err = fmt.Errorf("missing value for %s", flag)
+				return
+			}
+		default:
+			// Unknown flag, treat as part of prompt
+			i++
+		}
+	}
+
+	// Collect prompt parts from remaining args
+	for i, arg := range args {
+		if !parsedArgs[i] {
+			promptParts = append(promptParts, arg)
+		}
+	}
+	prompt = strings.Join(promptParts, " ")
+
+	return
 }

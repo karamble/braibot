@@ -1833,3 +1833,125 @@ type GrokImagineVideoTextRequest struct {
 	AspectRatio string `json:"aspect_ratio,omitempty"`
 	Resolution  string `json:"resolution,omitempty"`
 }
+
+// ==================== Kling Video v3 (Standard + Pro, Text2Video + Image2Video) ====================
+
+// KlingVideoV3Options represents options for fal-ai/kling-video/v3 models
+type KlingVideoV3Options struct {
+	Duration       string  `json:"duration,omitempty"`        // 3-15 seconds. Default: "5"
+	AspectRatio    string  `json:"aspect_ratio,omitempty"`    // 16:9, 9:16, 1:1. Default: 16:9
+	NegativePrompt string  `json:"negative_prompt,omitempty"` // Default: blur, distort, and low quality
+	CFGScale       float64 `json:"cfg_scale,omitempty"`       // 0-1. Default: 0.5
+	GenerateAudio  *bool   `json:"generate_audio,omitempty"`  // Default: true
+}
+
+// GetDefaultValues returns the default values for Kling Video v3 options
+func (o *KlingVideoV3Options) GetDefaultValues() map[string]interface{} {
+	defaultAudio := true
+	return map[string]interface{}{
+		"duration":        "5",
+		"aspect_ratio":    "16:9",
+		"negative_prompt": "blur, distort, and low quality",
+		"cfg_scale":       0.5,
+		"generate_audio":  &defaultAudio,
+	}
+}
+
+// Validate validates Kling Video v3 options
+func (o *KlingVideoV3Options) Validate() error {
+	validAspectRatios := map[string]bool{"16:9": true, "9:16": true, "1:1": true, "": true}
+
+	if !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s (must be 16:9, 9:16, or 1:1)", o.AspectRatio)
+	}
+	if o.Duration != "" {
+		dur, err := strconv.Atoi(o.Duration)
+		if err != nil || dur < 3 || dur > 15 {
+			return fmt.Errorf("invalid duration: %s (must be between 3 and 15 seconds)", o.Duration)
+		}
+	}
+	if o.CFGScale < 0 || o.CFGScale > 1 {
+		return fmt.Errorf("invalid cfg_scale: %f (must be between 0 and 1)", o.CFGScale)
+	}
+	return nil
+}
+
+// KlingVideoV3Request represents a request for Kling Video v3 models
+type KlingVideoV3Request struct {
+	BaseVideoRequest
+	Duration       string  `json:"duration,omitempty"`
+	AspectRatio    string  `json:"aspect_ratio,omitempty"`
+	NegativePrompt string  `json:"negative_prompt,omitempty"`
+	CFGScale       float64 `json:"cfg_scale,omitempty"`
+	GenerateAudio  *bool   `json:"generate_audio,omitempty"`
+	EndImageURL    string  `json:"end_image_url,omitempty"` // For image2video end frame
+}
+
+// ==================== Kling Video O3 (Text2Video + Video2Video Edit) ====================
+
+// KlingVideoO3TextOptions represents options for fal-ai/kling-video/o3 text-to-video models
+type KlingVideoO3TextOptions struct {
+	Duration      string `json:"duration,omitempty"`       // 3-15 seconds. Default: "5"
+	AspectRatio   string `json:"aspect_ratio,omitempty"`   // 16:9, 9:16, 1:1. Default: 16:9
+	GenerateAudio *bool  `json:"generate_audio,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns the default values for Kling Video O3 text options
+func (o *KlingVideoO3TextOptions) GetDefaultValues() map[string]interface{} {
+	defaultAudio := true
+	return map[string]interface{}{
+		"duration":       "5",
+		"aspect_ratio":   "16:9",
+		"generate_audio": &defaultAudio,
+	}
+}
+
+// Validate validates Kling Video O3 text options
+func (o *KlingVideoO3TextOptions) Validate() error {
+	validAspectRatios := map[string]bool{"16:9": true, "9:16": true, "1:1": true, "": true}
+
+	if !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s (must be 16:9, 9:16, or 1:1)", o.AspectRatio)
+	}
+	if o.Duration != "" {
+		dur, err := strconv.Atoi(o.Duration)
+		if err != nil || dur < 3 || dur > 15 {
+			return fmt.Errorf("invalid duration: %s (must be between 3 and 15 seconds)", o.Duration)
+		}
+	}
+	return nil
+}
+
+// KlingVideoO3TextRequest represents a request for Kling Video O3 text-to-video models
+type KlingVideoO3TextRequest struct {
+	BaseVideoRequest
+	Duration      string `json:"duration,omitempty"`
+	AspectRatio   string `json:"aspect_ratio,omitempty"`
+	GenerateAudio *bool  `json:"generate_audio,omitempty"`
+}
+
+// KlingVideoO3EditOptions represents options for fal-ai/kling-video/o3 video-to-video edit models
+type KlingVideoO3EditOptions struct {
+	KeepAudio *bool `json:"keep_audio,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns the default values for Kling Video O3 edit options
+func (o *KlingVideoO3EditOptions) GetDefaultValues() map[string]interface{} {
+	defaultKeepAudio := true
+	return map[string]interface{}{
+		"keep_audio": &defaultKeepAudio,
+	}
+}
+
+// Validate validates Kling Video O3 edit options
+func (o *KlingVideoO3EditOptions) Validate() error {
+	return nil
+}
+
+// KlingVideoO3EditRequest represents a request for Kling Video O3 video-to-video edit models
+type KlingVideoO3EditRequest struct {
+	BaseVideoRequest                // Embeds Prompt, Progress, QueueInfo, Model
+	VideoURL         string         `json:"video_url"`
+	ImageURLs        []string       `json:"image_urls,omitempty"`
+	KeepAudio        *bool          `json:"keep_audio,omitempty"`
+}
