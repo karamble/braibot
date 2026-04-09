@@ -267,6 +267,28 @@ func (m *klingVideoV3ProImageModel) Define() Model {
 	}
 }
 
+// --- seedance-2.0-image ---
+
+type seedanceImageModel struct{}
+
+func (m *seedanceImageModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:             "seedance-2.0-image",
+		Description:      "ByteDance Seedance 2.0 Image-to-Video - Realistic motion with native audio generation",
+		PriceUSD:         0.35, // $0.35 per second (flat rate; fal charges $0.3024/s at 720p and $0.2419/s at 480p)
+		Type:             "image2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.35 per second**\nExample: A 5-second video will cost $1.75.\nTotal cost = price per second × duration.\n\nParameters:\n• image_url: URL of the source image (required)\n• prompt: Description of the desired motion/action (required)\n• --duration: Video duration in seconds (4-15, default: 5)\n• --aspect: Aspect ratio (auto, 21:9, 16:9, 4:3, 1:1, 3:4, 9:16). Default: auto\n• --resolution: Video resolution (480p, 720p). Default: 720p\n• --audio: Enable audio generation (default: true)\n• --end_image: URL of end frame image (optional transition)\n• --seed: Seed for reproducibility (optional)",
+		Options: &SeedanceOptions{
+			Duration:      "5",
+			AspectRatio:   "auto",
+			Resolution:    "720p",
+			GenerateAudio: &defaultAudio,
+		},
+	}
+}
+
 func init() {
 	registerModel(&veo2Model{})
 	registerModel(&klingVideoImageModel{})
@@ -280,4 +302,5 @@ func init() {
 	registerModel(&grokImagineVideoModel{})
 	registerModel(&klingVideoV3ImageModel{})
 	registerModel(&klingVideoV3ProImageModel{})
+	registerModel(&seedanceImageModel{})
 }

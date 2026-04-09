@@ -108,4 +108,5 @@ func init() {
 	setDefaultModel("text2video", "kling-video-text")
 	setDefaultModel("audio2text", "elevenlabs/speech-to-text/scribe-v2")
 	setDefaultModel("video2video", "kling-video-o3-edit")
+	setDefaultModel("multi2video", "seedance-2.0-reference")
 }

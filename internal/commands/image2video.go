@@ -71,7 +71,7 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, _, generateAudioPtr, endImageURL, err := parser.Parse(args, true) // Expect Image URL
+			prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, resolution, generateAudioPtr, endImageURL, seedPtr, err := parser.Parse(args, true) // Expect Image URL
 			if err != nil {
 				return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Argument error: %v", err))
 			}
@@ -126,6 +126,8 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 					modelDefault = 8
 				case "kling-video-v3-image", "kling-video-v3-pro-image":
 					modelDefault = 5
+				case "seedance-2.0-image":
+					modelDefault = 5
 				}
 				if modelDefault > 0 {
 					durInt = modelDefault
@@ -148,11 +150,13 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 				Prompt:          prompt,
 				Duration:        duration,
 				AspectRatio:     aspectRatio,
+				Resolution:      resolution,
 				NegativePrompt:  negativePrompt,
 				CFGScale:        cfgScalePtr,
 				PromptOptimizer: promptOptimizerPtr,
 				GenerateAudio:   generateAudioPtr,
 				EndImageURL:     endImageURL,
+				Seed:            seedPtr,
 				ModelType:       "image2video",
 				Progress:        progress,
 				UserNick:        msgCtx.Nick,

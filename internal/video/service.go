@@ -210,8 +210,9 @@ func (s *VideoService) validateRequest(req *VideoRequest) error {
 	case "kling-video-text", "kling-video-image",
 		"kling-video-v3-text", "kling-video-v3-pro-text",
 		"kling-video-v3-image", "kling-video-v3-pro-image",
-		"kling-video-o3-text", "kling-video-o3-pro-text":
-		// Ensure duration does NOT have 's' suffix for Kling
+		"kling-video-o3-text", "kling-video-o3-pro-text",
+		"seedance-2.0-image", "seedance-2.0-text", "seedance-2.0-reference":
+		// Ensure duration does NOT have 's' suffix for Kling / Seedance
 		if strings.HasSuffix(req.Duration, "s") {
 			req.Duration = strings.TrimSuffix(req.Duration, "s") // Modify in place
 		}
@@ -224,6 +225,32 @@ func (s *VideoService) validateRequest(req *VideoRequest) error {
 		case "kling-video-o3-edit", "kling-video-o3-pro-edit":
 			if req.VideoURL == "" {
 				return fmt.Errorf("video URL is required for model %s", model.Name)
+			}
+		}
+	}
+
+	// For multi2video (reference-to-video), enforce per-modality limits and the "audio requires image/video" constraint.
+	if req.ModelType == "multi2video" {
+		switch model.Name {
+		case "seedance-2.0-reference":
+			totalRefs := len(req.ImageURLs) + len(req.VideoURLs) + len(req.AudioURLs)
+			if totalRefs == 0 {
+				return fmt.Errorf("at least one reference input (--image, --video, or --audio) is required for %s", model.Name)
+			}
+			if totalRefs > 12 {
+				return fmt.Errorf("total reference files must not exceed 12 (got %d)", totalRefs)
+			}
+			if len(req.ImageURLs) > 9 {
+				return fmt.Errorf("max 9 reference images (got %d)", len(req.ImageURLs))
+			}
+			if len(req.VideoURLs) > 3 {
+				return fmt.Errorf("max 3 reference videos (got %d)", len(req.VideoURLs))
+			}
+			if len(req.AudioURLs) > 3 {
+				return fmt.Errorf("max 3 reference audio files (got %d)", len(req.AudioURLs))
+			}
+			if len(req.AudioURLs) > 0 && len(req.ImageURLs)+len(req.VideoURLs) == 0 {
+				return fmt.Errorf("reference audio requires at least one reference image or video")
 			}
 		}
 	}
@@ -489,6 +516,51 @@ func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, er
 		}
 		falReq.BaseVideoRequest.Model = modelName
 		falReq.BaseVideoRequest.ImageURL = "" // Ensure empty for text2video
+		return falReq, nil
+	case "seedance-2.0-image":
+		if base.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s model", modelName)
+		}
+		falReq := &fal.SeedanceRequest{
+			BaseVideoRequest: base,
+			Duration:         req.Duration, // Already stripped of 's' suffix by validateRequest
+			AspectRatio:      req.AspectRatio,
+			Resolution:       req.Resolution,
+			GenerateAudio:    req.GenerateAudio,
+			EndImageURL:      req.EndImageURL,
+			Seed:             req.Seed,
+			EndUserID:        req.UserID.String(), // ByteDance requires this for copyright tracking
+		}
+		falReq.BaseVideoRequest.Model = modelName
+		return falReq, nil
+	case "seedance-2.0-text":
+		falReq := &fal.SeedanceRequest{
+			BaseVideoRequest: base,
+			Duration:         req.Duration, // Already stripped of 's' suffix by validateRequest
+			AspectRatio:      req.AspectRatio,
+			Resolution:       req.Resolution,
+			GenerateAudio:    req.GenerateAudio,
+			Seed:             req.Seed,
+			EndUserID:        req.UserID.String(), // ByteDance requires this for copyright tracking
+		}
+		falReq.BaseVideoRequest.Model = modelName
+		falReq.BaseVideoRequest.ImageURL = "" // Ensure empty for text2video
+		return falReq, nil
+	case "seedance-2.0-reference":
+		falReq := &fal.SeedanceReferenceRequest{
+			BaseVideoRequest: base,
+			Duration:         req.Duration, // Already stripped of 's' suffix by validateRequest
+			AspectRatio:      req.AspectRatio,
+			Resolution:       req.Resolution,
+			GenerateAudio:    req.GenerateAudio,
+			ImageURLs:        req.ImageURLs,
+			VideoURLs:        req.VideoURLs,
+			AudioURLs:        req.AudioURLs,
+			Seed:             req.Seed,
+			EndUserID:        req.UserID.String(), // ByteDance requires this for copyright tracking
+		}
+		falReq.BaseVideoRequest.Model = modelName
+		falReq.BaseVideoRequest.ImageURL = "" // Not used; references come from the URL slices
 		return falReq, nil
 	case "kling-video-o3-edit", "kling-video-o3-pro-edit":
 		if req.VideoURL == "" {

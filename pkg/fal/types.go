@@ -1955,3 +1955,115 @@ type KlingVideoO3EditRequest struct {
 	ImageURLs        []string       `json:"image_urls,omitempty"`
 	KeepAudio        *bool          `json:"keep_audio,omitempty"`
 }
+
+// ==================== Seedance 2.0 (ByteDance, Text2Video + Image2Video) ====================
+
+// SeedanceOptions represents options for bytedance/seedance-2.0 text-to-video and image-to-video
+type SeedanceOptions struct {
+	Duration      string `json:"duration,omitempty"`       // "auto" or "4"-"15" seconds. Default: "5"
+	AspectRatio   string `json:"aspect_ratio,omitempty"`   // auto, 21:9, 16:9, 4:3, 1:1, 3:4, 9:16. Default: auto
+	Resolution    string `json:"resolution,omitempty"`     // 480p, 720p. Default: 720p
+	GenerateAudio *bool  `json:"generate_audio,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns default values for Seedance 2.0 options
+func (o *SeedanceOptions) GetDefaultValues() map[string]interface{} {
+	defaultAudio := true
+	return map[string]interface{}{
+		"duration":       "5",
+		"aspect_ratio":   "auto",
+		"resolution":     "720p",
+		"generate_audio": &defaultAudio,
+	}
+}
+
+// Validate validates Seedance 2.0 options
+func (o *SeedanceOptions) Validate() error {
+	validAspectRatios := map[string]bool{
+		"auto": true, "21:9": true, "16:9": true, "4:3": true,
+		"1:1": true, "3:4": true, "9:16": true, "": true,
+	}
+	if !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s (must be auto, 21:9, 16:9, 4:3, 1:1, 3:4, or 9:16)", o.AspectRatio)
+	}
+	validResolutions := map[string]bool{"480p": true, "720p": true, "": true}
+	if !validResolutions[o.Resolution] {
+		return fmt.Errorf("invalid resolution: %s (must be 480p or 720p)", o.Resolution)
+	}
+	if o.Duration != "" && o.Duration != "auto" {
+		dur, err := strconv.Atoi(o.Duration)
+		if err != nil || dur < 4 || dur > 15 {
+			return fmt.Errorf("invalid duration: %s (must be auto or integer between 4 and 15 seconds)", o.Duration)
+		}
+	}
+	return nil
+}
+
+// SeedanceRequest represents a request for bytedance/seedance-2.0 (text or image to video)
+type SeedanceRequest struct {
+	BaseVideoRequest
+	Duration      string `json:"duration,omitempty"`
+	AspectRatio   string `json:"aspect_ratio,omitempty"`
+	Resolution    string `json:"resolution,omitempty"`
+	GenerateAudio *bool  `json:"generate_audio,omitempty"`
+	EndImageURL   string `json:"end_image_url,omitempty"` // image2video only
+	Seed          *int64 `json:"seed,omitempty"`
+	EndUserID     string `json:"end_user_id,omitempty"` // Required by ByteDance for copyright tracking
+}
+
+// ==================== Seedance 2.0 Reference-to-Video (ByteDance, multi-modal refs) ====================
+
+// SeedanceReferenceOptions represents options for bytedance/seedance-2.0/reference-to-video
+type SeedanceReferenceOptions struct {
+	Duration      string `json:"duration,omitempty"`       // "auto" or "4"-"15" seconds. Default: "5"
+	AspectRatio   string `json:"aspect_ratio,omitempty"`   // auto, 21:9, 16:9, 4:3, 1:1, 3:4, 9:16. Default: auto
+	Resolution    string `json:"resolution,omitempty"`     // 480p, 720p. Default: 720p
+	GenerateAudio *bool  `json:"generate_audio,omitempty"` // Default: true
+}
+
+// GetDefaultValues returns default values for Seedance 2.0 reference-to-video options
+func (o *SeedanceReferenceOptions) GetDefaultValues() map[string]interface{} {
+	defaultAudio := true
+	return map[string]interface{}{
+		"duration":       "5",
+		"aspect_ratio":   "auto",
+		"resolution":     "720p",
+		"generate_audio": &defaultAudio,
+	}
+}
+
+// Validate validates Seedance 2.0 reference-to-video options
+func (o *SeedanceReferenceOptions) Validate() error {
+	validAspectRatios := map[string]bool{
+		"auto": true, "21:9": true, "16:9": true, "4:3": true,
+		"1:1": true, "3:4": true, "9:16": true, "": true,
+	}
+	if !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s (must be auto, 21:9, 16:9, 4:3, 1:1, 3:4, or 9:16)", o.AspectRatio)
+	}
+	validResolutions := map[string]bool{"480p": true, "720p": true, "": true}
+	if !validResolutions[o.Resolution] {
+		return fmt.Errorf("invalid resolution: %s (must be 480p or 720p)", o.Resolution)
+	}
+	if o.Duration != "" && o.Duration != "auto" {
+		dur, err := strconv.Atoi(o.Duration)
+		if err != nil || dur < 4 || dur > 15 {
+			return fmt.Errorf("invalid duration: %s (must be auto or integer between 4 and 15 seconds)", o.Duration)
+		}
+	}
+	return nil
+}
+
+// SeedanceReferenceRequest represents a request for bytedance/seedance-2.0/reference-to-video
+type SeedanceReferenceRequest struct {
+	BaseVideoRequest
+	Duration      string   `json:"duration,omitempty"`
+	AspectRatio   string   `json:"aspect_ratio,omitempty"`
+	Resolution    string   `json:"resolution,omitempty"`
+	GenerateAudio *bool    `json:"generate_audio,omitempty"`
+	ImageURLs     []string `json:"image_urls,omitempty"` // Up to 9 reference images
+	VideoURLs     []string `json:"video_urls,omitempty"` // Up to 3 reference videos
+	AudioURLs     []string `json:"audio_urls,omitempty"` // Up to 3 reference audio files
+	Seed          *int64   `json:"seed,omitempty"`
+	EndUserID     string   `json:"end_user_id,omitempty"` // Required by ByteDance for copyright tracking
+}
