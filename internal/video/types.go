@@ -20,7 +20,10 @@ type VideoRequest struct {
 	EndImageURL              string   // Optional, for Kling v3 image2video end frame
 	VideoURL                 string   // Required for video2video edit models
 	KeepAudio                *bool    // Optional, for O3 edit (default: true)
-	ImageURLs                []string // Optional, up to 4 reference images for O3 edit
+	ImageURLs                []string // Optional, up to 4 reference images for O3 edit / up to 9 for Seedance multi2video
+	VideoURLs                []string // Optional, up to 3 reference videos for Seedance multi2video
+	AudioURLs                []string // Optional, up to 3 reference audio files for Seedance multi2video
+	Seed                     *int64   // Optional, for reproducibility (Seedance 2.0)
 	ModelType                string   // "text2video" or "image2video"
 	ModelName                string   // Name of the model to use (set by handler)
 	Progress                 fal.ProgressCallback

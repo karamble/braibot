@@ -15,21 +15,22 @@ import (
 	botconfig "github.com/vctt94/bisonbotkit/config"
 )
 
-// Text2VideoCommand returns the text2video command
-// It now requires a VideoService instance.
-func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *video.VideoService, debug bool) braibottypes.Command {
+// Multi2VideoCommand returns the multi2video (reference-to-video) command.
+// It accepts a prompt plus any combination of reference images (up to 9),
+// videos (up to 3), and audio files (up to 3).
+func Multi2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *video.VideoService, debug bool) braibottypes.Command {
 	// Get the current model to use its description
-	model, exists := faladapter.GetCurrentModel("text2video", "") // Empty string for global default
+	model, exists := faladapter.GetCurrentModel("multi2video", "")
 	if !exists {
 		model = fal.Model{
-			Name:        "text2video",
-			Description: "Generate a video from text",
+			Name:        "multi2video",
+			Description: "Generate a video from a prompt plus reference images, videos, and audio",
 		}
 	}
-	description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9]", model.Description)
+	description := fmt.Sprintf("%s. Usage: !multi2video [prompt] [--image1..9 url] [--video1..3 url] [--audio1..3 url] [--options]", model.Description)
 
 	return braibottypes.Command{
-		Name:        "text2video",
+		Name:        "multi2video",
 		Description: description,
 		Category:    "AI Generation",
 		Handler: braibottypes.CommandFunc(func(ctx context.Context, msgCtx braibottypes.MessageContext, args []string, sender *braibottypes.MessageSender, db braibottypes.DBManagerInterface) error {
@@ -44,9 +45,9 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 					uid.FromBytes(msgCtx.Uid)
 					userIDStr = uid.String()
 				}
-				model, exists := faladapter.GetCurrentModel("text2video", userIDStr)
+				model, exists := faladapter.GetCurrentModel("multi2video", userIDStr)
 				if !exists {
-					return msgSender.SendMessage(ctx, msgCtx, "Error: Default text2video model not found.")
+					return msgSender.SendMessage(ctx, msgCtx, "Error: Default multi2video model not found.")
 				}
 
 				// Get user ID
@@ -54,12 +55,12 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				userID.FromBytes(msgCtx.Uid)
 
 				// Format header using utility function
-				header := utils.FormatCommandHelpHeader("text2video", model, userID, db)
+				header := utils.FormatCommandHelpHeader("multi2video", model, userID, db)
 
 				// Get help doc
 				helpDoc := model.HelpDoc
 				if helpDoc == "" {
-					helpDoc = "Usage: !text2video [prompt] [--options...]\n(No specific documentation available for this model.)"
+					helpDoc = "Usage: !multi2video [prompt] [--image1..9 url] [--video1..3 url] [--audio1..3 url] [--options...]\n(No specific documentation available for this model.)"
 				}
 
 				// Send combined header and help doc
@@ -68,12 +69,18 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			prompt, _, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, resolution, generateAudioPtr, _, seedPtr, err := parser.Parse(args, false) // No Image URL expected
+			prompt, duration, aspectRatio, resolution, generateAudioPtr, seedPtr, imageURLs, videoURLs, audioURLs, err := parser.ParseMulti2Video(args)
 			if err != nil {
 				return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Argument error: %v", err))
 			}
 			if prompt == "" {
 				return msgSender.SendMessage(ctx, msgCtx, "Please provide a text prompt describing the desired video.")
+			}
+			if len(imageURLs) == 0 && len(videoURLs) == 0 && len(audioURLs) == 0 {
+				return msgSender.SendMessage(ctx, msgCtx, "At least one reference input (--image1, --video1, or --audio1) is required. For a purely text-driven video, use !text2video instead.")
+			}
+			if len(audioURLs) > 0 && len(imageURLs) == 0 && len(videoURLs) == 0 {
+				return msgSender.SendMessage(ctx, msgCtx, "Reference audio requires at least one reference image or video.")
 			}
 
 			// Get model configuration
@@ -83,46 +90,32 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				uid.FromBytes(msgCtx.Uid)
 				userIDStr = uid.String()
 			}
-			model, exists := faladapter.GetCurrentModel("text2video", userIDStr)
+			model, exists := faladapter.GetCurrentModel("multi2video", userIDStr)
 			if !exists {
-				return msgSender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("no default model found for text2video"))
+				return msgSender.SendErrorMessage(ctx, msgCtx, fmt.Errorf("no default model found for multi2video"))
 			}
 
-			// Determine effective duration
+			// Determine effective duration for per-second pricing
 			originalUserDuration := duration
 			durInt := 0
 			if duration != "" {
 				durInt, err = strconv.Atoi(duration)
 				if err != nil || durInt <= 0 {
-					durInt = 0 // fallback to check model default
+					durInt = 0
 				}
 			}
 			if durInt == 0 {
-				// Try to get model default duration (if available)
 				modelDefault := 0
-				// Check for known model default durations
 				switch model.Name {
-				case "kling-video-text":
-					modelDefault = 5
-				case "minimax/hailuo-02":
-					modelDefault = 6
-				case "minimax/video-01", "minimax/video-01-director":
-					modelDefault = 6
-				case "grok-imagine-video-text":
-					modelDefault = 6
-				case "kling-video-v3-text", "kling-video-v3-pro-text":
-					modelDefault = 5
-				case "kling-video-o3-text", "kling-video-o3-pro-text":
-					modelDefault = 5
-				case "seedance-2.0-text":
+				case "seedance-2.0-reference":
 					modelDefault = 5
 				}
 				if modelDefault > 0 {
 					durInt = modelDefault
 					duration = strconv.Itoa(modelDefault)
 				} else {
-					durInt = 6 // fallback to hardcoded default
-					duration = "6"
+					durInt = 5
+					duration = "5"
 				}
 			}
 
@@ -132,37 +125,38 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 			}
 
 			// Create progress callback
-			progress := NewCommandProgressCallback(bot, msgCtx.Nick, msgCtx.Sender, "text2video", msgCtx.IsPM, msgCtx.GC)
+			progress := NewCommandProgressCallback(bot, msgCtx.Nick, msgCtx.Sender, "multi2video", msgCtx.IsPM, msgCtx.GC)
 
 			// Create video request using parsed values
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
 			req := &video.VideoRequest{
-				Prompt:          prompt,
-				Duration:        duration,
-				AspectRatio:     aspectRatio,
-				Resolution:      resolution,
-				NegativePrompt:  negativePrompt,
-				CFGScale:        cfgScalePtr,
-				PromptOptimizer: promptOptimizerPtr,
-				GenerateAudio:   generateAudioPtr,
-				Seed:            seedPtr,
-				ModelType:       "text2video",
-				Progress:        progress,
-				UserNick:        msgCtx.Nick,
-				UserID:          userID,
-				PriceUSD:        totalCost,
-				IsPM:            msgCtx.IsPM,
-				GC:              msgCtx.GC,
-				ModelName:       model.Name,
+				Prompt:        prompt,
+				Duration:      duration,
+				AspectRatio:   aspectRatio,
+				Resolution:    resolution,
+				GenerateAudio: generateAudioPtr,
+				ImageURLs:     imageURLs,
+				VideoURLs:     videoURLs,
+				AudioURLs:     audioURLs,
+				Seed:          seedPtr,
+				ModelType:     "multi2video",
+				Progress:      progress,
+				UserNick:      msgCtx.Nick,
+				UserID:        userID,
+				PriceUSD:      totalCost,
+				IsPM:          msgCtx.IsPM,
+				GC:            msgCtx.GC,
+				ModelName:     model.Name,
 			}
 
 			// Inform user of pricing and total cost
 			if msgCtx.IsPM {
 				if model.PerSecondPricing {
 					msg := fmt.Sprintf(
-						"Model: %s\n💰 Price: $%.2f per video second\nRequested duration: %d seconds\nTotal cost: $%.2f = $%.2f/sec × %d sec",
+						"Model: %s\n💰 Price: $%.2f per video second\nRequested duration: %d seconds\nTotal cost: $%.2f = $%.2f/sec × %d sec\nReference inputs: %d image(s), %d video(s), %d audio(s)",
 						model.Name, model.PriceUSD, durInt, totalCost, model.PriceUSD, durInt,
+						len(imageURLs), len(videoURLs), len(audioURLs),
 					)
 					if originalUserDuration == "" {
 						msg += fmt.Sprintf("\n(No duration specified, using default duration of %d seconds.)", durInt)
@@ -176,11 +170,11 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				}
 			}
 
-			// Process the video
+			// Generate video using the service
 			result, err := videoService.GenerateVideo(ctx, req)
 
 			// Handle result/error using the utility function
-			if handleErr := utils.HandleServiceResultOrError(ctx, bot, msgCtx, "text2video", result, err); handleErr != nil {
+			if handleErr := utils.HandleServiceResultOrError(ctx, bot, msgCtx, "multi2video", result, err); handleErr != nil {
 				return handleErr
 			}
 

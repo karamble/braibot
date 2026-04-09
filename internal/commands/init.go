@@ -58,5 +58,7 @@ func InitializeCommands(dbManager *database.DBManager, cfg *config.BotConfig, bo
 
 	registry.Register(Video2VideoCommand(bot, cfg, videoService, debug))
 
+	registry.Register(Multi2VideoCommand(bot, cfg, videoService, debug))
+
 	return registry
 }

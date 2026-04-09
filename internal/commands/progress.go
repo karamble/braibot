@@ -114,7 +114,7 @@ func (c *CommandProgressCallback) OnProgress(status string) {
 	if status == "IN_PROGRESS" && time.Since(c.lastSpecialMessage) >= c.specialMessageInterval {
 		var message string
 		switch c.cmdType {
-		case "image2video", "video2video":
+		case "image2video", "video2video", "multi2video":
 			message = "The video generation is in process\nVideo generation can take a long time, up to 20 minutes\nDuring the process the bot does not respond to any commands, please be patient"
 		case "image2image":
 			message = "The image generation is in process\nImage generation can take a few minutes\nDuring the process the bot does not respond to any commands, please be patient"

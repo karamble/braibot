@@ -255,6 +255,28 @@ func (m *klingVideoO3ProTextModel) Define() Model {
 	}
 }
 
+// --- seedance-2.0-text ---
+
+type seedanceTextModel struct{}
+
+func (m *seedanceTextModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:             "seedance-2.0-text",
+		Description:      "ByteDance Seedance 2.0 Text-to-Video - Realistic motion with native audio generation",
+		PriceUSD:         0.35, // $0.35 per second (flat rate; fal charges $0.3034/s at 720p)
+		Type:             "text2video",
+		PerSecondPricing: true,
+		HelpDoc:          "Usage: !text2video [prompt] [options]\n\n💰 **Price: $0.35 per second**\nExample: A 5-second video will cost $1.75.\nTotal cost = price per second × duration.\n\nParameters:\n• prompt: Text description of the desired video (required)\n• --duration: Video duration in seconds (4-15, default: 5)\n• --aspect: Aspect ratio (auto, 21:9, 16:9, 4:3, 1:1, 3:4, 9:16). Default: auto\n• --resolution: Video resolution (480p, 720p). Default: 720p\n• --audio: Enable audio generation (default: true)\n• --seed: Seed for reproducibility (optional)",
+		Options: &SeedanceOptions{
+			Duration:      "5",
+			AspectRatio:   "auto",
+			Resolution:    "720p",
+			GenerateAudio: &defaultAudio,
+		},
+	}
+}
+
 func init() {
 	registerModel(&minimaxHailuo02Model{})
 	registerModel(&hunyuanVideoModel{})
@@ -264,6 +286,7 @@ func init() {
 	registerModel(&klingVideoV3ProTextModel{})
 	registerModel(&klingVideoO3TextModel{})
 	registerModel(&klingVideoO3ProTextModel{})
+	registerModel(&seedanceTextModel{})
 }
 
 // --- grok-imagine-video-text ---

@@ -687,6 +687,177 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if r.Prompt == "" {
 			delete(reqBody, "prompt")
 		}
+	case *SeedanceRequest:
+		modelName = r.BaseVideoRequest.Model
+		// Map model name to endpoint and modality
+		var modelType string
+		switch modelName {
+		case "seedance-2.0-image":
+			endpoint = "https://queue.fal.run/bytedance/seedance-2.0/image-to-video"
+			modelType = "image2video"
+		case "seedance-2.0-text":
+			endpoint = "https://queue.fal.run/bytedance/seedance-2.0/text-to-video"
+			modelType = "text2video"
+		default:
+			return nil, fmt.Errorf("unsupported Seedance model: %s", modelName)
+		}
+
+		model, exists := GetModel(modelName, modelType)
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*SeedanceOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Validate required fields
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+		if modelType == "image2video" && r.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s", modelName)
+		}
+		if r.EndUserID == "" {
+			return nil, fmt.Errorf("end_user_id is required for %s (ByteDance tracking)", modelName)
+		}
+
+		// Validate options
+		opts := SeedanceOptions{
+			Duration:      r.Duration,
+			AspectRatio:   r.AspectRatio,
+			Resolution:    r.Resolution,
+			GenerateAudio: r.GenerateAudio,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Apply defaults from model options if not provided in request
+		if r.Duration == "" {
+			r.Duration = options.Duration
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+		if r.Resolution == "" {
+			r.Resolution = options.Resolution
+		}
+		if r.GenerateAudio == nil {
+			r.GenerateAudio = options.GenerateAudio
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt":       r.Prompt,
+			"duration":     r.Duration,
+			"aspect_ratio": r.AspectRatio,
+			"resolution":   r.Resolution,
+			"end_user_id":  r.EndUserID,
+		}
+		if r.GenerateAudio != nil {
+			reqBody["generate_audio"] = *r.GenerateAudio
+		}
+		if r.Seed != nil {
+			reqBody["seed"] = *r.Seed
+		}
+		// Image2video-specific fields
+		if modelType == "image2video" {
+			reqBody["image_url"] = r.ImageURL
+			if r.EndImageURL != "" {
+				reqBody["end_image_url"] = r.EndImageURL
+			}
+		}
+	case *SeedanceReferenceRequest:
+		modelName = "seedance-2.0-reference"
+		endpoint = "https://queue.fal.run/bytedance/seedance-2.0/reference-to-video"
+
+		model, exists := GetModel(modelName, "multi2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		options, ok := model.Options.(*SeedanceReferenceOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+
+		// Validate required fields
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+		if r.EndUserID == "" {
+			return nil, fmt.Errorf("end_user_id is required for %s (ByteDance tracking)", modelName)
+		}
+
+		// Validate reference input constraints
+		totalRefs := len(r.ImageURLs) + len(r.VideoURLs) + len(r.AudioURLs)
+		if totalRefs == 0 {
+			return nil, fmt.Errorf("at least one reference input (image, video, or audio) is required for %s", modelName)
+		}
+		if totalRefs > 12 {
+			return nil, fmt.Errorf("total reference files must not exceed 12 (got %d)", totalRefs)
+		}
+		if len(r.ImageURLs) > 9 {
+			return nil, fmt.Errorf("max 9 reference images (got %d)", len(r.ImageURLs))
+		}
+		if len(r.VideoURLs) > 3 {
+			return nil, fmt.Errorf("max 3 reference videos (got %d)", len(r.VideoURLs))
+		}
+		if len(r.AudioURLs) > 3 {
+			return nil, fmt.Errorf("max 3 reference audio files (got %d)", len(r.AudioURLs))
+		}
+		if len(r.AudioURLs) > 0 && len(r.ImageURLs)+len(r.VideoURLs) == 0 {
+			return nil, fmt.Errorf("reference audio requires at least one reference image or video")
+		}
+
+		// Validate enum options
+		opts := SeedanceReferenceOptions{
+			Duration:      r.Duration,
+			AspectRatio:   r.AspectRatio,
+			Resolution:    r.Resolution,
+			GenerateAudio: r.GenerateAudio,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		// Apply defaults from model options if not provided in request
+		if r.Duration == "" {
+			r.Duration = options.Duration
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+		if r.Resolution == "" {
+			r.Resolution = options.Resolution
+		}
+		if r.GenerateAudio == nil {
+			r.GenerateAudio = options.GenerateAudio
+		}
+
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt":       r.Prompt,
+			"duration":     r.Duration,
+			"aspect_ratio": r.AspectRatio,
+			"resolution":   r.Resolution,
+			"end_user_id":  r.EndUserID,
+		}
+		if len(r.ImageURLs) > 0 {
+			reqBody["image_urls"] = r.ImageURLs
+		}
+		if len(r.VideoURLs) > 0 {
+			reqBody["video_urls"] = r.VideoURLs
+		}
+		if len(r.AudioURLs) > 0 {
+			reqBody["audio_urls"] = r.AudioURLs
+		}
+		if r.GenerateAudio != nil {
+			reqBody["generate_audio"] = *r.GenerateAudio
+		}
+		if r.Seed != nil {
+			reqBody["seed"] = *r.Seed
+		}
 	case *KlingVideoO3TextRequest:
 		modelName = r.BaseVideoRequest.Model
 		// Map model name to endpoint
