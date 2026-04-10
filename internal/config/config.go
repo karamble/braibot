@@ -2,13 +2,10 @@ package config
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/vctt94/bisonbotkit/config"
 )
@@ -216,51 +213,6 @@ func CheckAndUpdateConfig(cfg *config.BotConfig, appRoot string) error {
 			// Store the validated, lowercased value back
 			cfg.ExtraConfig["webhookenabled"] = val
 		}
-	}
-
-	return nil
-}
-
-
-// TestAssetServerCredentials tests if the asset server credentials are valid
-func TestAssetServerCredentials(serverURL, apiKey string) error {
-	// Create HTTP client with timeout
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	// Create request
-	req, err := http.NewRequest("GET", serverURL+"/test", nil)
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
-
-	// Add API key header
-	req.Header.Set("X-API-Key", apiKey)
-
-	// Send request
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error connecting to asset server: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Check response status
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("asset server returned error status %d", resp.StatusCode)
-	}
-
-	// Parse response
-	var result struct {
-		Success bool   `json:"success"`
-		Message string `json:"message"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fmt.Errorf("error parsing response: %v", err)
-	}
-
-	if !result.Success {
-		return fmt.Errorf("asset server test failed: %s", result.Message)
 	}
 
 	return nil
