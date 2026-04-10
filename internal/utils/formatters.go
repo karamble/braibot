@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/companyzero/bisonrelay/zkidentity"
+	"github.com/karamble/braibot/internal/faladapter"
 	braibottypes "github.com/karamble/braibot/internal/types"
-	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
 )
 
@@ -84,7 +84,7 @@ func HandleServiceResultOrError(ctx context.Context, bot *kit.Bot, msgCtx braibo
 }
 
 // FormatCommandHelpHeader generates the standard header for command help messages.
-func FormatCommandHelpHeader(commandName string, model fal.Model, userID zkidentity.ShortID, dbManager braibottypes.DBManagerInterface) string {
+func FormatCommandHelpHeader(commandName string, model faladapter.AppModel, userID zkidentity.ShortID, dbManager braibottypes.DBManagerInterface) string {
 	// Get user's balance
 	userIDStr := userID.String()
 	balance, err := dbManager.GetBalance(userIDStr)

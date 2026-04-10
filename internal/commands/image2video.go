@@ -22,10 +22,10 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 	model, exists := faladapter.GetCurrentModel("image2video", "") // Empty string for global default
 	if !exists {
 		// Fallback to a default description if no model is found
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "image2video",
 			Description: "Generate a video from an image using AI",
-		}
+		}}
 	}
 
 	// Create the command description using the model's description

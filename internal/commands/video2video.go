@@ -20,10 +20,10 @@ func Video2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("video2video", "")
 	if !exists {
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "video2video",
 			Description: "Edit/transform a video",
-		}
+		}}
 	}
 	description := fmt.Sprintf("%s. Usage: !video2video [video_url] [prompt] [--options]", model.Description)
 

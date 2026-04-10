@@ -71,7 +71,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 	}
 
 	// 4. Get current model name
-	var model fal.Model
+	var model faladapter.AppModel
 	var exists bool
 	if req.ModelName != "" {
 		model, exists = faladapter.GetModel(req.ModelName, req.ModelType)

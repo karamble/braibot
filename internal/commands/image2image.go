@@ -23,10 +23,10 @@ func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *im
 	model, exists := faladapter.GetCurrentModel("image2image", "") // Empty string for global default
 	if !exists {
 		// Fallback to a default description if no model is found
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "image2image",
 			Description: "Transform an image using AI",
-		}
+		}}
 	}
 
 	// Create the command description using the model's description

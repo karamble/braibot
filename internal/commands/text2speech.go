@@ -21,10 +21,10 @@ func Text2SpeechCommand(bot *kit.Bot, cfg *botconfig.BotConfig, speechService *s
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("text2speech", "") // Empty string for global default
 	if !exists {
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "text2speech",
 			Description: "Convert text to speech",
-		}
+		}}
 	}
 	description := fmt.Sprintf("%s. Usage: !text2speech [text]", model.Description)
 

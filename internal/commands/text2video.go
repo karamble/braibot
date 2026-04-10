@@ -21,10 +21,10 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("text2video", "") // Empty string for global default
 	if !exists {
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "text2video",
 			Description: "Generate a video from text",
-		}
+		}}
 	}
 	description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9]", model.Description)
 

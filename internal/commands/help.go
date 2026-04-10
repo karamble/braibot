@@ -9,7 +9,6 @@ import (
 	"github.com/karamble/braibot/internal/faladapter"
 	braibottypes "github.com/karamble/braibot/internal/types"
 	"github.com/karamble/braibot/internal/utils"
-	"github.com/karamble/braibot/pkg/fal"
 )
 
 // HelpCommand returns the help command
@@ -145,7 +144,7 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 				}
 
 				// Get models for this command
-				var models map[string]fal.Model
+				var models map[string]faladapter.AppModel
 				var modelExists bool
 				switch commandName {
 				case "text2image":

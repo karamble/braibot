@@ -210,22 +210,3 @@ func GenerateSpeech(ctx context.Context, client *fal.Client, req interface{}, bo
 	return resp, nil
 }
 
-// GetModel returns a model by name and type.
-func GetModel(name, modelType string) (fal.Model, bool) {
-	return fal.GetModel(name, modelType)
-}
-
-// GetModels returns all available models for a command type.
-func GetModels(commandType string) (map[string]fal.Model, bool) {
-	return fal.GetModels(commandType)
-}
-
-// GetCurrentModel returns the current model for a command type.
-func GetCurrentModel(commandType string, userID string) (fal.Model, bool) {
-	return fal.GetCurrentModel(commandType, userID)
-}
-
-// SetCurrentModel sets the current model for a command type.
-func SetCurrentModel(commandType, modelName string, userID string) error {
-	return fal.SetCurrentModel(commandType, modelName, userID)
-}

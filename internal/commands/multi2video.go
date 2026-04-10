@@ -22,10 +22,10 @@ func Multi2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("multi2video", "")
 	if !exists {
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "multi2video",
 			Description: "Generate a video from a prompt plus reference images, videos, and audio",
-		}
+		}}
 	}
 	description := fmt.Sprintf("%s. Usage: !multi2video [prompt] [--image1..9 url] [--video1..3 url] [--audio1..3 url] [--options]", model.Description)
 
