@@ -365,6 +365,297 @@ type FluxProV1_1Request struct {
 	OutputFormat        string `json:"output_format,omitempty"`
 }
 
+// Flux2Options represents the options available for the fal-ai/flux-2 model
+type Flux2Options struct {
+	ImageSize             string  `json:"image_size,omitempty"`              // square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9
+	GuidanceScale         float64 `json:"guidance_scale,omitempty"`          // Default: 2.5
+	NumInferenceSteps     int     `json:"num_inference_steps,omitempty"`     // Default: 28
+	Seed                  *int    `json:"seed,omitempty"`                    // Optional seed
+	NumImages             int     `json:"num_images,omitempty"`              // Default: 1
+	Acceleration          string  `json:"acceleration,omitempty"`            // Enum: none, regular, high. Default: "regular"
+	EnablePromptExpansion *bool   `json:"enable_prompt_expansion,omitempty"` // Default: false
+	SyncMode              bool    `json:"sync_mode,omitempty"`               // Default: false
+	EnableSafetyChecker   *bool   `json:"enable_safety_checker,omitempty"`   // Default: true
+	OutputFormat          string  `json:"output_format,omitempty"`           // Enum: jpeg, png, webp. Default: "png"
+}
+
+// GetDefaultValues returns the default values for Flux 2 options
+func (o *Flux2Options) GetDefaultValues() map[string]interface{} {
+	defaultSafetyChecker := true
+	defaultPromptExpansion := false
+	return map[string]interface{}{
+		"image_size":              "landscape_4_3",
+		"guidance_scale":          2.5,
+		"num_inference_steps":     28,
+		"num_images":              1,
+		"acceleration":            "regular",
+		"enable_prompt_expansion": &defaultPromptExpansion,
+		"enable_safety_checker":   &defaultSafetyChecker,
+		"output_format":           "png",
+	}
+}
+
+// Validate validates the Flux 2 options
+func (o *Flux2Options) Validate() error {
+	validImageSizes := map[string]bool{
+		"square_hd":      true,
+		"square":         true,
+		"portrait_4_3":   true,
+		"portrait_16_9":  true,
+		"landscape_4_3":  true,
+		"landscape_16_9": true,
+	}
+	validAccelerations := map[string]bool{
+		"none": true, "regular": true, "high": true,
+	}
+	validOutputFormats := map[string]bool{
+		"jpeg": true, "png": true, "webp": true,
+	}
+
+	if o.ImageSize != "" && !validImageSizes[o.ImageSize] {
+		return fmt.Errorf("invalid image_size: %s", o.ImageSize)
+	}
+	if o.GuidanceScale < 0 {
+		return fmt.Errorf("guidance_scale cannot be negative: %f", o.GuidanceScale)
+	}
+	if o.NumInferenceSteps < 0 {
+		return fmt.Errorf("num_inference_steps cannot be negative: %d", o.NumInferenceSteps)
+	}
+	if o.NumImages < 0 {
+		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	}
+	if o.Acceleration != "" && !validAccelerations[o.Acceleration] {
+		return fmt.Errorf("invalid acceleration: %s (must be none, regular, or high)", o.Acceleration)
+	}
+	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s (must be jpeg, png, or webp)", o.OutputFormat)
+	}
+	return nil
+}
+
+// Flux2Request represents a request for the fal-ai/flux-2 model
+type Flux2Request struct {
+	BaseImageRequest
+	ImageSize             string  `json:"image_size,omitempty"`
+	GuidanceScale         float64 `json:"guidance_scale,omitempty"`
+	NumInferenceSteps     int     `json:"num_inference_steps,omitempty"`
+	Seed                  *int    `json:"seed,omitempty"`
+	NumImages             int     `json:"num_images,omitempty"`
+	Acceleration          string  `json:"acceleration,omitempty"`
+	EnablePromptExpansion *bool   `json:"enable_prompt_expansion,omitempty"`
+	SyncMode              bool    `json:"sync_mode,omitempty"`
+	EnableSafetyChecker   *bool   `json:"enable_safety_checker,omitempty"`
+	OutputFormat          string  `json:"output_format,omitempty"`
+}
+
+// Flux2ProOptions represents the options available for the fal-ai/flux-2-pro model
+type Flux2ProOptions struct {
+	ImageSize           string `json:"image_size,omitempty"`            // square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9
+	Seed                *int   `json:"seed,omitempty"`                  // Optional seed
+	SyncMode            bool   `json:"sync_mode,omitempty"`             // Default: false
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"` // Default: true
+	SafetyTolerance     string `json:"safety_tolerance,omitempty"`      // Enum: 1, 2, 3, 4, 5. Default: "2"
+	OutputFormat        string `json:"output_format,omitempty"`         // Enum: jpeg, png. Default: "jpeg"
+}
+
+// GetDefaultValues returns the default values for Flux 2 Pro options
+func (o *Flux2ProOptions) GetDefaultValues() map[string]interface{} {
+	defaultSafetyChecker := true
+	return map[string]interface{}{
+		"image_size":            "landscape_4_3",
+		"enable_safety_checker": &defaultSafetyChecker,
+		"safety_tolerance":      "2",
+		"output_format":         "jpeg",
+	}
+}
+
+// Validate validates the Flux 2 Pro options
+func (o *Flux2ProOptions) Validate() error {
+	validImageSizes := map[string]bool{
+		"square_hd":      true,
+		"square":         true,
+		"portrait_4_3":   true,
+		"portrait_16_9":  true,
+		"landscape_4_3":  true,
+		"landscape_16_9": true,
+	}
+	validSafetyTolerances := map[string]bool{
+		"1": true, "2": true, "3": true, "4": true, "5": true,
+	}
+	validOutputFormats := map[string]bool{
+		"jpeg": true, "png": true,
+	}
+
+	if o.ImageSize != "" && !validImageSizes[o.ImageSize] {
+		return fmt.Errorf("invalid image_size: %s", o.ImageSize)
+	}
+	if o.SafetyTolerance != "" && !validSafetyTolerances[o.SafetyTolerance] {
+		return fmt.Errorf("invalid safety_tolerance: %s (must be 1-5)", o.SafetyTolerance)
+	}
+	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s (must be jpeg or png)", o.OutputFormat)
+	}
+	return nil
+}
+
+// Flux2ProRequest represents a request for the fal-ai/flux-2-pro model
+type Flux2ProRequest struct {
+	BaseImageRequest
+	ImageSize           string `json:"image_size,omitempty"`
+	Seed                *int   `json:"seed,omitempty"`
+	SyncMode            bool   `json:"sync_mode,omitempty"`
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"`
+	SafetyTolerance     string `json:"safety_tolerance,omitempty"`
+	OutputFormat        string `json:"output_format,omitempty"`
+}
+
+// Flux2ProEditOptions represents the options available for the fal-ai/flux-2-pro/edit model
+type Flux2ProEditOptions struct {
+	ImageSize           string `json:"image_size,omitempty"`            // auto, square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9. Default: "auto"
+	Seed                *int   `json:"seed,omitempty"`                  // Optional seed
+	SyncMode            bool   `json:"sync_mode,omitempty"`             // Default: false
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"` // Default: true
+	SafetyTolerance     string `json:"safety_tolerance,omitempty"`      // Enum: 1, 2, 3, 4, 5. Default: "2"
+	OutputFormat        string `json:"output_format,omitempty"`         // Enum: jpeg, png. Default: "jpeg"
+}
+
+// GetDefaultValues returns the default values for Flux 2 Pro Edit options
+func (o *Flux2ProEditOptions) GetDefaultValues() map[string]interface{} {
+	defaultSafetyChecker := true
+	return map[string]interface{}{
+		"image_size":            "auto",
+		"enable_safety_checker": &defaultSafetyChecker,
+		"safety_tolerance":      "2",
+		"output_format":         "jpeg",
+	}
+}
+
+// Validate validates the Flux 2 Pro Edit options
+func (o *Flux2ProEditOptions) Validate() error {
+	validImageSizes := map[string]bool{
+		"auto":           true,
+		"square_hd":      true,
+		"square":         true,
+		"portrait_4_3":   true,
+		"portrait_16_9":  true,
+		"landscape_4_3":  true,
+		"landscape_16_9": true,
+	}
+	validSafetyTolerances := map[string]bool{
+		"1": true, "2": true, "3": true, "4": true, "5": true,
+	}
+	validOutputFormats := map[string]bool{
+		"jpeg": true, "png": true,
+	}
+
+	if o.ImageSize != "" && !validImageSizes[o.ImageSize] {
+		return fmt.Errorf("invalid image_size: %s", o.ImageSize)
+	}
+	if o.SafetyTolerance != "" && !validSafetyTolerances[o.SafetyTolerance] {
+		return fmt.Errorf("invalid safety_tolerance: %s (must be 1-5)", o.SafetyTolerance)
+	}
+	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s (must be jpeg or png)", o.OutputFormat)
+	}
+	return nil
+}
+
+// Flux2ProEditRequest represents a request for the fal-ai/flux-2-pro/edit model
+type Flux2ProEditRequest struct {
+	BaseImageRequest
+	ImageURLs           []string `json:"image_urls"`                      // Required: list of input image URLs
+	ImageSize           string   `json:"image_size,omitempty"`
+	Seed                *int     `json:"seed,omitempty"`
+	SyncMode            bool     `json:"sync_mode,omitempty"`
+	EnableSafetyChecker *bool    `json:"enable_safety_checker,omitempty"`
+	SafetyTolerance     string   `json:"safety_tolerance,omitempty"`
+	OutputFormat        string   `json:"output_format,omitempty"`
+}
+
+// Flux2EditOptions represents the options available for the fal-ai/flux-2/edit model
+type Flux2EditOptions struct {
+	ImageSize             string  `json:"image_size,omitempty"`              // square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9
+	GuidanceScale         float64 `json:"guidance_scale,omitempty"`          // Default: 2.5
+	NumInferenceSteps     int     `json:"num_inference_steps,omitempty"`     // Default: 28
+	Seed                  *int    `json:"seed,omitempty"`                    // Optional seed
+	NumImages             int     `json:"num_images,omitempty"`              // Default: 1
+	Acceleration          string  `json:"acceleration,omitempty"`            // Enum: none, regular, high. Default: "regular"
+	EnablePromptExpansion *bool   `json:"enable_prompt_expansion,omitempty"` // Default: false
+	SyncMode              bool    `json:"sync_mode,omitempty"`               // Default: false
+	EnableSafetyChecker   *bool   `json:"enable_safety_checker,omitempty"`   // Default: true
+	OutputFormat          string  `json:"output_format,omitempty"`           // Enum: jpeg, png, webp. Default: "png"
+}
+
+// GetDefaultValues returns the default values for Flux 2 Edit options
+func (o *Flux2EditOptions) GetDefaultValues() map[string]interface{} {
+	defaultSafetyChecker := true
+	defaultPromptExpansion := false
+	return map[string]interface{}{
+		"image_size":              "landscape_4_3",
+		"guidance_scale":          2.5,
+		"num_inference_steps":     28,
+		"num_images":              1,
+		"acceleration":            "regular",
+		"enable_prompt_expansion": &defaultPromptExpansion,
+		"enable_safety_checker":   &defaultSafetyChecker,
+		"output_format":           "png",
+	}
+}
+
+// Validate validates the Flux 2 Edit options
+func (o *Flux2EditOptions) Validate() error {
+	validImageSizes := map[string]bool{
+		"square_hd":      true,
+		"square":         true,
+		"portrait_4_3":   true,
+		"portrait_16_9":  true,
+		"landscape_4_3":  true,
+		"landscape_16_9": true,
+	}
+	validAccelerations := map[string]bool{
+		"none": true, "regular": true, "high": true,
+	}
+	validOutputFormats := map[string]bool{
+		"jpeg": true, "png": true, "webp": true,
+	}
+
+	if o.ImageSize != "" && !validImageSizes[o.ImageSize] {
+		return fmt.Errorf("invalid image_size: %s", o.ImageSize)
+	}
+	if o.GuidanceScale < 0 {
+		return fmt.Errorf("guidance_scale cannot be negative: %f", o.GuidanceScale)
+	}
+	if o.NumInferenceSteps < 0 {
+		return fmt.Errorf("num_inference_steps cannot be negative: %d", o.NumInferenceSteps)
+	}
+	if o.NumImages < 0 {
+		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	}
+	if o.Acceleration != "" && !validAccelerations[o.Acceleration] {
+		return fmt.Errorf("invalid acceleration: %s (must be none, regular, or high)", o.Acceleration)
+	}
+	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s (must be jpeg, png, or webp)", o.OutputFormat)
+	}
+	return nil
+}
+
+// Flux2EditRequest represents a request for the fal-ai/flux-2/edit model
+type Flux2EditRequest struct {
+	BaseImageRequest
+	ImageURLs             []string `json:"image_urls"`
+	ImageSize             string   `json:"image_size,omitempty"`
+	GuidanceScale         float64  `json:"guidance_scale,omitempty"`
+	NumInferenceSteps     int      `json:"num_inference_steps,omitempty"`
+	Seed                  *int     `json:"seed,omitempty"`
+	NumImages             int      `json:"num_images,omitempty"`
+	Acceleration          string   `json:"acceleration,omitempty"`
+	EnablePromptExpansion *bool    `json:"enable_prompt_expansion,omitempty"`
+	SyncMode              bool     `json:"sync_mode,omitempty"`
+	EnableSafetyChecker   *bool    `json:"enable_safety_checker,omitempty"`
+	OutputFormat          string   `json:"output_format,omitempty"`
+}
+
 // ImageOutput represents a single image result within an ImageResponse
 type ImageOutput struct {
 	URL         string `json:"url"`

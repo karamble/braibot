@@ -20,8 +20,10 @@ type ImageRequest struct {
 	OutputFormat        string   // Optional format (e.g., flux-pro)
 	NegativePrompt      string   // Optional negative prompt (e.g., hidream)
 	GuidanceScale       *float64 // Optional guidance scale (e.g., hidream)
-	AspectRatio         string   // Optional aspect ratio string (e.g., flux-ultra)
-	Raw                 *bool    // Optional raw flag (e.g., flux-ultra)
+	AspectRatio           string   // Optional aspect ratio string (e.g., flux-ultra)
+	Raw                   *bool    // Optional raw flag (e.g., flux-ultra)
+	Acceleration          string   // Optional acceleration level (e.g., flux-2: none, regular, high)
+	EnablePromptExpansion *bool    // Optional prompt expansion (e.g., flux-2)
 }
 
 // ImageResult represents the result of an image generation

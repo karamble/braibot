@@ -62,7 +62,7 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 
 				// Get current model selections
 				helpMsg += "🎯 **Your Current Model Selections:**\n"
-				for _, cmdType := range []string{"text2image", "text2speech", "image2image", "image2video", "text2video"} {
+				for _, cmdType := range []string{"text2image", "text2speech", "image2image", "image2video", "text2video", "video2video", "multi2video"} {
 					if model, exists := faladapter.GetCurrentModel(cmdType, userIDStr); exists {
 						helpMsg += fmt.Sprintf("• %s: %s ($%.2f USD)\n", cmdType, model.Name, model.PriceUSD)
 					}
@@ -107,6 +107,8 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 					"image2video": "Convert images to videos with AI",
 					"text2video":  "Generate videos from text descriptions",
 					"text2speech": "Convert text to speech with AI",
+					"video2video": "Edit and transform videos with AI",
+					"multi2video": "Generate videos from multiple reference inputs",
 				}
 
 				// Add !ai command with conditional display
@@ -157,6 +159,10 @@ func HelpCommand(registry *Registry, dbManager braibottypes.DBManagerInterface) 
 					models, modelExists = faladapter.GetModels("image2video")
 				case "text2video":
 					models, modelExists = faladapter.GetModels("text2video")
+				case "video2video":
+					models, modelExists = faladapter.GetModels("video2video")
+				case "multi2video":
+					models, modelExists = faladapter.GetModels("multi2video")
 				default:
 					return sender.SendMessage(ctx, msgCtx, fmt.Sprintf("Command: !%s\nDescription: %s", cmd.Name, cmd.Description))
 				}

@@ -115,8 +115,10 @@ func Text2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *ima
 				OutputFormat:        parsedReq.OutputFormat,
 				NegativePrompt:      parsedReq.NegativePrompt,
 				GuidanceScale:       parsedReq.GuidanceScale,
-				AspectRatio:         parsedReq.AspectRatio,
-				Raw:                 parsedReq.Raw,
+				AspectRatio:           parsedReq.AspectRatio,
+				Raw:                   parsedReq.Raw,
+				Acceleration:          parsedReq.Acceleration,
+				EnablePromptExpansion: parsedReq.EnablePromptExpansion,
 			}
 
 			// Generate image using the service
@@ -150,8 +152,10 @@ func parseTextImageArgs(args []string) (string, *image.ImageRequest, error) {
 		OutputFormat:        "",
 		NegativePrompt:      "",
 		GuidanceScale:       nil,
-		AspectRatio:         "",
-		Raw:                 nil,
+		AspectRatio:           "",
+		Raw:                   nil,
+		Acceleration:          "",
+		EnablePromptExpansion: nil,
 	}
 
 	i := 0
@@ -266,6 +270,30 @@ func parseTextImageArgs(args []string) (string, *image.ImageRequest, error) {
 			} else {
 				return "", nil, fmt.Errorf("missing value for --aspect_ratio argument")
 			}
+		case "--acceleration":
+			if i+1 < len(args) {
+				parsedReq.Acceleration = strings.ToLower(args[i+1])
+				i += 2
+			} else {
+				return "", nil, fmt.Errorf("missing value for --acceleration argument")
+			}
+		case "--enable_prompt_expansion", "--enable-prompt-expansion":
+			var val bool
+			var err error
+			if flagValue != "" {
+				val, err = strconv.ParseBool(flagValue)
+				if err != nil {
+					return "", nil, fmt.Errorf("invalid value for --enable_prompt_expansion: '%s'. Must be true or false", flagValue)
+				}
+				i++
+			} else if i+1 < len(args) && (strings.ToLower(args[i+1]) == "true" || strings.ToLower(args[i+1]) == "false") {
+				val, _ = strconv.ParseBool(args[i+1])
+				i += 2
+			} else {
+				val = true
+				i++
+			}
+			parsedReq.EnablePromptExpansion = &val
 		case "--raw":
 			var val bool
 			var err error
