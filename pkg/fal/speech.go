@@ -27,7 +27,6 @@ func (c *Client) GenerateSpeech(ctx context.Context, req interface{}) (*AudioRes
 	switch r := req.(type) {
 	case *MinimaxTTSRequest:
 		modelName = "minimax-tts/text-to-speech"
-		endpoint = "/" + modelName // Assuming endpoint matches model name
 
 		// Validate options based on request values
 		currentOpts := MinimaxTTSOptions{
@@ -86,7 +85,6 @@ func (c *Client) GenerateSpeech(ctx context.Context, req interface{}) (*AudioRes
 
 	case *ElevenLabsTTSRequest:
 		modelName = "elevenlabs/tts/turbo-v2.5"
-		endpoint = "/elevenlabs/tts/turbo-v2.5"
 
 		// Validate options
 		currentOpts := ElevenLabsTTSOptions{
@@ -144,7 +142,6 @@ func (c *Client) GenerateSpeech(ctx context.Context, req interface{}) (*AudioRes
 
 	case *ElevenLabsVoiceChangerRequest:
 		modelName = "elevenlabs-voice-changer"
-		endpoint = "/elevenlabs/voice-changer"
 
 		// Validate required field
 		if r.AudioURL == "" {
@@ -200,13 +197,15 @@ func (c *Client) GenerateSpeech(ctx context.Context, req interface{}) (*AudioRes
 		return nil, fmt.Errorf("unsupported speech request type: %T", req)
 	}
 
-	// Validate the requested model (check both text2speech and audio2audio types)
-	if _, exists := GetModel(modelName, "text2speech"); !exists {
-		if _, exists := GetModel(modelName, "audio2audio"); !exists {
-			return nil, &Error{
-				Code:    "INVALID_MODEL",
-				Message: fmt.Sprintf("invalid or unsupported model %s", modelName),
-			}
+	// Validate the requested model and set endpoint from model definition
+	if modelDef, exists := GetModel(modelName, "text2speech"); exists {
+		endpoint = modelDef.Endpoint
+	} else if modelDef, exists := GetModel(modelName, "audio2audio"); exists {
+		endpoint = modelDef.Endpoint
+	} else {
+		return nil, &Error{
+			Code:    "INVALID_MODEL",
+			Message: fmt.Sprintf("invalid or unsupported model %s", modelName),
 		}
 	}
 

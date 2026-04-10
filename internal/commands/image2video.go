@@ -22,10 +22,10 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 	model, exists := faladapter.GetCurrentModel("image2video", "") // Empty string for global default
 	if !exists {
 		// Fallback to a default description if no model is found
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "image2video",
 			Description: "Generate a video from an image using AI",
-		}
+		}}
 	}
 
 	// Create the command description using the model's description
@@ -71,16 +71,14 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			prompt, imageURL, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, resolution, generateAudioPtr, endImageURL, seedPtr, err := parser.Parse(args, true) // Expect Image URL
+			parsed, err := parser.Parse(args, true) // Expect Image URL
 			if err != nil {
 				return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Argument error: %v", err))
 			}
-			if imageURL == "" { // Image URL is required for image2video
+			if parsed.ImageURL == "" { // Image URL is required for image2video
 				return msgSender.SendMessage(ctx, msgCtx, "Please provide an image URL as the first argument.")
 			}
-			if prompt == "" {
-				// Prompt might be optional for some image2video models, but let's require it for now
-				// unless specific models indicate otherwise.
+			if parsed.Prompt == "" {
 				return msgSender.SendMessage(ctx, msgCtx, "Please provide a text prompt describing the desired animation.")
 			}
 
@@ -106,6 +104,7 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 			progress := NewCommandProgressCallback(bot, msgCtx.Nick, msgCtx.Sender, "image2video", msgCtx.IsPM, msgCtx.GC)
 
 			// Determine effective duration for per-second pricing
+			duration := parsed.Duration
 			originalUserDuration := duration
 			durInt := 0
 			if duration != "" {
@@ -147,30 +146,32 @@ func Image2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *vi
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
 			req := &video.VideoRequest{
-				Prompt:          prompt,
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelType: "image2video",
+					Progress:  progress,
+					UserNick:  msgCtx.Nick,
+					UserID:    userID,
+					PriceUSD:  totalCost,
+					IsPM:      msgCtx.IsPM,
+					GC:        msgCtx.GC,
+				},
+				Prompt:          parsed.Prompt,
 				Duration:        duration,
-				AspectRatio:     aspectRatio,
-				Resolution:      resolution,
-				NegativePrompt:  negativePrompt,
-				CFGScale:        cfgScalePtr,
-				PromptOptimizer: promptOptimizerPtr,
-				GenerateAudio:   generateAudioPtr,
-				EndImageURL:     endImageURL,
-				Seed:            seedPtr,
-				ModelType:       "image2video",
-				Progress:        progress,
-				UserNick:        msgCtx.Nick,
-				UserID:          userID,
-				PriceUSD:        totalCost,
-				IsPM:            msgCtx.IsPM,
-				GC:              msgCtx.GC,
+				AspectRatio:     parsed.AspectRatio,
+				Resolution:      parsed.Resolution,
+				NegativePrompt:  parsed.NegativePrompt,
+				CFGScale:        parsed.CFGScale,
+				PromptOptimizer: parsed.PromptOptimizer,
+				GenerateAudio:   parsed.GenerateAudio,
+				EndImageURL:     parsed.EndImageURL,
+				Seed:            parsed.Seed,
 			}
 
 			// Set the correct image URL field based on the model
 			if model.Name == "minimax/video-01-subject-reference" {
-				req.SubjectReferenceImageURL = imageURL // Parsed URL is the subject reference
+				req.SubjectReferenceImageURL = parsed.ImageURL // Parsed URL is the subject reference
 			} else {
-				req.ImageURL = imageURL // For other models, it's the standard image URL
+				req.ImageURL = parsed.ImageURL // For other models, it's the standard image URL
 			}
 
 			// Inform user of pricing and total cost

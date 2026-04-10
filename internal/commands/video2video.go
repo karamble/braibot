@@ -20,10 +20,10 @@ func Video2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("video2video", "")
 	if !exists {
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "video2video",
 			Description: "Edit/transform a video",
-		}
+		}}
 	}
 	description := fmt.Sprintf("%s. Usage: !video2video [video_url] [prompt] [--options]", model.Description)
 
@@ -67,11 +67,11 @@ func Video2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			videoURL, prompt, duration, keepAudio, imageURLs, err := parser.ParseVideo2Video(args)
+			parsed, err := parser.ParseVideo2Video(args)
 			if err != nil {
 				return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Argument error: %v", err))
 			}
-			if prompt == "" {
+			if parsed.Prompt == "" {
 				return msgSender.SendMessage(ctx, msgCtx, "Please provide a prompt describing the desired video edit.")
 			}
 
@@ -88,6 +88,7 @@ func Video2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 			}
 
 			// Determine effective duration for billing
+			duration := parsed.Duration
 			durInt := 0
 			if duration != "" {
 				durInt, err = strconv.Atoi(duration)
@@ -112,19 +113,21 @@ func Video2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
 			req := &video.VideoRequest{
-				Prompt:    prompt,
-				VideoURL:  videoURL,
-				KeepAudio: keepAudio,
-				ImageURLs: imageURLs,
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelType: "video2video",
+					ModelName: model.Name,
+					Progress:  progress,
+					UserNick:  msgCtx.Nick,
+					UserID:    userID,
+					PriceUSD:  totalCost,
+					IsPM:      msgCtx.IsPM,
+					GC:        msgCtx.GC,
+				},
+				Prompt:    parsed.Prompt,
+				VideoURL:  parsed.VideoURL,
+				KeepAudio: parsed.KeepAudio,
+				ImageURLs: parsed.ImageURLs,
 				Duration:  duration,
-				ModelType:  "video2video",
-				Progress:   progress,
-				UserNick:   msgCtx.Nick,
-				UserID:     userID,
-				PriceUSD:   totalCost,
-				IsPM:       msgCtx.IsPM,
-				GC:         msgCtx.GC,
-				ModelName:  model.Name,
 			}
 
 			// Inform user of pricing and total cost

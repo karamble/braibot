@@ -22,10 +22,10 @@ func Multi2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("multi2video", "")
 	if !exists {
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "multi2video",
 			Description: "Generate a video from a prompt plus reference images, videos, and audio",
-		}
+		}}
 	}
 	description := fmt.Sprintf("%s. Usage: !multi2video [prompt] [--image1..9 url] [--video1..3 url] [--audio1..3 url] [--options]", model.Description)
 
@@ -69,17 +69,17 @@ func Multi2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			prompt, duration, aspectRatio, resolution, generateAudioPtr, seedPtr, imageURLs, videoURLs, audioURLs, err := parser.ParseMulti2Video(args)
+			parsed, err := parser.ParseMulti2Video(args)
 			if err != nil {
 				return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Argument error: %v", err))
 			}
-			if prompt == "" {
+			if parsed.Prompt == "" {
 				return msgSender.SendMessage(ctx, msgCtx, "Please provide a text prompt describing the desired video.")
 			}
-			if len(imageURLs) == 0 && len(videoURLs) == 0 && len(audioURLs) == 0 {
+			if len(parsed.ImageURLs) == 0 && len(parsed.VideoURLs) == 0 && len(parsed.AudioURLs) == 0 {
 				return msgSender.SendMessage(ctx, msgCtx, "At least one reference input (--image1, --video1, or --audio1) is required. For a purely text-driven video, use !text2video instead.")
 			}
-			if len(audioURLs) > 0 && len(imageURLs) == 0 && len(videoURLs) == 0 {
+			if len(parsed.AudioURLs) > 0 && len(parsed.ImageURLs) == 0 && len(parsed.VideoURLs) == 0 {
 				return msgSender.SendMessage(ctx, msgCtx, "Reference audio requires at least one reference image or video.")
 			}
 
@@ -96,6 +96,7 @@ func Multi2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 			}
 
 			// Determine effective duration for per-second pricing
+			duration := parsed.Duration
 			originalUserDuration := duration
 			durInt := 0
 			if duration != "" {
@@ -131,23 +132,25 @@ func Multi2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
 			req := &video.VideoRequest{
-				Prompt:        prompt,
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelType: "multi2video",
+					ModelName: model.Name,
+					Progress:  progress,
+					UserNick:  msgCtx.Nick,
+					UserID:    userID,
+					PriceUSD:  totalCost,
+					IsPM:      msgCtx.IsPM,
+					GC:        msgCtx.GC,
+				},
+				Prompt:        parsed.Prompt,
 				Duration:      duration,
-				AspectRatio:   aspectRatio,
-				Resolution:    resolution,
-				GenerateAudio: generateAudioPtr,
-				ImageURLs:     imageURLs,
-				VideoURLs:     videoURLs,
-				AudioURLs:     audioURLs,
-				Seed:          seedPtr,
-				ModelType:     "multi2video",
-				Progress:      progress,
-				UserNick:      msgCtx.Nick,
-				UserID:        userID,
-				PriceUSD:      totalCost,
-				IsPM:          msgCtx.IsPM,
-				GC:            msgCtx.GC,
-				ModelName:     model.Name,
+				AspectRatio:   parsed.AspectRatio,
+				Resolution:    parsed.Resolution,
+				GenerateAudio: parsed.GenerateAudio,
+				ImageURLs:     parsed.ImageURLs,
+				VideoURLs:     parsed.VideoURLs,
+				AudioURLs:     parsed.AudioURLs,
+				Seed:          parsed.Seed,
 			}
 
 			// Inform user of pricing and total cost
@@ -156,7 +159,7 @@ func Multi2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vi
 					msg := fmt.Sprintf(
 						"Model: %s\n💰 Price: $%.2f per video second\nRequested duration: %d seconds\nTotal cost: $%.2f = $%.2f/sec × %d sec\nReference inputs: %d image(s), %d video(s), %d audio(s)",
 						model.Name, model.PriceUSD, durInt, totalCost, model.PriceUSD, durInt,
-						len(imageURLs), len(videoURLs), len(audioURLs),
+						len(parsed.ImageURLs), len(parsed.VideoURLs), len(parsed.AudioURLs),
 					)
 					if originalUserDuration == "" {
 						msg += fmt.Sprintf("\n(No duration specified, using default duration of %d seconds.)", durInt)

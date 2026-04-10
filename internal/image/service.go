@@ -138,14 +138,8 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	// Send seed information if available
 	if imageResp.Seed != 0 {
 		seedMsg := fmt.Sprintf("🌱 Seed for the request: %d", imageResp.Seed)
-		if req.IsPM {
-			if err := s.bot.SendPM(ctx, req.UserNick, seedMsg); err != nil {
-				fmt.Printf("WARN: Failed to send seed message to %s: %v\n", req.UserNick, err)
-			}
-		} else {
-			if err := s.bot.SendGC(ctx, req.GC, seedMsg); err != nil {
-				fmt.Printf("WARN: Failed to send seed message to GC %s: %v\n", req.GC, err)
-			}
+		if err := utils.SendToUser(ctx, s.bot, req.IsPM, req.UserNick, req.GC, seedMsg); err != nil {
+			fmt.Printf("WARN: Failed to send seed message: %v\n", err)
 		}
 	}
 
@@ -179,20 +173,7 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	finalMessage := fmt.Sprintf("Finished processing request. Sent %d of %d generated image(s).\n\n", successfullySentCount, numImagesGenerated)
 
 	if req.IsPM {
-		if s.billingEnabled {
-			if billingAttempted && billingSucceeded {
-				finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
-					chargedDCR,
-					totalExpectedCostUSD, // Using the original cost USD for consistency
-					finalBalanceDCR)
-			} else if billingAttempted && !billingSucceeded {
-				finalMessage += fmt.Sprintf("⚠️ Billing failed after sending results. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
-			} else {
-				finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
-			}
-		} else {
-			finalMessage += "Billing is disabled. No charge was applied."
-		}
+		finalMessage += utils.FormatBillingConfirmation("results", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, totalExpectedCostUSD, finalBalanceDCR)
 		if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
 			// Log error, but don't fail the whole operation just because the final message failed
 			// fmt.Printf("ERROR: Failed to send final confirmation message to %s: %v\n", req.UserNick, err) // Removed

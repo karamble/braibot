@@ -303,13 +303,11 @@ type ModelDefinition interface {
 
 // Model represents a Fal.ai model
 type Model struct {
-	Name             string
-	Description      string
-	PriceUSD         float64
-	Type             string
-	HelpDoc          string
-	Options          interface{} // Model-specific options
-	PerSecondPricing bool        // Indicates if model uses per-second billing
+	Name        string
+	Description string
+	Type        string
+	Endpoint    string      // API endpoint path (e.g. "/veo2/image-to-video") or full URL
+	Options     interface{} // Model-specific options
 }
 
 // BaseImageRequest represents the base fields for an image generation request

@@ -149,9 +149,7 @@ func realMain() error {
 			log.Infof("Received PM from %s: %s", pm.Nick, pm.Msg.Message)
 
 			// Convert UID to string ID for tracking
-			var userID zkidentity.ShortID
-			userID.FromBytes(pm.Uid)
-			userIDStr := userID.String()
+			userIDStr := utils.GetUserIDString(pm.Uid)
 
 			// Check if the message is a command
 			if cmd, args, isCmd := commands.IsCommand(pm.Msg.Message); isCmd {
@@ -251,10 +249,6 @@ func realMain() error {
 			}
 			log.Infof("Received GC message from %s in %s: %s", gc.Nick, gc.GcAlias, gc.Msg.Message)
 
-			// Convert UID to string ID for tracking
-			var userID zkidentity.ShortID
-			userID.FromBytes(gc.Uid)
-
 			// Check if the message is a command
 			if cmd, args, isCmd := commands.IsCommand(gc.Msg.Message); isCmd {
 				if command, exists := commandRegistry.Get(cmd); exists {
@@ -333,9 +327,7 @@ func realMain() error {
 				continue
 			}
 			// Convert UID to string ID for database
-			var userID zkidentity.ShortID
-			userID.FromBytes(tip.Uid)
-			userIDStr := userID.String()
+			userIDStr := utils.GetUserIDString(tip.Uid)
 
 			// Update user's balance in the database
 			err = dbManager.UpdateBalance(userIDStr, tip.AmountMatoms)

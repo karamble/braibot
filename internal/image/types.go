@@ -1,23 +1,15 @@
 package image
 
 import (
-	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/karamble/braibot/pkg/fal"
+	braibottypes "github.com/karamble/braibot/internal/types"
 )
 
 // ImageRequest represents a request to generate an image
 type ImageRequest struct {
+	braibottypes.GenerationRequest
 	Prompt    string
 	ImageURL  string // Optional for text2image
-	ModelType string // "text2image" or "image2image"
-	ModelName string
-	Progress  fal.ProgressCallback
-	UserNick  string
-	UserID    zkidentity.ShortID
-	PriceUSD  float64
 	NumImages int    // Number of images requested (for models that support it)
-	IsPM      bool   // Whether this is a private message
-	GC        string // Group chat name if not PM
 
 	// Model-specific options parsed from command args
 	ImageSize           string   // e.g., "landscape_4_3"

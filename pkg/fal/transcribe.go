@@ -13,7 +13,13 @@ import (
 // Transcribe transcribes audio to text using Scribe V2
 func (c *Client) Transcribe(ctx context.Context, req *ScribeV2Request) (*ScribeV2Response, error) {
 	const modelName = "elevenlabs/speech-to-text/scribe-v2"
-	const endpoint = "/elevenlabs/speech-to-text/scribe-v2"
+
+	// Get endpoint from model definition
+	modelDef, modelExists := GetModel(modelName, "audio2text")
+	if !modelExists {
+		return nil, fmt.Errorf("model not found: %s", modelName)
+	}
+	endpoint := modelDef.Endpoint
 
 	// Validate audio_url is provided
 	if req.AudioURL == "" {

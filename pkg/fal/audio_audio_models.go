@@ -13,26 +13,10 @@ func (m *elevenlabsVoiceChangerModel) Define() Model {
 	defaults := defaultOpts.GetDefaultValues()
 
 	return Model{
-		Name:             "elevenlabs-voice-changer",
-		Description:      "ElevenLabs Voice Changer - Transform audio with different voices",
-		PriceUSD:         0.50, // Placeholder: actual is $0.30/min
-		Type:             "audio2audio",
-		PerSecondPricing: true,
-		HelpDoc: `Usage: !audio2audio [audio_url] [options]
-
-Price: $0.30 per minute
-
-Parameters:
-- audio_url: URL of audio to transform (required)
-- --voice: Voice name (default: Rachel)
-- --remove_background_noise: Remove background noise (optional)
-- --seed: Random seed for reproducibility (optional)
-- --output_format: Output format (default: mp3_44100_128)
-
-Available Voices:
-- Aria, Roger, Sarah, Laura, Charlie, George, Callum
-- River, Liam, Charlotte, Alice, Matilda, Will, Jessica
-- Eric, Chris, Brian, Daniel, Lily, Bill, Rachel`,
+		Name:        "elevenlabs-voice-changer",
+		Description: "ElevenLabs Voice Changer - Transform audio with different voices",
+		Type:        "audio2audio",
+		Endpoint:    "/elevenlabs/voice-changer",
 		Options: &ElevenLabsVoiceChangerOptions{
 			Voice:        defaults["voice"].(string),
 			OutputFormat: defaults["output_format"].(string),

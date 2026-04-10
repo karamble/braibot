@@ -23,10 +23,10 @@ func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *im
 	model, exists := faladapter.GetCurrentModel("image2image", "") // Empty string for global default
 	if !exists {
 		// Fallback to a default description if no model is found
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "image2image",
 			Description: "Transform an image using AI",
-		}
+		}}
 	}
 
 	// Create the command description using the model's description
@@ -97,13 +97,15 @@ func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *im
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
 			req := &imgservice.ImageRequest{
-				ImageURL:  imageURL,
-				ModelType: "image2image",
-				ModelName: model.Name,
-				Progress:  progress,
-				UserNick:  msgCtx.Nick,
-				UserID:    userID,
-				PriceUSD:  model.PriceUSD,
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelType: "image2image",
+					ModelName: model.Name,
+					Progress:  progress,
+					UserNick:  msgCtx.Nick,
+					UserID:    userID,
+					PriceUSD:  model.PriceUSD,
+				},
+				ImageURL: imageURL,
 			}
 
 			// Generate image using the service

@@ -23,10 +23,10 @@ func Text2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *ima
 	model, exists := faladapter.GetCurrentModel("text2image", "") // Empty string for global default
 	if !exists {
 		// Fallback to a default description if no model is found
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "text2image",
 			Description: "Generate an image from text using AI",
-		}
+		}}
 	}
 
 	// Create the command description using the model's description
@@ -95,13 +95,17 @@ func Text2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *ima
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
 			req := &image.ImageRequest{
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelType: "text2image",
+					ModelName: model.Name,
+					Progress:  progress,
+					UserNick:  msgCtx.Nick,
+					UserID:    userID,
+					PriceUSD:  model.PriceUSD,
+					IsPM:      msgCtx.IsPM,
+					GC:        msgCtx.GC,
+				},
 				Prompt:              prompt,
-				ModelType:           "text2image",
-				ModelName:           model.Name,
-				Progress:            progress,
-				UserNick:            msgCtx.Nick,
-				UserID:              userID,
-				PriceUSD:            model.PriceUSD,
 				NumImages:           parsedReq.NumImages,
 				ImageSize:           parsedReq.ImageSize,
 				Seed:                parsedReq.Seed,
@@ -113,8 +117,6 @@ func Text2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *ima
 				GuidanceScale:       parsedReq.GuidanceScale,
 				AspectRatio:         parsedReq.AspectRatio,
 				Raw:                 parsedReq.Raw,
-				IsPM:                msgCtx.IsPM,
-				GC:                  msgCtx.GC,
 			}
 
 			// Generate image using the service

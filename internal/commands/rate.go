@@ -2,33 +2,11 @@ package commands
 
 import (
 	"context"
-	// "encoding/json"
 	"fmt"
-	"strings"
-
-	// "net/http"
-	// "time"
 
 	braibottypes "github.com/karamble/braibot/internal/types"
-	"github.com/karamble/braibot/internal/utils" // Added import for utils
+	"github.com/karamble/braibot/internal/utils"
 )
-
-// formatNumber formats a float64 with thousands separators
-func formatNumber(num float64, decimals int) string {
-	// Split into integer and decimal parts
-	intPart := int64(num)
-	decPart := num - float64(intPart)
-
-	// Format integer part with thousands separators
-	intStr := fmt.Sprintf("%'d", intPart)
-
-	// Format decimal part
-	decStr := fmt.Sprintf("%.*f", decimals, decPart)
-	decStr = strings.TrimPrefix(decStr, "0.")
-
-	// Combine parts
-	return intStr + "." + decStr
-}
 
 // RateCommand returns the rate command
 func RateCommand() braibottypes.Command {

@@ -21,10 +21,10 @@ func Text2SpeechCommand(bot *kit.Bot, cfg *botconfig.BotConfig, speechService *s
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("text2speech", "") // Empty string for global default
 	if !exists {
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "text2speech",
 			Description: "Convert text to speech",
-		}
+		}}
 	}
 	description := fmt.Sprintf("%s. Usage: !text2speech [text]", model.Description)
 
@@ -80,10 +80,12 @@ func Text2SpeechCommand(bot *kit.Bot, cfg *botconfig.BotConfig, speechService *s
 
 			// Create the speech request
 			req := speech.SpeechRequest{
-				Text:      text,
-				IsPM:      msgCtx.IsPM,
-				GC:        msgCtx.GC,
-				ModelName: model.Name, // Use the model name in the request
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelName: model.Name,
+					IsPM:      msgCtx.IsPM,
+					GC:        msgCtx.GC,
+				},
+				Text: text,
 			}
 
 			// Process the speech

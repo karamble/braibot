@@ -21,10 +21,10 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 	// Get the current model to use its description
 	model, exists := faladapter.GetCurrentModel("text2video", "") // Empty string for global default
 	if !exists {
-		model = fal.Model{
+		model = faladapter.AppModel{Model: fal.Model{
 			Name:        "text2video",
 			Description: "Generate a video from text",
-		}
+		}}
 	}
 	description := fmt.Sprintf("%s. Usage: !text2video [prompt] [--duration 5] [--aspect 16:9]", model.Description)
 
@@ -68,11 +68,11 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 
 			// Parse arguments using the video parser
 			parser := video.NewArgumentParser()
-			prompt, _, duration, aspectRatio, negativePrompt, cfgScalePtr, promptOptimizerPtr, resolution, generateAudioPtr, _, seedPtr, err := parser.Parse(args, false) // No Image URL expected
+			parsed, err := parser.Parse(args, false) // No Image URL expected
 			if err != nil {
 				return msgSender.SendMessage(ctx, msgCtx, fmt.Sprintf("Argument error: %v", err))
 			}
-			if prompt == "" {
+			if parsed.Prompt == "" {
 				return msgSender.SendMessage(ctx, msgCtx, "Please provide a text prompt describing the desired video.")
 			}
 
@@ -89,6 +89,7 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 			}
 
 			// Determine effective duration
+			duration := parsed.Duration
 			originalUserDuration := duration
 			durInt := 0
 			if duration != "" {
@@ -138,23 +139,25 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
 			req := &video.VideoRequest{
-				Prompt:          prompt,
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelType: "text2video",
+					ModelName: model.Name,
+					Progress:  progress,
+					UserNick:  msgCtx.Nick,
+					UserID:    userID,
+					PriceUSD:  totalCost,
+					IsPM:      msgCtx.IsPM,
+					GC:        msgCtx.GC,
+				},
+				Prompt:          parsed.Prompt,
 				Duration:        duration,
-				AspectRatio:     aspectRatio,
-				Resolution:      resolution,
-				NegativePrompt:  negativePrompt,
-				CFGScale:        cfgScalePtr,
-				PromptOptimizer: promptOptimizerPtr,
-				GenerateAudio:   generateAudioPtr,
-				Seed:            seedPtr,
-				ModelType:       "text2video",
-				Progress:        progress,
-				UserNick:        msgCtx.Nick,
-				UserID:          userID,
-				PriceUSD:        totalCost,
-				IsPM:            msgCtx.IsPM,
-				GC:              msgCtx.GC,
-				ModelName:       model.Name,
+				AspectRatio:     parsed.AspectRatio,
+				Resolution:      parsed.Resolution,
+				NegativePrompt:  parsed.NegativePrompt,
+				CFGScale:        parsed.CFGScale,
+				PromptOptimizer: parsed.PromptOptimizer,
+				GenerateAudio:   parsed.GenerateAudio,
+				Seed:            parsed.Seed,
 			}
 
 			// Inform user of pricing and total cost

@@ -1,12 +1,12 @@
 package video
 
 import (
-	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/karamble/braibot/pkg/fal"
+	braibottypes "github.com/karamble/braibot/internal/types"
 )
 
 // VideoRequest represents a request to generate a video
 type VideoRequest struct {
+	braibottypes.GenerationRequest
 	Prompt                   string
 	ImageURL                 string   // Optional, used by some image2video models (Veo2, Kling)
 	SubjectReferenceImageURL string   // Optional, used by minimax-subject-reference
@@ -24,14 +24,6 @@ type VideoRequest struct {
 	VideoURLs                []string // Optional, up to 3 reference videos for Seedance multi2video
 	AudioURLs                []string // Optional, up to 3 reference audio files for Seedance multi2video
 	Seed                     *int64   // Optional, for reproducibility (Seedance 2.0)
-	ModelType                string   // "text2video" or "image2video"
-	ModelName                string   // Name of the model to use (set by handler)
-	Progress                 fal.ProgressCallback
-	UserNick                 string
-	UserID                   zkidentity.ShortID
-	PriceUSD                 float64
-	IsPM                     bool   // Whether this is a private message
-	GC                       string // Group chat name if not PM
 }
 
 // VideoResult represents the result of a video generation

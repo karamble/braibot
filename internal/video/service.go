@@ -71,7 +71,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 	}
 
 	// 4. Get current model name
-	var model fal.Model
+	var model faladapter.AppModel
 	var exists bool
 	if req.ModelName != "" {
 		model, exists = faladapter.GetModel(req.ModelName, req.ModelType)
@@ -89,11 +89,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 	falReq, err := createFalVideoRequest(req, model.Name)
 	if err != nil {
 		// Handle error from request creation (e.g., unsupported model)
-		if req.IsPM {
-			s.bot.SendPM(ctx, req.UserID.String(), fmt.Sprintf("Error creating generation request: %v", err))
-		} else {
-			s.bot.SendGC(ctx, req.GC, fmt.Sprintf("Error creating generation request: %v", err))
-		}
+		utils.SendToUser(ctx, s.bot, req.IsPM, req.UserID.String(), req.GC, fmt.Sprintf("Error creating generation request: %v", err))
 		return &VideoResult{Success: false, Error: err}, err // No billing occurred
 	}
 
@@ -155,18 +151,7 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 		finalMessage = "Video generation completed, but failed to send the result.\n\n"
 	}
 	if req.IsPM {
-		if s.billingEnabled {
-			if billingAttempted && billingSucceeded {
-				finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
-					chargedDCR, req.PriceUSD, finalBalanceDCR)
-			} else if billingAttempted && !billingSucceeded {
-				finalMessage += fmt.Sprintf("⚠️ Billing failed after sending video. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
-			} else {
-				finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
-			}
-		} else {
-			finalMessage += "Billing is disabled. No charge was applied."
-		}
+		finalMessage += utils.FormatBillingConfirmation("video", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, req.PriceUSD, finalBalanceDCR)
 		if err := s.bot.SendPM(ctx, req.UserID.String(), finalMessage); err != nil {
 			// fmt.Printf("ERROR: Failed to send final confirmation message (video) to %s: %v\n", req.UserNick, err) // Removed
 		}
