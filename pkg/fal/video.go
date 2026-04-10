@@ -31,12 +31,12 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 	switch r := req.(type) {
 	case *Veo2Request:
 		modelName = "veo2"
-		endpoint = "/veo2/image-to-video"
 		// Get model options
 		model, exists := GetModel(modelName, "image2video") // Veo2 is image2video
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*Veo2Options)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -68,16 +68,13 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 		modelName = r.BaseVideoRequest.Model
 		model, exists := GetModel(modelName, "text2video") // Check both types
-		modelTypeForPath := "text-to-video"                // Default for path construction
 		if !exists {
 			model, exists = GetModel(modelName, "image2video")
-			modelTypeForPath = "image-to-video" // Update path type if found as image2video
 		}
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
-		// Use modelTypeForPath (image-to-video or text-to-video) for the endpoint path
-		endpoint = "/kling-video/v2/master/" + modelTypeForPath
+		endpoint = model.Endpoint
 
 		// Get model options for validation and defaults
 		options, ok := model.Options.(*KlingVideoOptions)
@@ -136,11 +133,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *MinimaxDirectorRequest:
 		modelName = "minimax/video-01-director"
-		endpoint = "/minimax/video-01-director" // Corrected relative path
 		model, exists := GetModel(modelName, "text2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*MinimaxDirectorOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -168,11 +165,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *MinimaxSubjectReferenceRequest:
 		modelName = "minimax/video-01-subject-reference"
-		endpoint = "/minimax/video-01-subject-reference" // Correct relative path
 		model, exists := GetModel(modelName, "image2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*MinimaxSubjectReferenceOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -201,11 +198,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *MinimaxLiveRequest:
 		modelName = "minimax/video-01-live"
-		endpoint = "/minimax/video-01-live/image-to-video" // Correct relative path
 		model, exists := GetModel(modelName, "image2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*MinimaxLiveOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -234,11 +231,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *MinimaxVideo01Request:
 		modelName = "minimax/video-01"
-		endpoint = "/minimax/video-01" // Correct relative path
 		model, exists := GetModel(modelName, "text2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*MinimaxVideo01Options)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -275,51 +272,8 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 				}
 			}
 		}
-		// Determine endpoint based on retrieved model
-		switch model.Name {
-		case "veo2":
-			endpoint = "/veo2/image-to-video"
-		case "veo3":
-			endpoint = "/veo3/image-to-video"
-		case "veo31fast":
-			endpoint = "/veo3.1/fast/image-to-video"
-		case "kling-video-image":
-			endpoint = "/kling-video/v2/master/image-to-video"
-		case "kling-video-text":
-			endpoint = "/kling-video/v2/master/text-to-video"
-		case "minimax/video-01-director":
-			endpoint = "/minimax/video-01-director"
-		case "minimax/video-01-subject-reference":
-			endpoint = "/minimax/video-01-subject-reference"
-		case "minimax/video-01-live":
-			endpoint = "/minimax/video-01-live/image-to-video"
-		case "minimax/video-01":
-			endpoint = "/minimax/video-01"
-		case "minimax/hailuo-02":
-			endpoint = "/minimax/hailuo-02/standard/text-to-video"
-		case "grok-imagine-video":
-			endpoint = "https://queue.fal.run/xai/grok-imagine-video/image-to-video"
-		case "grok-imagine-video-text":
-			endpoint = "https://queue.fal.run/xai/grok-imagine-video/text-to-video"
-		case "kling-video-v3-text":
-			endpoint = "/kling-video/v3/standard/text-to-video"
-		case "kling-video-v3-pro-text":
-			endpoint = "/kling-video/v3/pro/text-to-video"
-		case "kling-video-v3-image":
-			endpoint = "/kling-video/v3/standard/image-to-video"
-		case "kling-video-v3-pro-image":
-			endpoint = "/kling-video/v3/pro/image-to-video"
-		case "kling-video-o3-text":
-			endpoint = "/kling-video/o3/standard/text-to-video"
-		case "kling-video-o3-pro-text":
-			endpoint = "/kling-video/o3/pro/text-to-video"
-		case "kling-video-o3-edit":
-			endpoint = "/kling-video/o3/standard/video-to-video/edit"
-		case "kling-video-o3-pro-edit":
-			endpoint = "/kling-video/o3/pro/video-to-video/edit"
-		default:
-			return nil, fmt.Errorf("unsupported model: %s", model.Name)
-		}
+		// Use endpoint from model definition
+		endpoint = model.Endpoint
 		reqBody = map[string]interface{}{ // Assume base fields
 			"prompt":    r.Prompt,
 			"image_url": r.ImageURL,
@@ -333,11 +287,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *MinimaxHailuo02Request:
 		modelName = "minimax/hailuo-02"
-		endpoint = "/minimax/hailuo-02/standard/text-to-video"
 		model, exists := GetModel(modelName, "text2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*MinimaxHailuo02Options)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -368,11 +322,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *Veo3Request:
 		modelName = "veo3"
-		endpoint = "/veo3/image-to-video"
 		model, exists := GetModel(modelName, "image2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*Veo3Options)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -431,11 +385,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *Veo31FastRequest:
 		modelName = "veo31fast"
-		endpoint = "/veo3.1/fast/image-to-video"
 		model, exists := GetModel(modelName, "image2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*Veo31FastOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -494,12 +448,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *KlingVideoV26MotionControlRequest:
 		modelName = "kling-video-v26-motion-control"
-		endpoint = "/kling-video/v2.6/standard/motion-control"
-
 		model, exists := GetModel(modelName, "video2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 
 		options, ok := model.Options.(*KlingVideoV26MotionControlOptions)
 		if !ok {
@@ -547,12 +500,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *GrokImagineVideoRequest:
 		modelName = "grok-imagine-video"
-		endpoint = "https://queue.fal.run/xai/grok-imagine-video/image-to-video"
-
 		model, exists := GetModel(modelName, "image2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 
 		options, ok := model.Options.(*GrokImagineVideoOptions)
 		if !ok {
@@ -598,20 +550,6 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *KlingVideoV3Request:
 		modelName = r.BaseVideoRequest.Model
-		// Map model name to endpoint
-		switch modelName {
-		case "kling-video-v3-text":
-			endpoint = "/kling-video/v3/standard/text-to-video"
-		case "kling-video-v3-pro-text":
-			endpoint = "/kling-video/v3/pro/text-to-video"
-		case "kling-video-v3-image":
-			endpoint = "/kling-video/v3/standard/image-to-video"
-		case "kling-video-v3-pro-image":
-			endpoint = "/kling-video/v3/pro/image-to-video"
-		default:
-			return nil, fmt.Errorf("unsupported Kling v3 model: %s", modelName)
-		}
-
 		// Determine model type for lookup
 		modelType := "text2video"
 		if modelName == "kling-video-v3-image" || modelName == "kling-video-v3-pro-image" {
@@ -622,6 +560,7 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*KlingVideoV3Options)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -689,14 +628,12 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *SeedanceRequest:
 		modelName = r.BaseVideoRequest.Model
-		// Map model name to endpoint and modality
+		// Determine modality from model name
 		var modelType string
 		switch modelName {
 		case "seedance-2.0-image":
-			endpoint = "https://queue.fal.run/bytedance/seedance-2.0/image-to-video"
 			modelType = "image2video"
 		case "seedance-2.0-text":
-			endpoint = "https://queue.fal.run/bytedance/seedance-2.0/text-to-video"
 			modelType = "text2video"
 		default:
 			return nil, fmt.Errorf("unsupported Seedance model: %s", modelName)
@@ -706,6 +643,7 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*SeedanceOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -770,12 +708,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *SeedanceReferenceRequest:
 		modelName = "seedance-2.0-reference"
-		endpoint = "https://queue.fal.run/bytedance/seedance-2.0/reference-to-video"
-
 		model, exists := GetModel(modelName, "multi2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*SeedanceReferenceOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -860,20 +797,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *KlingVideoO3TextRequest:
 		modelName = r.BaseVideoRequest.Model
-		// Map model name to endpoint
-		switch modelName {
-		case "kling-video-o3-text":
-			endpoint = "/kling-video/o3/standard/text-to-video"
-		case "kling-video-o3-pro-text":
-			endpoint = "/kling-video/o3/pro/text-to-video"
-		default:
-			return nil, fmt.Errorf("unsupported Kling O3 text model: %s", modelName)
-		}
-
 		model, exists := GetModel(modelName, "text2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*KlingVideoO3TextOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -916,20 +844,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *KlingVideoO3EditRequest:
 		modelName = r.BaseVideoRequest.Model
-		// Map model name to endpoint
-		switch modelName {
-		case "kling-video-o3-edit":
-			endpoint = "/kling-video/o3/standard/video-to-video/edit"
-		case "kling-video-o3-pro-edit":
-			endpoint = "/kling-video/o3/pro/video-to-video/edit"
-		default:
-			return nil, fmt.Errorf("unsupported Kling O3 edit model: %s", modelName)
-		}
-
 		model, exists := GetModel(modelName, "video2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 		options, ok := model.Options.(*KlingVideoO3EditOptions)
 		if !ok {
 			return nil, fmt.Errorf("invalid options type for model %s", modelName)
@@ -961,12 +880,11 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		}
 	case *GrokImagineVideoTextRequest:
 		modelName = "grok-imagine-video-text"
-		endpoint = "https://queue.fal.run/xai/grok-imagine-video/text-to-video"
-
 		model, exists := GetModel(modelName, "text2video")
 		if !exists {
 			return nil, fmt.Errorf("model not found: %s", modelName)
 		}
+		endpoint = model.Endpoint
 
 		options, ok := model.Options.(*GrokImagineVideoTextOptions)
 		if !ok {

@@ -14,6 +14,7 @@ func (m *veo2Model) Define() Model {
 		Description: "Creates videos from images with realistic motion using Google's Veo 2 model. Base price: $2.50 for 5 seconds, $0.50 per additional second",
 		PriceUSD:    3.50,
 		Type:        "image2video",
+		Endpoint:    "/veo2/image-to-video",
 		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --aspect 16:9 --duration 5\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --aspect: Aspect ratio (16:9, 9:16, 1:1)\n• --duration: Video duration (5, 6, 7, 8)\n\nPricing:\n• Base price: $3.50 for 5 seconds\n• Additional cost: $0.50 per second beyond 5 seconds",
 		Options: &Veo2Options{
 			AspectRatio: "16:9",
@@ -32,6 +33,7 @@ func (m *klingVideoImageModel) Define() Model {
 		Description: "Convert images to video using Kling 2.0 Master. Base price: $2.0 for 5 seconds, $0.4 per additional second",
 		PriceUSD:    2.0,
 		Type:        "image2video",
+		Endpoint:    "/kling-video/v2/master/image-to-video",
 		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --duration 10 --aspect 16:9\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --duration: Video duration in seconds (default: 5, min: 5)\n• --aspect: Aspect ratio (default: 16:9)\n• --negative-prompt: Text describing what to avoid (default: blur, distort, and low quality)\n• --cfg-scale: Configuration scale (default: 0.5)\n\nPricing:\n• Base price: $2.0 for 5 seconds\n• Additional cost: $0.4 per second beyond 5 seconds",
 		Options: &KlingVideoOptions{
 			Duration:       "5",
@@ -53,6 +55,7 @@ func (m *minimaxSubjectReferenceModel) Define() Model {
 		Description: "Generate video from a subject reference image.",
 		PriceUSD:    0.8,
 		Type:        "image2video",
+		Endpoint:    "/minimax/video-01-subject-reference",
 		HelpDoc:     "Usage: !image2video [subject_reference_image_url] [prompt] [options]\nExample: !image2video https://example.com/subject.jpg a person walking --prompt-optimizer false\n\nParameters:\n• subject_reference_image_url: URL of the image to use for consistent subject appearance.\n• prompt: Description of the desired video animation.\n• --prompt-optimizer: Whether to use the model's prompt optimizer (default: true)",
 		Options: &MinimaxSubjectReferenceOptions{
 			PromptOptimizer: &defaultOptimizer,
@@ -71,6 +74,7 @@ func (m *minimaxLiveModel) Define() Model {
 		Description: "Generate video from an image, specialized in bringing 2D illustrations to life.",
 		PriceUSD:    0.8,
 		Type:        "image2video",
+		Endpoint:    "/minimax/video-01-live/image-to-video",
 		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.png A character waving --prompt-optimizer true\n\nInfo: This model is specialized in bringing 2D illustrations to life.\n\nParameters:\n• image_url: URL of the image to animate.\n• prompt: Description of the desired video animation.\n• --prompt-optimizer: Whether to use the model's prompt optimizer (default: true)",
 		Options: &MinimaxLiveOptions{
 			PromptOptimizer: &defaultOptimizer,
@@ -90,6 +94,7 @@ func (m *veo3Model) Define() Model {
 		Description:      "Google's Veo 3 - state-of-the-art video generation with audio support",
 		PriceUSD:         0.45, // $0.45 per second
 		Type:             "image2video",
+		Endpoint:         "/veo3/image-to-video",
 		PerSecondPricing: true,
 		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --duration 8s --resolution 1080p --audio\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --aspect: Aspect ratio (auto, 16:9, 9:16). Default: 16:9\n• --duration: Video duration (4s, 6s, 8s). Default: 8s\n• --resolution: Video resolution (720p, 1080p). Default: 720p\n• --audio: Enable audio generation. Default: true\n• --auto-fix: Auto-fix failed prompts. Default: false\n\nPricing:\n• $0.45 per second of video generated",
 		Options: &Veo3Options{
@@ -114,6 +119,7 @@ func (m *veo31FastModel) Define() Model {
 		Description:      "Google's Veo 3.1 Fast - fast video generation with audio support",
 		PriceUSD:         0.10, // $0.10 per second (no audio), $0.15 per second (with audio)
 		Type:             "image2video",
+		Endpoint:         "/veo3.1/fast/image-to-video",
 		PerSecondPricing: true,
 		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --duration 8s --resolution 1080p --audio\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --aspect: Aspect ratio (auto, 16:9, 9:16). Default: auto\n• --duration: Video duration (4s, 6s, 8s). Default: 8s\n• --resolution: Video resolution (720p, 1080p). Default: 720p\n• --audio: Enable audio generation. Default: true\n• --auto-fix: Auto-fix failed prompts. Default: false\n\nPricing:\n• $0.10 per second (no audio)\n• $0.15 per second (with audio)",
 		Options: &Veo31FastOptions{
@@ -139,6 +145,7 @@ func (m *klingVideoV25ImageModel) Define() Model {
 		Description:      "Kling 2.5 Turbo Pro Image-to-Video - High quality video from images",
 		PriceUSD:         0.32, // Per second
 		Type:             "image2video",
+		Endpoint:         "/kling-video/v2.5/turbo-pro/image-to-video",
 		PerSecondPricing: true,
 		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.32 per second\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired animation\n• --duration: Video duration in seconds (5 or 10, default: 5)\n• --aspect_ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --negative_prompt: Things to avoid (default: blur, distort, and low quality)\n• --cfg_scale: Configuration scale 0-1 (default: 0.5)",
 		Options: &KlingVideoV25Options{
@@ -164,6 +171,7 @@ func (m *lumaDreamMachineModel) Define() Model {
 		Description: "Luma Dream Machine 1.5 - High quality video generation from images",
 		PriceUSD:    0.40,
 		Type:        "image2video",
+		Endpoint:    "/luma-dream-machine",
 		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.40 per video\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired animation\n• --aspect_ratio: 16:9, 9:16, 4:3, 3:4, 21:9, 9:21, 1:1 (default: 16:9)\n• --loop: Create looping video (default: false)",
 		Options: &LumaDreamMachineOptions{
 			AspectRatio: defaults["aspect_ratio"].(string),
@@ -186,6 +194,7 @@ func (m *ltxVideo13BModel) Define() Model {
 		Description: "LTX Video 13B Distilled - Generate videos from prompts and images",
 		PriceUSD:    0.30,
 		Type:        "image2video",
+		Endpoint:    "/ltx-video-13b-distilled/multiconditioning",
 		HelpDoc:     "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.30 per video\n\nParameters:\n• image_url: URL of the source image (for first/last frame)\n• prompt: Description of the desired animation\n• --num_frames: Number of frames (default: 97)\n• --frame_rate: Frame rate (default: 25)\n• --num_inference_steps: Number of steps (default: 30)\n• --guidance_scale: Prompt adherence (default: 3.0)\n• --negative_prompt: Things to avoid (optional)\n• --seed: Specific seed (optional)\n• --enable_safety_checker: Enable safety filter (default: true)",
 		Options: &LTXVideo13BOptions{
 			NumFrames:           defaults["num_frames"].(int),
@@ -211,6 +220,7 @@ func (m *grokImagineVideoModel) Define() Model {
 		Description:      "Grok Imagine Video - Image-to-video generation by xAI",
 		PriceUSD:         0.08, // $0.08 per second
 		Type:             "image2video",
+		Endpoint:         "https://queue.fal.run/xai/grok-imagine-video/image-to-video",
 		PerSecondPricing: true,
 		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\nExample: !image2video https://example.com/image.jpg a beautiful animation --duration 6 --aspect auto --resolution 720p\n\nParameters:\n• image_url: URL of the source image\n• prompt: Description of the desired video animation\n• --duration: Video duration in seconds (1-15, default: 6)\n• --aspect: Aspect ratio (auto, 16:9, 4:3, 3:2, 1:1, 2:3, 3:4, 9:16). Default: auto\n• --resolution: Video resolution (480p, 720p). Default: 720p\n\nPricing:\n• $0.08 per second of video generated",
 		Options: &GrokImagineVideoOptions{
@@ -232,6 +242,7 @@ func (m *klingVideoV3ImageModel) Define() Model {
 		Description:      "Kling 3.0 Standard Image-to-Video - High quality video from images with audio",
 		PriceUSD:         0.30, // Per second
 		Type:             "image2video",
+		Endpoint:         "/kling-video/v3/standard/image-to-video",
 		PerSecondPricing: true,
 		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.30 per second**\nExample: A 5-second video will cost $1.50.\nTotal cost = price per second × duration.\n\nParameters:\n• image_url: URL of the source image (required)\n• prompt: Description of the desired animation (optional)\n• --duration: Video duration in seconds (3-15, default: 5)\n• --aspect: Aspect ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --negative_prompt: Things to avoid (default: blur, distort, and low quality)\n• --cfg_scale: Configuration scale 0-1 (default: 0.5)\n• --audio: Enable audio generation (default: true)\n• --end_image: URL of end frame image (optional)",
 		Options: &KlingVideoV3Options{
@@ -255,6 +266,7 @@ func (m *klingVideoV3ProImageModel) Define() Model {
 		Description:      "Kling 3.0 Pro Image-to-Video - Premium quality video from images with audio",
 		PriceUSD:         0.39, // Per second
 		Type:             "image2video",
+		Endpoint:         "/kling-video/v3/pro/image-to-video",
 		PerSecondPricing: true,
 		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.39 per second**\nExample: A 5-second video will cost $1.95.\nTotal cost = price per second × duration.\n\nParameters:\n• image_url: URL of the source image (required)\n• prompt: Description of the desired animation (optional)\n• --duration: Video duration in seconds (3-15, default: 5)\n• --aspect: Aspect ratio: 16:9, 9:16, 1:1 (default: 16:9)\n• --negative_prompt: Things to avoid (default: blur, distort, and low quality)\n• --cfg_scale: Configuration scale 0-1 (default: 0.5)\n• --audio: Enable audio generation (default: true)\n• --end_image: URL of end frame image (optional)",
 		Options: &KlingVideoV3Options{
@@ -278,6 +290,7 @@ func (m *seedanceImageModel) Define() Model {
 		Description:      "ByteDance Seedance 2.0 Image-to-Video - Realistic motion with native audio generation",
 		PriceUSD:         0.35, // $0.35 per second (flat rate; fal charges $0.3024/s at 720p and $0.2419/s at 480p)
 		Type:             "image2video",
+		Endpoint:         "https://queue.fal.run/bytedance/seedance-2.0/image-to-video",
 		PerSecondPricing: true,
 		HelpDoc:          "Usage: !image2video [image_url] [prompt] [options]\n\n💰 **Price: $0.35 per second**\nExample: A 5-second video will cost $1.75.\nTotal cost = price per second × duration.\n\nParameters:\n• image_url: URL of the source image (required)\n• prompt: Description of the desired motion/action (required)\n• --duration: Video duration in seconds (4-15, default: 5)\n• --aspect: Aspect ratio (auto, 21:9, 16:9, 4:3, 1:1, 3:4, 9:16). Default: auto\n• --resolution: Video resolution (480p, 720p). Default: 720p\n• --audio: Enable audio generation (default: true)\n• --end_image: URL of end frame image (optional transition)\n• --seed: Seed for reproducibility (optional)",
 		Options: &SeedanceOptions{

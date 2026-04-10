@@ -17,6 +17,7 @@ func (m *elevenlabsVoiceChangerModel) Define() Model {
 		Description:      "ElevenLabs Voice Changer - Transform audio with different voices",
 		PriceUSD:         0.50, // Placeholder: actual is $0.30/min
 		Type:             "audio2audio",
+		Endpoint:         "/elevenlabs/voice-changer",
 		PerSecondPricing: true,
 		HelpDoc: `Usage: !audio2audio [audio_url] [options]
 

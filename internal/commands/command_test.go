@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/karamble/braibot/internal/types"
+	braibottypes "github.com/karamble/braibot/internal/types"
 )
 
 // MockBot implements BotInterface for testing
@@ -73,9 +73,9 @@ func TestCommandHandlers(t *testing.T) {
 	// Test cases for each command
 	testCases := []struct {
 		name          string
-		command       types.Command
+		command       braibottypes.Command
 		args          []string
-		ctx           types.MessageContext
+		ctx           braibottypes.MessageContext
 		expectedPM    string
 		expectedGC    string
 		expectedError bool
@@ -87,7 +87,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "Help Command - No Args",
 			command: HelpCommand(registry, mockDB),
 			args:    []string{},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!help",
@@ -101,7 +101,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "Help Command - With Command",
 			command: HelpCommand(registry, mockDB),
 			args:    []string{"text2image"},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!help text2image",
@@ -115,7 +115,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "Balance Command - Success",
 			command: BalanceCommand(),
 			args:    []string{},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!balance",
@@ -129,7 +129,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "Balance Command - DB Error",
 			command: BalanceCommand(),
 			args:    []string{},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!balance",
@@ -144,7 +144,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "Rate Command - Success",
 			command: RateCommand(),
 			args:    []string{},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!rate",
@@ -158,7 +158,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "List Models Command - Success",
 			command: ListModelsCommand(),
 			args:    []string{"text2image"},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!listmodels text2image",
@@ -172,7 +172,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "List Models Command - Invalid Command",
 			command: ListModelsCommand(),
 			args:    []string{"invalid"},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!listmodels invalid",
@@ -186,7 +186,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "Set Model Command - Success",
 			command: SetModelCommand(registry),
 			args:    []string{"text2image", "stable-diffusion-xl"},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!setmodel text2image stable-diffusion-xl",
@@ -200,7 +200,7 @@ func TestCommandHandlers(t *testing.T) {
 			name:    "Set Model Command - Invalid Model",
 			command: SetModelCommand(registry),
 			args:    []string{"text2image", "invalid-model"},
-			ctx: types.MessageContext{
+			ctx: braibottypes.MessageContext{
 				Nick:    "testuser",
 				Uid:     []byte{1, 2, 3, 4},
 				Message: "!setmodel text2image invalid-model",
@@ -220,7 +220,7 @@ func TestCommandHandlers(t *testing.T) {
 			mockBot := &MockBot{lastError: tc.setBotError}
 
 			// Create message sender
-			sender := types.NewMessageSender(mockBot)
+			sender := braibottypes.NewMessageSender(mockBot)
 
 			// Execute command
 			err := tc.command.Handler.Handle(context.Background(), tc.ctx, tc.args, sender, mockDB)

@@ -31,7 +31,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 	case *FastSDXLRequest:
 		modelName = "fast-sdxl"
 		modelType = "text2image"
-		endpoint = "/fast-sdxl"
 		baseReq = &r.BaseImageRequest
 		reqBody = map[string]interface{}{
 			"prompt": r.Prompt,
@@ -43,7 +42,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 	case *GhiblifyRequest:
 		modelName = "ghiblify"
 		modelType = "image2image"
-		endpoint = "/ghiblify"
 		baseReq = &r.BaseImageRequest
 		if r.ImageURL == "" {
 			return nil, fmt.Errorf("image_url is required for %s model", modelName)
@@ -59,7 +57,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 	case *FluxSchnellRequest:
 		modelName = "flux/schnell"
 		modelType = "text2image"
-		endpoint = "/flux/schnell"
 		baseReq = &r.BaseImageRequest
 		// Validate specific options
 		opts := FluxSchnellOptions{
@@ -99,7 +96,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 	case *FluxProV1_1Request:
 		modelName = "flux-pro/v1.1"
 		modelType = "text2image"
-		endpoint = "/flux-pro/v1.1"
 		baseReq = &r.BaseImageRequest
 		// Validate specific options
 		opts := FluxProV1_1Options{
@@ -158,7 +154,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 			return nil, fmt.Errorf("unexpected type within HiDream case: %T", req)
 		}
 		modelType = "text2image"
-		endpoint = "/" + modelName // Use model name as endpoint
 		baseReq = &concreteReq.BaseImageRequest
 		// Validate specific options
 		opts := HiDreamOptions{
@@ -209,7 +204,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 	case *FluxProV1_1UltraRequest:
 		modelName = "flux-pro/v1.1-ultra"
 		modelType = "text2image"
-		endpoint = "/" + modelName
 		baseReq = &r.BaseImageRequest
 		// Validate specific options
 		opts := FluxProV1_1UltraOptions{
@@ -256,7 +250,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 	case *CartoonifyRequest:
 		modelName = "cartoonify"
 		modelType = "image2image"
-		endpoint = "/" + modelName
 		baseReq = &r.BaseImageRequest
 		if r.ImageURL == "" {
 			return nil, fmt.Errorf("image_url required for %s", modelName)
@@ -275,7 +268,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 	case *StarVectorRequest:
 		modelName = "star-vector"
 		modelType = "image2image"
-		endpoint = "/fal-ai/star-vector" // Assuming full path based on potential complexity
 		baseReq = &r.BaseImageRequest
 		if r.ImageURL == "" {
 			return nil, fmt.Errorf("image_url required for %s", modelName)
@@ -294,13 +286,15 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 		return nil, fmt.Errorf("unsupported image request type: %T", req)
 	}
 
-	// Validate the model existence (using inferred modelType)
-	if _, exists := GetModel(modelName, modelType); !exists {
+	// Validate the model existence and set endpoint from model definition
+	modelDef, exists := GetModel(modelName, modelType)
+	if !exists {
 		return nil, &Error{
 			Code:    "INVALID_MODEL",
 			Message: fmt.Sprintf("model %s not found or not of expected type %s", modelName, modelType),
 		}
 	}
+	endpoint = modelDef.Endpoint
 
 	// Add any additional generic options from the base request
 	if baseReq != nil && baseReq.Options != nil {

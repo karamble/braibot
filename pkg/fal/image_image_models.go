@@ -14,6 +14,7 @@ func (m *ghiblifyModel) Define() Model {
 		Description: "Transforms images into Studio Ghibli style artwork",
 		PriceUSD:    0.02,
 		Type:        "image2image",
+		Endpoint:    "/ghiblify",
 		HelpDoc:     "Usage: !image2image [image_url]\nExample: !image2image https://example.com/image.jpg\n\nParameters:\n• image_url: URL of the image to transform",
 	}
 }
@@ -28,6 +29,7 @@ func (m *cartoonifyModel) Define() Model {
 		Description: "Transforms images into Pixar like 3d cartoon-style artwork",
 		PriceUSD:    0.02,
 		Type:        "image2image",
+		Endpoint:    "/cartoonify",
 		HelpDoc:     "Usage: !image2image [image_url]\nExample: !image2image https://example.com/image.jpg\n\nParameters:\n• image_url: URL of the image to transform",
 		Options:     &CartoonifyOptions{},
 	}
@@ -43,6 +45,7 @@ func (m *starVectorModel) Define() Model {
 		Description: "Convert images to SVG using AI vectorization",
 		PriceUSD:    1.0,
 		Type:        "image2image",
+		Endpoint:    "/fal-ai/star-vector",
 		HelpDoc:     "Usage: !image2image [image_url]\nExample: !image2image https://example.com/image.jpg\n\nTo use this model, first set it as the default model:\n!setmodel image2image star-vector\n\nParameters:\n• image_url: URL of the source image\n\nPricing:\n• Base price: $1.0 per image",
 		Options:     &StarVectorOptions{},
 	}

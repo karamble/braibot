@@ -124,6 +124,28 @@ func FormatBillingMessage(chargedDCR float64, chargedUSD float64, remainingBalan
 		chargedDCR, chargedUSD, remainingBalance)
 }
 
+// FormatBillingConfirmation builds the complete billing confirmation string appended
+// to a task-completion message. It handles all billing outcome cases:
+//   - billing succeeded: show charged DCR, USD, and new balance
+//   - billing attempted but failed: show warning with balance and content type
+//   - billing not attempted (but enabled): show "no charge" with balance
+//   - billing disabled: show "billing is disabled"
+//
+// taskName is the content type shown in the failure message (e.g. "video", "results", "audio").
+func FormatBillingConfirmation(taskName string, billingEnabled bool, billingAttempted bool, billingSucceeded bool, chargedDCR float64, chargedUSD float64, finalBalanceDCR float64) string {
+	if !billingEnabled {
+		return "Billing is disabled. No charge was applied."
+	}
+	if billingAttempted && billingSucceeded {
+		return fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
+			chargedDCR, chargedUSD, finalBalanceDCR)
+	}
+	if billingAttempted && !billingSucceeded {
+		return fmt.Sprintf("⚠️ Billing failed after sending %s. Your balance remains %.8f DCR. Please contact support.", taskName, finalBalanceDCR)
+	}
+	return fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
+}
+
 // FormatThousands formats a float64 with commas as thousands separators, rounded to the nearest integer.
 func FormatThousands(n float64) string {
 	// Format with 8 decimal places first

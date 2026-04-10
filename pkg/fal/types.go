@@ -307,6 +307,7 @@ type Model struct {
 	Description      string
 	PriceUSD         float64
 	Type             string
+	Endpoint         string      // API endpoint path (e.g. "/veo2/image-to-video") or full URL
 	HelpDoc          string
 	Options          interface{} // Model-specific options
 	PerSecondPricing bool        // Indicates if model uses per-second billing

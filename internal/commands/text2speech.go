@@ -80,10 +80,12 @@ func Text2SpeechCommand(bot *kit.Bot, cfg *botconfig.BotConfig, speechService *s
 
 			// Create the speech request
 			req := speech.SpeechRequest{
-				Text:      text,
-				IsPM:      msgCtx.IsPM,
-				GC:        msgCtx.GC,
-				ModelName: model.Name, // Use the model name in the request
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelName: model.Name,
+					IsPM:      msgCtx.IsPM,
+					GC:        msgCtx.GC,
+				},
+				Text: text,
 			}
 
 			// Process the speech

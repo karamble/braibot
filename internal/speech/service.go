@@ -129,18 +129,7 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 
 	// Only send billing information in PMs
 	if req.IsPM {
-		if s.billingEnabled {
-			if billingAttempted && billingSucceeded {
-				finalMessage += fmt.Sprintf("💰 Billing Information:\n• Charged: %.8f DCR ($%.2f USD)\n• New Balance: %.8f DCR",
-					chargedDCR, req.PriceUSD, finalBalanceDCR)
-			} else if billingAttempted && !billingSucceeded {
-				finalMessage += fmt.Sprintf("⚠️ Billing failed after sending audio. Your balance remains %.8f DCR. Please contact support.", finalBalanceDCR)
-			} else {
-				finalMessage += fmt.Sprintf("No charge was applied. Your balance remains %.8f DCR.", finalBalanceDCR)
-			}
-		} else {
-			finalMessage += "Billing is disabled. No charge was applied."
-		}
+		finalMessage += utils.FormatBillingConfirmation("audio", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, req.PriceUSD, finalBalanceDCR)
 		if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
 			// fmt.Printf("ERROR: Failed to send final confirmation message (speech) to %s: %v\n", req.UserNick, err) // Removed
 		}

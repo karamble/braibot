@@ -6,9 +6,11 @@ import (
 	"github.com/companyzero/bisonrelay/zkidentity"
 )
 
-// CheckAndDeductBalance checks if a user has sufficient balance and deducts the cost if they do
-// Returns true if the operation was successful, false otherwise
-func (db *DBManager) CheckAndDeductBalance(uid []byte, costUSD float64, debug bool) (bool, error) {
+// CheckAndDeductBalance checks if a user has sufficient balance and deducts the cost if they do.
+// costAtoms is the cost in atoms (1 DCR = 1e11 atoms). The caller is responsible for
+// converting from USD/DCR to atoms before calling this function.
+// Returns true if the operation was successful, false otherwise.
+func (db *DBManager) CheckAndDeductBalance(uid []byte, costAtoms int64, debug bool) (bool, error) {
 	// Convert UID to string ID for database
 	var userID zkidentity.ShortID
 	userID.FromBytes(uid)
@@ -20,31 +22,21 @@ func (db *DBManager) CheckAndDeductBalance(uid []byte, costUSD float64, debug bo
 		return false, fmt.Errorf("failed to get balance: %v", err)
 	}
 
-	// Convert USD cost to DCR
-	dcrCost, err := USDToDCR(costUSD)
-	if err != nil {
-		return false, fmt.Errorf("failed to convert USD to DCR: %v", err)
-	}
-
-	// Convert DCR to atoms (1 DCR = 1e11 atoms)
-	costAtoms := int64(dcrCost * 1e11)
-
 	// Debug information
 	if debug {
 		fmt.Printf("DEBUG - Balance check:\n")
 		fmt.Printf("  User ID: %s\n", userIDStr)
 		fmt.Printf("  Current balance (atoms): %d\n", balance)
-		fmt.Printf("  Cost in USD: $%.2f\n", costUSD)
-		fmt.Printf("  Cost in DCR: %.8f\n", dcrCost)
 		fmt.Printf("  Cost in atoms: %d\n", costAtoms)
+		fmt.Printf("  Cost in DCR: %.8f\n", float64(costAtoms)/1e11)
 		fmt.Printf("  Balance in DCR: %.8f\n", float64(balance)/1e11)
 	}
 
 	// Check if user has sufficient balance
 	if balance < costAtoms {
-		// Convert balance to DCR for display
 		balanceDCR := float64(balance) / 1e11
-		return false, fmt.Errorf("insufficient balance. Required: %.8f DCR, Current: %.8f DCR", dcrCost, balanceDCR)
+		costDCR := float64(costAtoms) / 1e11
+		return false, fmt.Errorf("insufficient balance. Required: %.8f DCR, Current: %.8f DCR", costDCR, balanceDCR)
 	}
 
 	// Deduct the cost from the user's balance (negative amount)

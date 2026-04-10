@@ -1,21 +1,14 @@
 package speech
 
 import (
-	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/karamble/braibot/pkg/fal"
+	braibottypes "github.com/karamble/braibot/internal/types"
 )
 
 // SpeechRequest represents an internal request to generate speech
 type SpeechRequest struct {
-	Text      string
-	VoiceID   string // Optional, specific voice
-	ModelName string // Target model name
-	Progress  fal.ProgressCallback
-	UserNick  string
-	UserID    zkidentity.ShortID
-	PriceUSD  float64
-	IsPM      bool   // Whether this is a private message
-	GC        string // Group chat name if not PM
+	braibottypes.GenerationRequest
+	Text    string
+	VoiceID string // Optional, specific voice
 	// Parsed Options
 	Speed      *float64
 	Vol        *float64

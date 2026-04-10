@@ -221,22 +221,6 @@ func CheckAndUpdateConfig(cfg *config.BotConfig, appRoot string) error {
 	return nil
 }
 
-// Optional: Helper function to write the default billing setting if needed
-/*
-func writeDefaultBillingSetting(appRoot string, value string) {
-	configPath := filepath.Join(appRoot, "braibot.conf")
-	f, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Printf("WARN: Failed to open config file to write default billingenabled: %v\n", err)
-		return
-	}
-	defer f.Close()
-
-	if _, err := f.WriteString(fmt.Sprintf("billingenabled=%s\n", value)); err != nil {
-		fmt.Printf("WARN: Failed to write default billingenabled to config file: %v\n", err)
-	}
-}
-*/
 
 // TestAssetServerCredentials tests if the asset server credentials are valid
 func TestAssetServerCredentials(serverURL, apiKey string) error {

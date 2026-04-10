@@ -22,6 +22,7 @@ func (m *scribeV2Model) Define() Model {
 		Description:      "Scribe V2 - Fast, accurate speech-to-text transcription with word-level timestamps",
 		PriceUSD:         0.008, // Per minute of audio
 		Type:             "audio2text",
+		Endpoint:         "/elevenlabs/speech-to-text/scribe-v2",
 		PerSecondPricing: true,
 		HelpDoc: `Usage: Transcribe audio to text with word-level timestamps
 

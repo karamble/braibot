@@ -97,13 +97,15 @@ func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *im
 			var userID zkidentity.ShortID
 			userID.FromBytes(msgCtx.Uid)
 			req := &imgservice.ImageRequest{
-				ImageURL:  imageURL,
-				ModelType: "image2image",
-				ModelName: model.Name,
-				Progress:  progress,
-				UserNick:  msgCtx.Nick,
-				UserID:    userID,
-				PriceUSD:  model.PriceUSD,
+				GenerationRequest: braibottypes.GenerationRequest{
+					ModelType: "image2image",
+					ModelName: model.Name,
+					Progress:  progress,
+					UserNick:  msgCtx.Nick,
+					UserID:    userID,
+					PriceUSD:  model.PriceUSD,
+				},
+				ImageURL: imageURL,
 			}
 
 			// Generate image using the service

@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/karamble/braibot/internal/database"
-	kit "github.com/vctt94/bisonbotkit"
 )
 
 // ErrInsufficientBalance is a custom error type for insufficient funds.
@@ -17,90 +15,6 @@ type ErrInsufficientBalance struct {
 // Error implements the error interface.
 func (e *ErrInsufficientBalance) Error() string {
 	return e.Message
-}
-
-// BillingResult contains the result of a billing operation
-type BillingResult struct {
-	Success      bool
-	ChargedDCR   float64
-	ChargedUSD   float64
-	NewBalance   float64
-	ErrorMessage string
-}
-
-// CheckAndProcessBilling handles the complete billing process for a user
-// Returns a BillingResult with the operation details
-func CheckAndProcessBilling(ctx context.Context, bot *kit.Bot, dbManager *database.DBManager, pm types.ReceivedPM, costUSD float64, debug bool) (*BillingResult, error) {
-	// Convert USD cost to DCR
-	dcrAmount, err := USDToDCR(costUSD)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert USD to DCR: %v", err)
-	}
-
-	// Convert DCR amount to atoms for comparison (1 DCR = 1e11 atoms)
-	dcrAtoms := int64(dcrAmount * 1e11)
-
-	// Get user balance in atoms
-	userIDStr := GetUserIDString(pm.Uid)
-	balance, err := dbManager.GetBalance(userIDStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get balance: %v", err)
-	}
-
-	// Debug information
-	if debug {
-		fmt.Print(FormatDebugBalanceInfo(userIDStr, balance, costUSD, dcrAmount, dcrAtoms))
-	}
-
-	// Check if user has sufficient balance
-	if balance < dcrAtoms {
-		balanceDCR := float64(balance) / 1e11
-		return &BillingResult{
-			Success:      false,
-			ErrorMessage: FormatInsufficientBalanceMessageWithUSD(dcrAmount, balanceDCR, costUSD),
-		}, nil
-	}
-
-	// Deduct balance using CheckAndDeductBalance
-	hasBalance, err := dbManager.CheckAndDeductBalance(pm.Uid, costUSD, debug)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deduct balance: %v", err)
-	}
-	if !hasBalance {
-		return &BillingResult{
-			Success:      false,
-			ErrorMessage: "Failed to deduct balance. Please try again.",
-		}, nil
-	}
-
-	// Get updated balance for billing message
-	newBalance, err := dbManager.GetUserBalance(pm.Uid)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get updated balance: %v", err)
-	}
-
-	// Debug information after deduction
-	if debug {
-		fmt.Print(FormatDebugAfterDeduction(int64(newBalance * 1e11)))
-	}
-
-	return &BillingResult{
-		Success:    true,
-		ChargedDCR: dcrAmount,
-		ChargedUSD: costUSD,
-		NewBalance: newBalance,
-	}, nil
-}
-
-// SendBillingMessage sends a billing message to the user
-func SendBillingMessage(ctx context.Context, bot *kit.Bot, pm types.ReceivedPM, result *BillingResult) error {
-	if !result.Success {
-		return bot.SendPM(ctx, pm.Nick, result.ErrorMessage)
-	}
-
-	// Only send billing information in PMs
-	billingMsg := FormatBillingMessage(result.ChargedDCR, result.ChargedUSD, result.NewBalance)
-	return bot.SendPM(ctx, pm.Nick, billingMsg)
 }
 
 // CheckBalance checks if a user has sufficient balance for a given cost in USD, without deducting.
@@ -175,30 +89,26 @@ func DeductBalance(ctx context.Context, dbManager *database.DBManager, userID []
 
 	// --- Billing is enabled, perform deduction ---
 
-	// Deduct balance using CheckAndDeductBalance
-	// Note: CheckAndDeductBalance itself likely converts USD internally based on its signature
-	hasBalanceAfterDeduct, err := dbManager.CheckAndDeductBalance(userID, costUSD, debug)
+	// Convert USD cost to DCR and then to atoms for the database layer
+	chargedDCR, convertErr := USDToDCR(costUSD)
+	if convertErr != nil {
+		err = fmt.Errorf("failed to convert USD to DCR: %v", convertErr)
+		newBalanceDCR = currentBalanceDCR
+		return
+	}
+	costAtoms := int64(chargedDCR * 1e11)
+
+	// Deduct balance using CheckAndDeductBalance (atomic check-and-deduct)
+	hasBalanceAfterDeduct, err := dbManager.CheckAndDeductBalance(userID, costAtoms, debug)
 	if err != nil {
 		err = fmt.Errorf("failed to deduct balance: %v", err)
 		newBalanceDCR = currentBalanceDCR // Return pre-deduction balance on error
 		return
 	}
-	// This check might be redundant if CheckBalance was called first,
-	// but CheckAndDeductBalance performs an atomic check-and-deduct.
 	if !hasBalanceAfterDeduct {
-		// This indicates a potential race condition or logic error if CheckBalance passed moments before.
 		err = fmt.Errorf("deduction failed despite prior check (insufficient funds or race condition)")
 		newBalanceDCR = currentBalanceDCR // Return pre-deduction balance on error
 		return
-	}
-
-	// Convert charged amount back to DCR for reporting (if needed, depends on CheckAndDeductBalance return)
-	// Assuming costUSD was the amount successfully deducted in USD terms.
-	chargedDCR, convertErr := USDToDCR(costUSD)
-	if convertErr != nil {
-		// Log this error, but the deduction likely succeeded, so proceed with getting new balance.
-		fmt.Printf("WARN: Failed to convert charged USD to DCR for reporting: %v\n", convertErr)
-		chargedDCR = 0 // Assign a placeholder
 	}
 
 	// Get updated balance for result
