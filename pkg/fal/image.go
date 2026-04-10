@@ -201,6 +201,100 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 			reqBody["output_format"] = concreteReq.OutputFormat
 		}
 		concreteReq.Model = modelName
+	case *Flux2Request:
+		modelName = "flux-2"
+		modelType = "text2image"
+		baseReq = &r.BaseImageRequest
+		// Validate specific options
+		opts := Flux2Options{
+			ImageSize:             r.ImageSize,
+			GuidanceScale:         r.GuidanceScale,
+			NumInferenceSteps:     r.NumInferenceSteps,
+			Seed:                  r.Seed,
+			NumImages:             r.NumImages,
+			Acceleration:          r.Acceleration,
+			EnablePromptExpansion: r.EnablePromptExpansion,
+			SyncMode:              r.SyncMode,
+			EnableSafetyChecker:   r.EnableSafetyChecker,
+			OutputFormat:          r.OutputFormat,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt": r.Prompt,
+		}
+		if r.ImageSize != "" {
+			reqBody["image_size"] = r.ImageSize
+		}
+		if r.GuidanceScale > 0 {
+			reqBody["guidance_scale"] = r.GuidanceScale
+		}
+		if r.NumInferenceSteps > 0 {
+			reqBody["num_inference_steps"] = r.NumInferenceSteps
+		}
+		if r.Seed != nil {
+			reqBody["seed"] = *r.Seed
+		}
+		if r.NumImages > 0 {
+			reqBody["num_images"] = r.NumImages
+		}
+		if r.Acceleration != "" {
+			reqBody["acceleration"] = r.Acceleration
+		}
+		if r.EnablePromptExpansion != nil {
+			reqBody["enable_prompt_expansion"] = *r.EnablePromptExpansion
+		}
+		if r.SyncMode {
+			reqBody["sync_mode"] = r.SyncMode
+		}
+		if r.EnableSafetyChecker != nil {
+			reqBody["enable_safety_checker"] = *r.EnableSafetyChecker
+		}
+		if r.OutputFormat != "" {
+			reqBody["output_format"] = r.OutputFormat
+		}
+		r.Model = modelName
+	case *Flux2ProRequest:
+		modelName = "flux-2-pro"
+		modelType = "text2image"
+		baseReq = &r.BaseImageRequest
+		// Validate specific options
+		opts := Flux2ProOptions{
+			ImageSize:           r.ImageSize,
+			Seed:                r.Seed,
+			SyncMode:            r.SyncMode,
+			EnableSafetyChecker: r.EnableSafetyChecker,
+			SafetyTolerance:     r.SafetyTolerance,
+			OutputFormat:        r.OutputFormat,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt": r.Prompt,
+		}
+		if r.ImageSize != "" {
+			reqBody["image_size"] = r.ImageSize
+		}
+		if r.Seed != nil {
+			reqBody["seed"] = *r.Seed
+		}
+		if r.SyncMode {
+			reqBody["sync_mode"] = r.SyncMode
+		}
+		if r.EnableSafetyChecker != nil {
+			reqBody["enable_safety_checker"] = *r.EnableSafetyChecker
+		}
+		if r.SafetyTolerance != "" {
+			reqBody["safety_tolerance"] = r.SafetyTolerance
+		}
+		if r.OutputFormat != "" {
+			reqBody["output_format"] = r.OutputFormat
+		}
+		r.Model = modelName
 	case *FluxProV1_1UltraRequest:
 		modelName = "flux-pro/v1.1-ultra"
 		modelType = "text2image"
@@ -244,6 +338,106 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 		}
 		if r.Raw != nil {
 			reqBody["raw"] = *r.Raw
+		}
+		r.Model = modelName
+	case *Flux2ProEditRequest:
+		modelName = "flux-2-pro/edit"
+		modelType = "image2image"
+		baseReq = &r.BaseImageRequest
+		if len(r.ImageURLs) == 0 {
+			return nil, fmt.Errorf("image_urls is required for %s model", modelName)
+		}
+		// Validate specific options
+		opts := Flux2ProEditOptions{
+			ImageSize:           r.ImageSize,
+			Seed:                r.Seed,
+			SyncMode:            r.SyncMode,
+			EnableSafetyChecker: r.EnableSafetyChecker,
+			SafetyTolerance:     r.SafetyTolerance,
+			OutputFormat:        r.OutputFormat,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		// Build request body
+		reqBody = map[string]interface{}{
+			"prompt":     r.Prompt,
+			"image_urls": r.ImageURLs,
+		}
+		if r.ImageSize != "" {
+			reqBody["image_size"] = r.ImageSize
+		}
+		if r.Seed != nil {
+			reqBody["seed"] = *r.Seed
+		}
+		if r.SyncMode {
+			reqBody["sync_mode"] = r.SyncMode
+		}
+		if r.EnableSafetyChecker != nil {
+			reqBody["enable_safety_checker"] = *r.EnableSafetyChecker
+		}
+		if r.SafetyTolerance != "" {
+			reqBody["safety_tolerance"] = r.SafetyTolerance
+		}
+		if r.OutputFormat != "" {
+			reqBody["output_format"] = r.OutputFormat
+		}
+		r.Model = modelName
+	case *Flux2EditRequest:
+		modelName = "flux-2/edit"
+		modelType = "image2image"
+		baseReq = &r.BaseImageRequest
+		if len(r.ImageURLs) == 0 {
+			return nil, fmt.Errorf("image_urls is required for %s model", modelName)
+		}
+		opts := Flux2EditOptions{
+			ImageSize:             r.ImageSize,
+			GuidanceScale:         r.GuidanceScale,
+			NumInferenceSteps:     r.NumInferenceSteps,
+			Seed:                  r.Seed,
+			NumImages:             r.NumImages,
+			Acceleration:          r.Acceleration,
+			EnablePromptExpansion: r.EnablePromptExpansion,
+			SyncMode:              r.SyncMode,
+			EnableSafetyChecker:   r.EnableSafetyChecker,
+			OutputFormat:          r.OutputFormat,
+		}
+		if err := opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+		reqBody = map[string]interface{}{
+			"prompt":     r.Prompt,
+			"image_urls": r.ImageURLs,
+		}
+		if r.ImageSize != "" {
+			reqBody["image_size"] = r.ImageSize
+		}
+		if r.GuidanceScale > 0 {
+			reqBody["guidance_scale"] = r.GuidanceScale
+		}
+		if r.NumInferenceSteps > 0 {
+			reqBody["num_inference_steps"] = r.NumInferenceSteps
+		}
+		if r.Seed != nil {
+			reqBody["seed"] = *r.Seed
+		}
+		if r.NumImages > 0 {
+			reqBody["num_images"] = r.NumImages
+		}
+		if r.Acceleration != "" {
+			reqBody["acceleration"] = r.Acceleration
+		}
+		if r.EnablePromptExpansion != nil {
+			reqBody["enable_prompt_expansion"] = *r.EnablePromptExpansion
+		}
+		if r.SyncMode {
+			reqBody["sync_mode"] = r.SyncMode
+		}
+		if r.EnableSafetyChecker != nil {
+			reqBody["enable_safety_checker"] = *r.EnableSafetyChecker
+		}
+		if r.OutputFormat != "" {
+			reqBody["output_format"] = r.OutputFormat
 		}
 		r.Model = modelName
 	// Image2Image Models

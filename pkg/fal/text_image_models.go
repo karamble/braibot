@@ -229,6 +229,57 @@ func (m *stableDiffusionV35LargeModel) Define() Model {
 	}
 }
 
+// --- flux-2 ---
+
+type flux2Model struct{}
+
+func (m *flux2Model) Define() Model {
+	defaultOpts := &Flux2Options{}
+	defaults := defaultOpts.GetDefaultValues()
+	defaultSafetyChecker := defaults["enable_safety_checker"].(*bool)
+	defaultPromptExpansion := defaults["enable_prompt_expansion"].(*bool)
+
+	return Model{
+		Name:        "flux-2",
+		Description: "FLUX 2.0 - Fast, affordable image generation",
+		Type:        "text2image",
+		Endpoint:    "/flux-2",
+		Options: &Flux2Options{
+			ImageSize:             defaults["image_size"].(string),
+			GuidanceScale:         defaults["guidance_scale"].(float64),
+			NumInferenceSteps:     defaults["num_inference_steps"].(int),
+			NumImages:             defaults["num_images"].(int),
+			Acceleration:          defaults["acceleration"].(string),
+			EnablePromptExpansion: defaultPromptExpansion,
+			EnableSafetyChecker:   defaultSafetyChecker,
+			OutputFormat:          defaults["output_format"].(string),
+		},
+	}
+}
+
+// --- flux-2-pro ---
+
+type flux2ProModel struct{}
+
+func (m *flux2ProModel) Define() Model {
+	defaultOpts := &Flux2ProOptions{}
+	defaults := defaultOpts.GetDefaultValues()
+	defaultSafetyChecker := defaults["enable_safety_checker"].(*bool)
+
+	return Model{
+		Name:        "flux-2-pro",
+		Description: "FLUX 2.0 Pro - Next-generation professional image generation",
+		Type:        "text2image",
+		Endpoint:    "/flux-2-pro",
+		Options: &Flux2ProOptions{
+			ImageSize:           defaults["image_size"].(string),
+			EnableSafetyChecker: defaultSafetyChecker,
+			SafetyTolerance:     defaults["safety_tolerance"].(string),
+			OutputFormat:        defaults["output_format"].(string),
+		},
+	}
+}
+
 func init() {
 	registerModel(&fastSDXLModel{})
 	registerModel(&hidreamI1FullModel{})
@@ -239,4 +290,6 @@ func init() {
 	registerModel(&fluxSchnellModel{})
 	registerModel(&fluxDevModel{})
 	registerModel(&stableDiffusionV35LargeModel{})
+	registerModel(&flux2ProModel{})
+	registerModel(&flux2Model{})
 }

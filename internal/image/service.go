@@ -242,6 +242,14 @@ func derefIntPtrOrDefault(ptr *int, defaultValue int) int {
 	return defaultValue
 }
 
+// Helper function to safely dereference optional float64 pointers
+func derefFloat64PtrOrDefault(ptr *float64, defaultValue float64) float64 {
+	if ptr != nil {
+		return *ptr
+	}
+	return defaultValue
+}
+
 // validateRequest validates the image request
 func (s *ImageService) validateRequest(req *ImageRequest) error {
 	// Get model configuration
@@ -331,6 +339,34 @@ func createFalImageRequest(req *ImageRequest, numImagesToRequest int) (interface
 			SafetyTolerance:     req.SafetyTolerance,
 			OutputFormat:        req.OutputFormat,
 		}
+	case "flux-2":
+		falReq = &fal.Flux2Request{
+			BaseImageRequest: fal.BaseImageRequest{
+				Prompt:   req.Prompt,
+				Progress: req.Progress,
+			},
+			ImageSize:             req.ImageSize,
+			GuidanceScale:         derefFloat64PtrOrDefault(req.GuidanceScale, 2.5),
+			NumInferenceSteps:     derefIntPtrOrDefault(req.NumInferenceSteps, 28),
+			Seed:                  req.Seed,
+			NumImages:             numImagesToRequest,
+			Acceleration:          req.Acceleration,
+			EnablePromptExpansion: req.EnablePromptExpansion,
+			EnableSafetyChecker:   req.EnableSafetyChecker,
+			OutputFormat:          req.OutputFormat,
+		}
+	case "flux-2-pro":
+		falReq = &fal.Flux2ProRequest{
+			BaseImageRequest: fal.BaseImageRequest{
+				Prompt:   req.Prompt,
+				Progress: req.Progress,
+			},
+			ImageSize:           req.ImageSize,
+			Seed:                req.Seed,
+			EnableSafetyChecker: req.EnableSafetyChecker,
+			SafetyTolerance:     req.SafetyTolerance,
+			OutputFormat:        req.OutputFormat,
+		}
 	case "flux-pro/v1.1-ultra":
 		falReq = &fal.FluxProV1_1UltraRequest{
 			BaseImageRequest: fal.BaseImageRequest{
@@ -384,6 +420,42 @@ func createFalImageRequest(req *ImageRequest, numImagesToRequest int) (interface
 				EnableSafetyChecker: req.EnableSafetyChecker,
 				OutputFormat:        req.OutputFormat,
 			},
+		}
+	case "flux-2/edit":
+		imageURLs := []string{}
+		if req.ImageURL != "" {
+			imageURLs = append(imageURLs, req.ImageURL)
+		}
+		falReq = &fal.Flux2EditRequest{
+			BaseImageRequest: fal.BaseImageRequest{
+				Prompt:   req.Prompt,
+				Progress: req.Progress,
+			},
+			ImageURLs:           imageURLs,
+			ImageSize:           req.ImageSize,
+			GuidanceScale:       derefFloat64PtrOrDefault(req.GuidanceScale, 2.5),
+			NumInferenceSteps:   derefIntPtrOrDefault(req.NumInferenceSteps, 28),
+			Seed:                req.Seed,
+			NumImages:           numImagesToRequest,
+			EnableSafetyChecker: req.EnableSafetyChecker,
+			OutputFormat:        req.OutputFormat,
+		}
+	case "flux-2-pro/edit":
+		imageURLs := []string{}
+		if req.ImageURL != "" {
+			imageURLs = append(imageURLs, req.ImageURL)
+		}
+		falReq = &fal.Flux2ProEditRequest{
+			BaseImageRequest: fal.BaseImageRequest{
+				Prompt:   req.Prompt,
+				Progress: req.Progress,
+			},
+			ImageURLs:           imageURLs,
+			ImageSize:           req.ImageSize,
+			Seed:                req.Seed,
+			EnableSafetyChecker: req.EnableSafetyChecker,
+			SafetyTolerance:     req.SafetyTolerance,
+			OutputFormat:        req.OutputFormat,
 		}
 	// Add cases for other specific image models here
 	default:

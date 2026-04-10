@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/karamble/braibot/internal/faladapter"
@@ -78,6 +79,12 @@ func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *im
 				return msgSender.SendMessage(ctx, msgCtx, "Please provide a valid http:// or https:// URL for the image.")
 			}
 
+			// Remaining args after the URL form the prompt (optional for most models, required for flux-2-pro/edit)
+			var prompt string
+			if len(args) > 1 {
+				prompt = strings.Join(args[1:], " ")
+			}
+
 			// Get model configuration
 			var userIDStr string
 			if msgCtx.IsPM {
@@ -104,7 +111,10 @@ func Image2ImageCommand(bot *kit.Bot, cfg *botconfig.BotConfig, imageService *im
 					UserNick:  msgCtx.Nick,
 					UserID:    userID,
 					PriceUSD:  model.PriceUSD,
+					IsPM:      msgCtx.IsPM,
+					GC:        msgCtx.GC,
 				},
+				Prompt:   prompt,
 				ImageURL: imageURL,
 			}
 
