@@ -16,7 +16,7 @@ func (m *veo2Model) Define() Model {
 		Endpoint:    "/veo2/image-to-video",
 		Options: &Veo2Options{
 			AspectRatio: "16:9",
-			Duration:    "5",
+			Duration:    "5s",
 		},
 	}
 }

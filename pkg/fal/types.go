@@ -25,17 +25,22 @@ type ModelOptions interface {
 	Validate() error
 }
 
-// Veo2Options represents the options available for the Veo2 model
+// Veo2Options represents the options available for the Veo2 model.
+// fal.ai's veo2 endpoint uses "s"-suffixed durations (5s, 6s, 7s, 8s); the
+// bare-integer form ("5") is NOT accepted. braibot's internal/video layer
+// normalizes user input to this form (parser strips "s", service re-appends it),
+// so both "5" and "5s" from a user resolve here; a direct pkg/fal caller must
+// pass the "s"-suffixed value.
 type Veo2Options struct {
 	AspectRatio string `json:"aspect_ratio,omitempty"` // auto, auto_prefer_portrait, 16:9, 9:16
-	Duration    string `json:"duration,omitempty"`     // 5, 6, 7, 8
+	Duration    string `json:"duration,omitempty"`     // 5s, 6s, 7s, 8s
 }
 
 // GetDefaultValues returns the default values for Veo2 options
 func (o *Veo2Options) GetDefaultValues() map[string]interface{} {
 	return map[string]interface{}{
 		"aspect_ratio": "16:9",
-		"duration":     "5",
+		"duration":     "5s",
 	}
 }
 
@@ -48,17 +53,17 @@ func (o *Veo2Options) Validate() error {
 		"9:16":                 true,
 	}
 	validDurations := map[string]bool{
-		"5": true,
-		"6": true,
-		"7": true,
-		"8": true,
+		"5s": true,
+		"6s": true,
+		"7s": true,
+		"8s": true,
 	}
 
 	if o.AspectRatio != "" && !validAspectRatios[o.AspectRatio] {
 		return fmt.Errorf("invalid aspect ratio: %s (must be one of: auto, auto_prefer_portrait, 16:9, 9:16)", o.AspectRatio)
 	}
 	if o.Duration != "" && !validDurations[o.Duration] {
-		return fmt.Errorf("invalid duration: %s (must be one of: 5, 6, 7, 8)", o.Duration)
+		return fmt.Errorf("invalid duration: %s (must be one of: 5s, 6s, 7s, 8s)", o.Duration)
 	}
 	return nil
 }
