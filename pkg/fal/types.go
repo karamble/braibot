@@ -86,6 +86,7 @@ func (o *KlingVideoOptions) Validate() error {
 	validAspectRatios := map[string]bool{
 		"16:9": true,
 		"9:16": true,
+		"1:1":  true,
 	}
 
 	if o.AspectRatio != "" && !validAspectRatios[o.AspectRatio] {
@@ -494,6 +495,57 @@ func (o *Flux2ProOptions) Validate() error {
 	}
 	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
 		return fmt.Errorf("invalid output_format: %s (must be jpeg or png)", o.OutputFormat)
+	}
+	return nil
+}
+
+// NanoBanana2Options represents the options for the fal-ai/nano-banana-2 model
+// (and its /edit variant). Google's Nano Banana 2 image model.
+type NanoBanana2Options struct {
+	AspectRatio     string `json:"aspect_ratio,omitempty"`     // auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16, 4:1, 1:4, 8:1, 1:8. Default: auto
+	NumImages       int    `json:"num_images,omitempty"`       // 1-4. Default: 1
+	Resolution      string `json:"resolution,omitempty"`       // 0.5K, 1K, 2K, 4K. Default: 1K
+	OutputFormat    string `json:"output_format,omitempty"`    // png, jpeg, webp. Default: jpeg
+	Seed            *int   `json:"seed,omitempty"`             // Optional seed
+	SafetyTolerance string `json:"safety_tolerance,omitempty"` // Enum: 1-6. Default: "4"
+	SyncMode        bool   `json:"sync_mode,omitempty"`        // Default: false
+}
+
+// GetDefaultValues returns the default values for Nano Banana 2 options
+func (o *NanoBanana2Options) GetDefaultValues() map[string]interface{} {
+	return map[string]interface{}{
+		"aspect_ratio":  "auto",
+		"num_images":    1,
+		"resolution":    "1K",
+		"output_format": "jpeg",
+	}
+}
+
+// Validate validates the Nano Banana 2 options
+func (o *NanoBanana2Options) Validate() error {
+	validAspectRatios := map[string]bool{
+		"auto": true, "21:9": true, "16:9": true, "3:2": true, "4:3": true,
+		"5:4": true, "1:1": true, "4:5": true, "3:4": true, "2:3": true,
+		"9:16": true, "4:1": true, "1:4": true, "8:1": true, "1:8": true,
+	}
+	validResolutions := map[string]bool{"0.5K": true, "1K": true, "2K": true, "4K": true}
+	validOutputFormats := map[string]bool{"png": true, "jpeg": true, "webp": true}
+	validSafetyTolerances := map[string]bool{"1": true, "2": true, "3": true, "4": true, "5": true, "6": true}
+
+	if o.AspectRatio != "" && !validAspectRatios[o.AspectRatio] {
+		return fmt.Errorf("invalid aspect_ratio: %s", o.AspectRatio)
+	}
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
+	}
+	if o.Resolution != "" && !validResolutions[o.Resolution] {
+		return fmt.Errorf("invalid resolution: %s (must be 0.5K, 1K, 2K, or 4K)", o.Resolution)
+	}
+	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
+		return fmt.Errorf("invalid output_format: %s (must be png, jpeg, or webp)", o.OutputFormat)
+	}
+	if o.SafetyTolerance != "" && !validSafetyTolerances[o.SafetyTolerance] {
+		return fmt.Errorf("invalid safety_tolerance: %s (must be 1-6)", o.SafetyTolerance)
 	}
 	return nil
 }
@@ -1281,7 +1333,7 @@ type Veo3Request struct {
 type Veo31FastOptions struct {
 	AspectRatio   string `json:"aspect_ratio,omitempty"`   // auto, 16:9, 9:16 (default: auto)
 	Duration      string `json:"duration,omitempty"`       // 4s, 6s, 8s (default: 8s)
-	Resolution    string `json:"resolution,omitempty"`     // 720p, 1080p (default: 720p)
+	Resolution    string `json:"resolution,omitempty"`     // 720p, 1080p, 4k (default: 720p)
 	GenerateAudio *bool  `json:"generate_audio,omitempty"` // default: true
 	AutoFix       *bool  `json:"auto_fix,omitempty"`       // auto-fix failed prompts
 }
@@ -1316,6 +1368,7 @@ func (o *Veo31FastOptions) Validate() error {
 	validResolutions := map[string]bool{
 		"720p":  true,
 		"1080p": true,
+		"4k":    true,
 		"":      true,
 	}
 
@@ -1326,7 +1379,7 @@ func (o *Veo31FastOptions) Validate() error {
 		return fmt.Errorf("invalid duration: %s (must be one of: 4s, 6s, 8s)", o.Duration)
 	}
 	if !validResolutions[o.Resolution] {
-		return fmt.Errorf("invalid resolution: %s (must be one of: 720p, 1080p)", o.Resolution)
+		return fmt.Errorf("invalid resolution: %s (must be one of: 720p, 1080p, 4k)", o.Resolution)
 	}
 	return nil
 }
@@ -1530,14 +1583,14 @@ type LTXVideo13BRequest struct {
 
 // TopazUpscaleVideoOptions represents options for fal-ai/topaz/upscale/video
 type TopazUpscaleVideoOptions struct {
-	Model      string `json:"model,omitempty"`       // Default: auto
+	Model      string `json:"model,omitempty"`       // Proteus, Artemis, Nyx, Gaia, Starlight, etc. Default: Proteus
 	OutputType string `json:"output_type,omitempty"` // mp4, mov. Default: mp4
 }
 
 // GetDefaultValues returns the default values for Topaz Upscale Video options
 func (o *TopazUpscaleVideoOptions) GetDefaultValues() map[string]interface{} {
 	return map[string]interface{}{
-		"model":       "auto",
+		"model":       "Proteus",
 		"output_type": "mp4",
 	}
 }
@@ -1566,21 +1619,21 @@ func (r *TopazUpscaleVideoRequest) GetProgress() ProgressCallback {
 
 // SyncLipsyncV2Options represents options for fal-ai/sync-lipsync/v2
 type SyncLipsyncV2Options struct {
-	Model      string `json:"model,omitempty"`       // wav2lip, wav2lip_gan. Default: wav2lip
+	Model      string `json:"model,omitempty"`       // lipsync-2, lipsync-2-pro. Default: lipsync-2
 	OutputType string `json:"output_type,omitempty"` // mp4, webm. Default: mp4
 }
 
 // GetDefaultValues returns the default values for Sync Lipsync V2 options
 func (o *SyncLipsyncV2Options) GetDefaultValues() map[string]interface{} {
 	return map[string]interface{}{
-		"model":       "wav2lip",
+		"model":       "lipsync-2",
 		"output_type": "mp4",
 	}
 }
 
 // Validate validates Sync Lipsync V2 options
 func (o *SyncLipsyncV2Options) Validate() error {
-	validModels := map[string]bool{"wav2lip": true, "wav2lip_gan": true, "": true}
+	validModels := map[string]bool{"lipsync-2": true, "lipsync-2-pro": true, "": true}
 	validOutputTypes := map[string]bool{"mp4": true, "webm": true, "": true}
 	if !validModels[o.Model] {
 		return fmt.Errorf("invalid model: %s", o.Model)
@@ -2251,7 +2304,7 @@ type KlingVideoO3EditRequest struct {
 type SeedanceOptions struct {
 	Duration      string `json:"duration,omitempty"`       // "auto" or "4"-"15" seconds. Default: "5"
 	AspectRatio   string `json:"aspect_ratio,omitempty"`   // auto, 21:9, 16:9, 4:3, 1:1, 3:4, 9:16. Default: auto
-	Resolution    string `json:"resolution,omitempty"`     // 480p, 720p. Default: 720p
+	Resolution    string `json:"resolution,omitempty"`     // 480p, 720p, 1080p, 4k. Default: 720p
 	GenerateAudio *bool  `json:"generate_audio,omitempty"` // Default: true
 }
 
@@ -2275,9 +2328,9 @@ func (o *SeedanceOptions) Validate() error {
 	if !validAspectRatios[o.AspectRatio] {
 		return fmt.Errorf("invalid aspect_ratio: %s (must be auto, 21:9, 16:9, 4:3, 1:1, 3:4, or 9:16)", o.AspectRatio)
 	}
-	validResolutions := map[string]bool{"480p": true, "720p": true, "": true}
+	validResolutions := map[string]bool{"480p": true, "720p": true, "1080p": true, "4k": true, "": true}
 	if !validResolutions[o.Resolution] {
-		return fmt.Errorf("invalid resolution: %s (must be 480p or 720p)", o.Resolution)
+		return fmt.Errorf("invalid resolution: %s (must be 480p, 720p, 1080p, or 4k)", o.Resolution)
 	}
 	if o.Duration != "" && o.Duration != "auto" {
 		dur, err := strconv.Atoi(o.Duration)
@@ -2306,7 +2359,7 @@ type SeedanceRequest struct {
 type SeedanceReferenceOptions struct {
 	Duration      string `json:"duration,omitempty"`       // "auto" or "4"-"15" seconds. Default: "5"
 	AspectRatio   string `json:"aspect_ratio,omitempty"`   // auto, 21:9, 16:9, 4:3, 1:1, 3:4, 9:16. Default: auto
-	Resolution    string `json:"resolution,omitempty"`     // 480p, 720p. Default: 720p
+	Resolution    string `json:"resolution,omitempty"`     // 480p, 720p, 1080p, 4k. Default: 720p
 	GenerateAudio *bool  `json:"generate_audio,omitempty"` // Default: true
 }
 
@@ -2330,9 +2383,9 @@ func (o *SeedanceReferenceOptions) Validate() error {
 	if !validAspectRatios[o.AspectRatio] {
 		return fmt.Errorf("invalid aspect_ratio: %s (must be auto, 21:9, 16:9, 4:3, 1:1, 3:4, or 9:16)", o.AspectRatio)
 	}
-	validResolutions := map[string]bool{"480p": true, "720p": true, "": true}
+	validResolutions := map[string]bool{"480p": true, "720p": true, "1080p": true, "4k": true, "": true}
 	if !validResolutions[o.Resolution] {
-		return fmt.Errorf("invalid resolution: %s (must be 480p or 720p)", o.Resolution)
+		return fmt.Errorf("invalid resolution: %s (must be 480p, 720p, 1080p, or 4k)", o.Resolution)
 	}
 	if o.Duration != "" && o.Duration != "auto" {
 		dur, err := strconv.Atoi(o.Duration)

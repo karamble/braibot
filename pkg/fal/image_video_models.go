@@ -130,7 +130,7 @@ func (m *klingVideoV25ImageModel) Define() Model {
 		Name:        "kling-video-v25-image",
 		Description: "Kling 2.5 Turbo Pro Image-to-Video - High quality video from images",
 		Type:        "image2video",
-		Endpoint:    "/kling-video/v2.5/turbo-pro/image-to-video",
+		Endpoint:    "/kling-video/v2.5-turbo/pro/image-to-video",
 		Options: &KlingVideoV25Options{
 			Duration:       defaults["duration"].(string),
 			AspectRatio:    defaults["aspect_ratio"].(string),
@@ -269,6 +269,26 @@ func (m *seedanceImageModel) Define() Model {
 	}
 }
 
+// --- seedance-2.0-fast-image ---
+
+type seedanceFastImageModel struct{}
+
+func (m *seedanceFastImageModel) Define() Model {
+	defaultAudio := true
+	return Model{
+		Name:        "seedance-2.0-fast-image",
+		Description: "ByteDance Seedance 2.0 Fast Image-to-Video - ~20% cheaper, identical quality, lower latency. No reference/audio inputs - use for silent B-roll only.",
+		Type:        "image2video",
+		Endpoint:    "https://queue.fal.run/bytedance/seedance-2.0/fast/image-to-video",
+		Options: &SeedanceOptions{
+			Duration:      "5",
+			AspectRatio:   "auto",
+			Resolution:    "720p",
+			GenerateAudio: &defaultAudio,
+		},
+	}
+}
+
 func init() {
 	registerModel(&veo2Model{})
 	registerModel(&klingVideoImageModel{})
@@ -283,4 +303,5 @@ func init() {
 	registerModel(&klingVideoV3ImageModel{})
 	registerModel(&klingVideoV3ProImageModel{})
 	registerModel(&seedanceImageModel{})
+	registerModel(&seedanceFastImageModel{})
 }

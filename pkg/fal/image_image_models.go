@@ -68,12 +68,35 @@ func (m *flux2ProEditModel) Define() Model {
 	}
 }
 
+// --- nano-banana-2/edit ---
+
+type nanoBanana2EditModel struct{}
+
+func (m *nanoBanana2EditModel) Define() Model {
+	defaultOpts := &NanoBanana2Options{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:        "nano-banana-2/edit",
+		Description: "Nano Banana 2 Edit (Google) - Edit and compose with up to 14 reference images via text instructions",
+		Type:        "image2image",
+		Endpoint:    "/nano-banana-2/edit",
+		Options: &NanoBanana2Options{
+			AspectRatio:  defaults["aspect_ratio"].(string),
+			NumImages:    defaults["num_images"].(int),
+			Resolution:   defaults["resolution"].(string),
+			OutputFormat: defaults["output_format"].(string),
+		},
+	}
+}
+
 func init() {
 	registerModel(&ghiblifyModel{})
 	registerModel(&cartoonifyModel{})
 	registerModel(&starVectorModel{})
 	registerModel(&flux2ProEditModel{})
 	registerModel(&flux2EditModel{})
+	registerModel(&nanoBanana2EditModel{})
 }
 
 // --- flux-2/edit ---

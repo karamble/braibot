@@ -280,6 +280,28 @@ func (m *flux2ProModel) Define() Model {
 	}
 }
 
+// --- nano-banana-2 ---
+
+type nanoBanana2Model struct{}
+
+func (m *nanoBanana2Model) Define() Model {
+	defaultOpts := &NanoBanana2Options{}
+	defaults := defaultOpts.GetDefaultValues()
+
+	return Model{
+		Name:        "nano-banana-2",
+		Description: "Nano Banana 2 (Google) - High-fidelity text-to-image with strong prompt adherence and multi-subject consistency",
+		Type:        "text2image",
+		Endpoint:    "/nano-banana-2",
+		Options: &NanoBanana2Options{
+			AspectRatio:  defaults["aspect_ratio"].(string),
+			NumImages:    defaults["num_images"].(int),
+			Resolution:   defaults["resolution"].(string),
+			OutputFormat: defaults["output_format"].(string),
+		},
+	}
+}
+
 func init() {
 	registerModel(&fastSDXLModel{})
 	registerModel(&hidreamI1FullModel{})
@@ -292,4 +314,5 @@ func init() {
 	registerModel(&stableDiffusionV35LargeModel{})
 	registerModel(&flux2ProModel{})
 	registerModel(&flux2Model{})
+	registerModel(&nanoBanana2Model{})
 }

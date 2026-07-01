@@ -146,7 +146,7 @@ func (m *klingVideoV25TextModel) Define() Model {
 		Name:        "kling-video-v25-text",
 		Description: "Kling 2.5 Turbo Pro Text-to-Video - High quality video generation from text",
 		Type:        "text2video",
-		Endpoint:    "/kling-video/v2.5/turbo-pro/text-to-video",
+		Endpoint:    "/kling-video/v2.5-turbo/pro/text-to-video",
 		Options: &KlingVideoV25Options{
 			Duration:       defaults["duration"].(string),
 			AspectRatio:    defaults["aspect_ratio"].(string),
