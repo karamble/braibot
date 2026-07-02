@@ -61,6 +61,8 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 	var infoMsg string
 	if s.billingEnabled {
 		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing...", req.PriceUSD, requiredDCR, currentBalanceDCR)
+	} else if eb := req.ExternalBilling; eb != nil {
+		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing...", eb.ChargedUSD, eb.ChargedDCR, eb.BalanceDCR)
 	} else {
 		infoMsg = "Processing your request (billing disabled)..."
 	}
@@ -151,7 +153,11 @@ func (s *VideoService) GenerateVideo(ctx context.Context, req *VideoRequest) (*V
 		finalMessage = "Video generation completed, but failed to send the result.\n\n"
 	}
 	if req.IsPM {
-		finalMessage += utils.FormatBillingConfirmation("video", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, req.PriceUSD, finalBalanceDCR)
+		if eb := req.ExternalBilling; eb != nil && !s.billingEnabled {
+			finalMessage += utils.FormatBillingConfirmation("video", true, true, true, eb.ChargedDCR, eb.ChargedUSD, eb.BalanceDCR)
+		} else {
+			finalMessage += utils.FormatBillingConfirmation("video", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, req.PriceUSD, finalBalanceDCR)
+		}
 		if err := s.bot.SendPM(ctx, req.UserID.String(), finalMessage); err != nil {
 			// fmt.Printf("ERROR: Failed to send final confirmation message (video) to %s: %v\n", req.UserNick, err) // Removed
 		}

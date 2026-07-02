@@ -66,6 +66,8 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	var infoMsg string
 	if s.billingEnabled {
 		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing %d image(s)...", totalExpectedCostUSD, requiredDCR, currentBalanceDCR, numImagesToRequest)
+	} else if eb := req.ExternalBilling; eb != nil {
+		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing %d image(s)...", eb.ChargedUSD, eb.ChargedDCR, eb.BalanceDCR, numImagesToRequest)
 	} else {
 		infoMsg = fmt.Sprintf("Processing your request for %d image(s) (billing disabled)...", numImagesToRequest)
 	}
@@ -173,7 +175,11 @@ func (s *ImageService) GenerateImage(ctx context.Context, req *ImageRequest) (*I
 	finalMessage := fmt.Sprintf("Finished processing request. Sent %d of %d generated image(s).\n\n", successfullySentCount, numImagesGenerated)
 
 	if req.IsPM {
-		finalMessage += utils.FormatBillingConfirmation("results", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, totalExpectedCostUSD, finalBalanceDCR)
+		if eb := req.ExternalBilling; eb != nil && !s.billingEnabled {
+			finalMessage += utils.FormatBillingConfirmation("results", true, true, true, eb.ChargedDCR, eb.ChargedUSD, eb.BalanceDCR)
+		} else {
+			finalMessage += utils.FormatBillingConfirmation("results", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, totalExpectedCostUSD, finalBalanceDCR)
+		}
 		if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
 			// Log error, but don't fail the whole operation just because the final message failed
 			// fmt.Printf("ERROR: Failed to send final confirmation message to %s: %v\n", req.UserNick, err) // Removed

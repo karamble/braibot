@@ -55,6 +55,8 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 	var infoMsg string
 	if s.billingEnabled {
 		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing speech request...", req.PriceUSD, requiredDCR, currentBalanceDCR)
+	} else if eb := req.ExternalBilling; eb != nil {
+		infoMsg = fmt.Sprintf("Request cost: $%.2f USD (%.8f DCR). Your balance: %.8f DCR. Processing speech request...", eb.ChargedUSD, eb.ChargedDCR, eb.BalanceDCR)
 	} else {
 		infoMsg = "Processing your speech request (billing disabled)..."
 	}
@@ -129,7 +131,11 @@ func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) 
 
 	// Only send billing information in PMs
 	if req.IsPM {
-		finalMessage += utils.FormatBillingConfirmation("audio", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, req.PriceUSD, finalBalanceDCR)
+		if eb := req.ExternalBilling; eb != nil && !s.billingEnabled {
+			finalMessage += utils.FormatBillingConfirmation("audio", true, true, true, eb.ChargedDCR, eb.ChargedUSD, eb.BalanceDCR)
+		} else {
+			finalMessage += utils.FormatBillingConfirmation("audio", s.billingEnabled, billingAttempted, billingSucceeded, chargedDCR, req.PriceUSD, finalBalanceDCR)
+		}
 		if err := s.bot.SendPM(ctx, req.UserNick, finalMessage); err != nil {
 			// fmt.Printf("ERROR: Failed to send final confirmation message (speech) to %s: %v\n", req.UserNick, err) // Removed
 		}

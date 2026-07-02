@@ -22,8 +22,12 @@ import (
 	"github.com/karamble/braibot/internal/commands"
 	braiconfig "github.com/karamble/braibot/internal/config"
 	"github.com/karamble/braibot/internal/database"
+	"github.com/karamble/braibot/internal/mcpsrv"
 	braibottypes "github.com/karamble/braibot/internal/types"
 	"github.com/karamble/braibot/internal/utils"
+	"github.com/karamble/braibot/pkg/fal"
+	"github.com/karamble/brmcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	kit "github.com/vctt94/bisonbotkit"
 	botkitconfig "github.com/vctt94/bisonbotkit/config"
 	"github.com/vctt94/bisonbotkit/logging"
@@ -95,10 +99,10 @@ func realMain() error {
 	}
 
 	// Create a bidirectional channel for PMs and tips
-	pmChan := make(chan types.ReceivedPM)
-	tipChan := make(chan types.ReceivedTip)
-	tipProgressChan := make(chan types.TipProgressEvent)
-	gcChan := make(chan types.GCReceivedMsg) // Add group chat channel
+	pmChan := make(chan *types.ReceivedPM)
+	tipChan := make(chan *types.ReceivedTip)
+	tipProgressChan := make(chan *types.TipProgressEvent)
+	gcChan := make(chan *types.GCReceivedMsg) // Add group chat channel
 
 	// Set up PM channels/log
 	cfg.PMChan = pmChan
@@ -115,7 +119,7 @@ func realMain() error {
 	cfg.TipReceivedChan = tipChan
 
 	// Create new bot instance
-	bot, err := kit.NewBot(cfg, logBackend)
+	bot, err := kit.NewBot(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create bot: %v", err)
 	}
@@ -137,6 +141,37 @@ func realMain() error {
 		bot.Close()
 	}()
 
+	// MCP over Bison Relay: serve the generation tools to MCP agents when
+	// mcpenabled=1 is set in braibot.conf. braibot is an open service, so
+	// any KX'd caller may connect; balances and rate limits do the gating.
+	var mcpRouter *brmcp.Router
+	if v := strings.ToLower(cfg.ExtraConfig["mcpenabled"]); v == "1" || v == "true" {
+		falClient := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
+		hcfg := brmcp.HarnessConfig{
+			DataDir:        filepath.Join(appRoot, "mcp"),
+			AllowFunc:      func(string) bool { return true },
+			Billing:        mcpsrv.NewBilling(dbManager, debug),
+			CallsPerMinute: 20,
+			// Video generations legitimately run for many minutes.
+			TTL:  30 * time.Minute,
+			Logf: logBackend.Logger("MCP").Infof,
+		}
+		if addr := cfg.ExtraConfig["mcpdcrlndaddr"]; addr != "" {
+			hcfg.Dcrlnd = &brmcp.DcrlndConfig{
+				Addr:         addr,
+				TLSCertPath:  cfg.ExtraConfig["mcpdcrlndcert"],
+				MacaroonPath: cfg.ExtraConfig["mcpdcrlndmacaroon"],
+			}
+		}
+		h, err := brmcp.NewHarness(&mcp.Implementation{Name: "braibot", Version: "1"}, hcfg)
+		if err != nil {
+			return fmt.Errorf("failed to init MCP harness: %v", err)
+		}
+		mcpsrv.Attach(h, falClient, dbManager, bot, debug)
+		mcpRouter = h.Start(ctx, mcpSender{bot: bot})
+		log.Infof("MCP over Bison Relay enabled")
+	}
+
 	// Add a goroutine to handle PMs using our bidirectional channel
 	go func() {
 		for pm := range pmChan {
@@ -146,6 +181,13 @@ func realMain() error {
 			if ctx.Err() != nil {
 				continue
 			}
+			// MCP envelope frames are harness protocol traffic, not
+			// chat: route them and skip command parsing and welcomes.
+			if mcpRouter != nil && brmcp.IsEnvelope(pm.Msg.Message) {
+				mcpRouter.HandlePM(utils.GetUserIDString(pm.Uid), pm.Msg.Message)
+				continue
+			}
+
 			log.Infof("Received PM from %s: %s", pm.Nick, pm.Msg.Message)
 
 			// Convert UID to string ID for tracking
@@ -366,4 +408,11 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+// mcpSender adapts the bot to the brmcp PM sender contract.
+type mcpSender struct{ bot *kit.Bot }
+
+func (s mcpSender) SendPM(ctx context.Context, peer, text string) error {
+	return s.bot.SendPM(ctx, peer, text)
 }
