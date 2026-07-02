@@ -156,13 +156,6 @@ func realMain() error {
 			TTL:  30 * time.Minute,
 			Logf: logBackend.Logger("MCP").Infof,
 		}
-		if addr := cfg.ExtraConfig["mcpdcrlndaddr"]; addr != "" {
-			hcfg.Dcrlnd = &brmcp.DcrlndConfig{
-				Addr:         addr,
-				TLSCertPath:  cfg.ExtraConfig["mcpdcrlndcert"],
-				MacaroonPath: cfg.ExtraConfig["mcpdcrlndmacaroon"],
-			}
-		}
 		h, err := brmcp.NewHarness(&mcp.Implementation{Name: "braibot", Version: "1"}, hcfg)
 		if err != nil {
 			return fmt.Errorf("failed to init MCP harness: %v", err)
