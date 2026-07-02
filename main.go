@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/karamble/braibot/internal/commands"
 	braiconfig "github.com/karamble/braibot/internal/config"
 	"github.com/karamble/braibot/internal/database"
+	"github.com/karamble/braibot/internal/fmp"
 	"github.com/karamble/braibot/internal/mcpsrv"
 	braibottypes "github.com/karamble/braibot/internal/types"
 	"github.com/karamble/braibot/internal/utils"
@@ -161,6 +163,17 @@ func realMain() error {
 			return fmt.Errorf("failed to init MCP harness: %v", err)
 		}
 		mcpsrv.Attach(h, falClient, dbManager, bot, debug)
+		// Stock market tools ride the same harness when an FMP key is
+		// configured; without one they are simply not registered.
+		if fmpKey := cfg.ExtraConfig["fmpapikey"]; fmpKey != "" {
+			ttl := 24 * time.Hour
+			if v, err := strconv.Atoi(cfg.ExtraConfig["fmpcachettl"]); err == nil && v > 0 {
+				ttl = time.Duration(v) * time.Second
+			}
+			stockSvc := fmp.NewService(fmpKey, ttl, logBackend.Logger("FMP").Infof)
+			mcpsrv.AttachStock(h, stockSvc, bot)
+			log.Infof("Stock market tools enabled")
+		}
 		mcpRouter = h.Start(ctx, mcpSender{bot: bot})
 		log.Infof("MCP over Bison Relay enabled")
 	}
