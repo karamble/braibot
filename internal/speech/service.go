@@ -11,6 +11,7 @@ import (
 
 	// "github.com/companyzero/bisonrelay/clientrpc/types" // Only needed for old billing call
 	"github.com/karamble/braibot/internal/database"
+	"github.com/karamble/braibot/internal/faladapter"
 	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	kit "github.com/vctt94/bisonbotkit"
@@ -38,6 +39,14 @@ func NewSpeechService(client *fal.Client, dbManager *database.DBManager, bot *ki
 
 // GenerateSpeech generates speech based on the internal request, handling billing conditionally.
 func (s *SpeechService) GenerateSpeech(ctx context.Context, req *SpeechRequest) (*SpeechResult, error) {
+	// Upstream TTS billing is per character while the charged price is per
+	// message, so the model's text cap bounds the input cost. Enforced
+	// before any charge or generation.
+	if m, ok := faladapter.GetModel(req.ModelName, "text2speech"); ok && m.MaxTextChars > 0 && len(req.Text) > m.MaxTextChars {
+		err := fmt.Errorf("text is %d characters; %s accepts at most %d", len(req.Text), req.ModelName, m.MaxTextChars)
+		return &SpeechResult{Success: false, Error: err}, err
+	}
+
 	// 1. Calculate cost and CHECK balance if billing is enabled
 	var requiredDCR, currentBalanceDCR float64
 	var checkErr error

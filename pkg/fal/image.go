@@ -32,6 +32,9 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 		modelName = "fast-sdxl"
 		modelType = "text2image"
 		baseReq = &r.BaseImageRequest
+		if r.NumImages < 0 || r.NumImages > 4 {
+			return nil, fmt.Errorf("invalid num_images: %d (must be 1-4)", r.NumImages)
+		}
 		reqBody = map[string]interface{}{
 			"prompt": r.Prompt,
 		}

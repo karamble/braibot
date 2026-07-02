@@ -12,5 +12,6 @@ type AppModel struct {
 	fal.Model
 	PriceUSD         float64
 	PerSecondPricing bool
+	MaxTextChars     int
 	HelpDoc          string
 }

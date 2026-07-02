@@ -99,8 +99,8 @@ func (o *KlingVideoOptions) Validate() error {
 	}
 	if o.Duration != "" {
 		dur, err := strconv.Atoi(o.Duration)
-		if err != nil || dur < 5 {
-			return fmt.Errorf("invalid duration: %s (must be at least 5 seconds)", o.Duration)
+		if err != nil || dur < 5 || dur > 10 {
+			return fmt.Errorf("invalid duration: %s (must be 5-10 seconds)", o.Duration)
 		}
 	}
 	if o.CFGScale < 0 || o.CFGScale > 1 {
@@ -170,8 +170,8 @@ func (o *FluxSchnellOptions) Validate() error {
 	if o.NumInferenceSteps < 0 {
 		return fmt.Errorf("num_inference_steps cannot be negative: %d", o.NumInferenceSteps)
 	}
-	if o.NumImages < 0 {
-		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
 	}
 
 	return nil
@@ -221,8 +221,8 @@ func (o *FluxProV1_1Options) Validate() error {
 	if o.ImageSize != "" && !validImageSizes[o.ImageSize] {
 		return fmt.Errorf("invalid image_size: %s", o.ImageSize)
 	}
-	if o.NumImages < 0 {
-		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
 	}
 	if o.SafetyTolerance != "" && !validSafetyTolerances[o.SafetyTolerance] {
 		return fmt.Errorf("invalid safety_tolerance: %s (must be 1-6)", o.SafetyTolerance)
@@ -427,8 +427,8 @@ func (o *Flux2Options) Validate() error {
 	if o.NumInferenceSteps < 0 {
 		return fmt.Errorf("num_inference_steps cannot be negative: %d", o.NumInferenceSteps)
 	}
-	if o.NumImages < 0 {
-		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
 	}
 	if o.Acceleration != "" && !validAccelerations[o.Acceleration] {
 		return fmt.Errorf("invalid acceleration: %s (must be none, regular, or high)", o.Acceleration)
@@ -685,8 +685,8 @@ func (o *Flux2EditOptions) Validate() error {
 	if o.NumInferenceSteps < 0 {
 		return fmt.Errorf("num_inference_steps cannot be negative: %d", o.NumInferenceSteps)
 	}
-	if o.NumImages < 0 {
-		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
 	}
 	if o.Acceleration != "" && !validAccelerations[o.Acceleration] {
 		return fmt.Errorf("invalid acceleration: %s (must be none, regular, or high)", o.Acceleration)
@@ -917,8 +917,8 @@ func (o *HiDreamOptions) Validate() error {
 	if o.GuidanceScale != nil && *o.GuidanceScale < 0 {
 		return fmt.Errorf("guidance_scale cannot be negative: %f", *o.GuidanceScale)
 	}
-	if o.NumImages < 0 {
-		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
 	}
 	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
 		return fmt.Errorf("invalid output_format: %s", o.OutputFormat)
@@ -985,8 +985,8 @@ func (o *FluxProV1_1UltraOptions) Validate() error {
 		"2:3": true, "3:4": true, "9:16": true, "9:21": true, "": true,
 	}
 
-	if o.NumImages < 0 {
-		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
 	}
 	if o.SafetyTolerance != "" && !validSafetyTolerances[o.SafetyTolerance] {
 		return fmt.Errorf("invalid safety_tolerance: %s (must be 1-6)", o.SafetyTolerance)
@@ -1045,8 +1045,8 @@ func (o *FluxDevOptions) Validate() error {
 	if o.GuidanceScale < 0 {
 		return fmt.Errorf("guidance_scale cannot be negative: %f", o.GuidanceScale)
 	}
-	if o.NumImages < 0 {
-		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
 	}
 
 	return nil
@@ -1115,8 +1115,8 @@ func (o *StableDiffusionV35LargeOptions) Validate() error {
 	if o.GuidanceScale < 0 {
 		return fmt.Errorf("guidance_scale cannot be negative: %f", o.GuidanceScale)
 	}
-	if o.NumImages < 0 {
-		return fmt.Errorf("num_images cannot be negative: %d", o.NumImages)
+	if o.NumImages < 0 || o.NumImages > 4 {
+		return fmt.Errorf("invalid num_images: %d (must be 1-4)", o.NumImages)
 	}
 	if o.OutputFormat != "" && !validOutputFormats[o.OutputFormat] {
 		return fmt.Errorf("invalid output_format: %s (must be jpeg or png)", o.OutputFormat)
