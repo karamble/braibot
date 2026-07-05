@@ -21,7 +21,7 @@ import (
 
 	"github.com/companyzero/bisonrelay/zkidentity"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/karamble/brmcp"
+	"github.com/karamble/brmcp/server"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	kit "github.com/vctt94/bisonbotkit"
 
@@ -39,7 +39,7 @@ import (
 // Billing contract speaks atoms.
 const matomsPerAtom = 1000
 
-// Billing adapts braibot's per-user balance database to brmcp.Billing, so
+// Billing adapts braibot's per-user balance database to server.Billing, so
 // harness debits, refunds, tip credits, and invoice settlements all move
 // the same balances the chat commands use.
 type Billing struct {
@@ -73,12 +73,12 @@ func (b *Billing) Debit(uid string, atoms int64) error {
 		// The store reports a shortfall as an error string; the harness
 		// needs the sentinel to build payment_required.
 		if strings.Contains(err.Error(), "insufficient balance") {
-			return brmcp.ErrInsufficient
+			return server.ErrInsufficient
 		}
 		return err
 	}
 	if !ok {
-		return brmcp.ErrInsufficient
+		return server.ErrInsufficient
 	}
 	return nil
 }
@@ -148,7 +148,7 @@ func genReq(commandType string, m faladapter.AppModel, peer string) (braibottype
 // services run with internal billing disabled, so without it they would
 // report billing as disabled while the caller was in fact charged.
 func externalBilling(ctx context.Context, db *database.DBManager, peer string, usd float64) *braibottypes.ExternalBilling {
-	atoms := brmcp.ChargedAtoms(ctx)
+	atoms := server.ChargedAtoms(ctx)
 	if atoms <= 0 {
 		return nil
 	}
@@ -214,12 +214,12 @@ var exposed = []string{"text2image", "text2video", "image2video", "text2speech"}
 // Attach registers braibot's MCP tools on the harness. Services are built
 // with billing DISABLED: the harness already debited the quote, so the
 // service only validates, generates, and delivers over the DM.
-func Attach(h *brmcp.Harness, falClient *fal.Client, db *database.DBManager, bot *kit.Bot, debug bool) {
+func Attach(h *server.Harness, falClient *fal.Client, db *database.DBManager, bot *kit.Bot, debug bool) {
 	imageSvc := image.NewImageService(falClient, db, bot, debug, false)
 	videoSvc := video.NewVideoService(falClient, db, bot, debug, false)
 	speechSvc := speech.NewSpeechService(falClient, db, bot, debug, false)
 
-	brmcp.AddTool(h, &mcp.Tool{
+	server.AddTool(h, &mcp.Tool{
 		Name:        "list_models",
 		Description: "List the available generation models with their USD prices per call (per second for per-second models).",
 	}, 0, func(_ context.Context, _ string, in listModelsIn) (any, error) {
@@ -247,7 +247,7 @@ func Attach(h *brmcp.Harness, falClient *fal.Client, db *database.DBManager, bot
 		return out, nil
 	})
 
-	brmcp.AddTool(h, &mcp.Tool{
+	server.AddTool(h, &mcp.Tool{
 		Name:        "balance",
 		Description: "Show your braibot balance in DCR. Fund it by tipping the bot or paying a payment_required invoice.",
 	}, 0, func(_ context.Context, peer string, _ struct{}) (any, error) {
@@ -262,7 +262,7 @@ func Attach(h *brmcp.Harness, falClient *fal.Client, db *database.DBManager, bot
 		return map[string]any{"balanceDcr": dcr}, nil
 	})
 
-	brmcp.AddToolPriced(h, &mcp.Tool{
+	server.AddToolPriced(h, &mcp.Tool{
 		Name:        "text2image",
 		Description: "Generate image(s) from a prompt. The result is delivered to your Bison Relay DM.",
 	}, func(_ context.Context, peer string, in text2ImageIn) (int64, error) {
@@ -299,7 +299,7 @@ func Attach(h *brmcp.Harness, falClient *fal.Client, db *database.DBManager, bot
 		return delivered(m.Name, "image", map[string]any{"images": n}), nil
 	})
 
-	brmcp.AddToolPriced(h, &mcp.Tool{
+	server.AddToolPriced(h, &mcp.Tool{
 		Name:        "text2video",
 		Description: "Generate a video from a prompt. Generation can take many minutes; the result is delivered to your Bison Relay DM.",
 	}, func(_ context.Context, peer string, in text2VideoIn) (int64, error) {
@@ -328,7 +328,7 @@ func Attach(h *brmcp.Harness, falClient *fal.Client, db *database.DBManager, bot
 		return delivered(m.Name, "video", nil), nil
 	})
 
-	brmcp.AddToolPriced(h, &mcp.Tool{
+	server.AddToolPriced(h, &mcp.Tool{
 		Name:        "image2video",
 		Description: "Animate a source image into a video. Generation can take many minutes; the result is delivered to your Bison Relay DM.",
 	}, func(_ context.Context, peer string, in image2VideoIn) (int64, error) {
@@ -362,7 +362,7 @@ func Attach(h *brmcp.Harness, falClient *fal.Client, db *database.DBManager, bot
 		return delivered(m.Name, "video", nil), nil
 	})
 
-	brmcp.AddToolPriced(h, &mcp.Tool{
+	server.AddToolPriced(h, &mcp.Tool{
 		Name:        "text2speech",
 		Description: "Synthesize speech from text. The audio is delivered to your Bison Relay DM.",
 	}, func(_ context.Context, peer string, in text2SpeechIn) (int64, error) {

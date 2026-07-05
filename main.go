@@ -29,6 +29,7 @@ import (
 	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	"github.com/karamble/brmcp"
+	"github.com/karamble/brmcp/server"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	kit "github.com/vctt94/bisonbotkit"
 	botkitconfig "github.com/vctt94/bisonbotkit/config"
@@ -149,7 +150,7 @@ func realMain() error {
 	var mcpRouter *brmcp.Router
 	if v := strings.ToLower(cfg.ExtraConfig["mcpenabled"]); v == "1" || v == "true" {
 		falClient := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
-		hcfg := brmcp.HarnessConfig{
+		hcfg := server.HarnessConfig{
 			DataDir:        filepath.Join(appRoot, "mcp"),
 			AllowFunc:      func(string) bool { return true },
 			Billing:        mcpsrv.NewBilling(dbManager, debug),
@@ -158,7 +159,7 @@ func realMain() error {
 			TTL:  30 * time.Minute,
 			Logf: logBackend.Logger("MCP").Infof,
 		}
-		h, err := brmcp.NewHarness(&mcp.Implementation{Name: "braibot", Version: "1"}, hcfg)
+		h, err := server.NewHarness(&mcp.Implementation{Name: "braibot", Version: "1"}, hcfg)
 		if err != nil {
 			return fmt.Errorf("failed to init MCP harness: %v", err)
 		}

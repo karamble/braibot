@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/karamble/brmcp"
+	"github.com/karamble/brmcp/server"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	kit "github.com/vctt94/bisonbotkit"
 
@@ -37,8 +37,8 @@ type stockFundamentalsIn struct {
 }
 
 // AttachStock registers the FMP-backed stock tools on the harness.
-func AttachStock(h *brmcp.Harness, svc *fmp.Service, bot *kit.Bot) {
-	brmcp.AddTool(h, &mcp.Tool{
+func AttachStock(h *server.Harness, svc *fmp.Service, bot *kit.Bot) {
+	server.AddTool(h, &mcp.Tool{
 		Name:        "stock_search",
 		Description: "Search stock tickers by company name or symbol. Returns ranked matches from major exchanges.",
 	}, 0, func(_ context.Context, _ string, in stockSearchIn) (any, error) {
@@ -61,7 +61,7 @@ func AttachStock(h *brmcp.Harness, svc *fmp.Service, bot *kit.Bot) {
 		return map[string]any{"results": out}, nil
 	})
 
-	brmcp.AddToolPriced(h, &mcp.Tool{
+	server.AddToolPriced(h, &mcp.Tool{
 		Name: "stock_fundamentals",
 		Description: "Full fundamentals for a ticker: profile, five periods of income/balance/cash flow, " +
 			"key metrics, TTM ratios, revenue segmentation, analyst targets and actions, one year of prices. " +
