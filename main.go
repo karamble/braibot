@@ -369,10 +369,21 @@ func realMain() error {
 		}
 	}()
 
-	// Handle received tips
+	// Handle received tips. A tip redelivered after a crash between the
+	// balance update and its acknowledgement must not credit twice, so
+	// credited sequence ids are journaled (credit, record, ack).
+	tipJournal, err := server.OpenTipJournal(filepath.Join(appRoot, "data", "tips.json"))
+	if err != nil {
+		return fmt.Errorf("failed to open tip journal: %v", err)
+	}
 	go func() {
 		for tip := range tipChan {
 			if ctx.Err() != nil {
+				continue
+			}
+			if tipJournal.Seen(tip.SequenceId) {
+				// Already credited; only the acknowledgement was lost.
+				bot.AckTipReceived(ctx, tip.SequenceId)
 				continue
 			}
 			// Convert UID to string ID for database
@@ -383,6 +394,9 @@ func realMain() error {
 			if err != nil {
 				log.Errorf("Failed to update balance: %v", err)
 				continue
+			}
+			if err := tipJournal.Record(tip.SequenceId); err != nil {
+				log.Errorf("Failed to record tip %d: %v", tip.SequenceId, err)
 			}
 
 			// Convert to DCR for display
