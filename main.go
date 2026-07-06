@@ -20,6 +20,7 @@ import (
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
+	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/karamble/braibot/internal/commands"
 	braiconfig "github.com/karamble/braibot/internal/config"
 	"github.com/karamble/braibot/internal/database"
@@ -29,6 +30,8 @@ import (
 	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	"github.com/karamble/brmcp"
+	"github.com/karamble/brmcp/bridge"
+	"github.com/karamble/brmcp/directory"
 	"github.com/karamble/brmcp/server"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	kit "github.com/vctt94/bisonbotkit"
@@ -148,6 +151,7 @@ func realMain() error {
 	// mcpenabled=1 is set in braibot.conf. braibot is an open service, so
 	// any KX'd caller may connect; balances and rate limits do the gating.
 	var mcpRouter *brmcp.Router
+	var dirMatcher *bridge.TipMatcher
 	if v := strings.ToLower(cfg.ExtraConfig["mcpenabled"]); v == "1" || v == "true" {
 		falClient := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
 		hcfg := server.HarnessConfig{
@@ -177,6 +181,58 @@ func realMain() error {
 		}
 		mcpRouter = h.Start(ctx, mcpSender{bot: bot})
 		log.Infof("MCP over Bison Relay enabled")
+
+		// Directory presence: register the tools at brmcpdir directories
+		// and answer their listing invites, auto-funding listings within
+		// the configured caps. The nominated verification test is the
+		// cheapest image generation.
+		if v := strings.ToLower(cfg.ExtraConfig["directoryenabled"]); v == "1" || v == "true" {
+			uids := splitCSV(cfg.ExtraConfig["directoryuids"])
+			desc := cfg.ExtraConfig["directorydescription"]
+			if len(uids) == 0 || desc == "" {
+				return fmt.Errorf("directoryenabled requires directoryuids and directorydescription in braibot.conf")
+			}
+			dirMatcher = bridge.NewTipMatcher()
+			reg, err := directory.NewRegistrant(directory.RegistrantConfig{
+				Description: desc,
+				Tags:        splitCSV(cfg.ExtraConfig["directorytags"]),
+				Test: directory.TestSpec{
+					Tool:     "text2image",
+					Args:     map[string]any{"model": "fast-sdxl", "prompt": "directory verification", "num_images": 1},
+					MaxAtoms: extraInt(cfg.ExtraConfig, "directorytestmaxatoms", 500_000),
+				},
+				AutoFund: directory.AutoFund{
+					Enabled:              true,
+					MaxAtomsPerRequest:   extraInt(cfg.ExtraConfig, "autofundmaxatoms", 1_000_000),
+					MaxAtomsPerMonth:     extraInt(cfg.ExtraConfig, "autofundmonthlyatoms", 5_000_000),
+					AllowedDirectoryUIDs: uids,
+				},
+				DataDir: filepath.Join(appRoot, "mcp"),
+				Router:  mcpRouter,
+				Payer:   &tipPayer{bot: bot, matcher: dirMatcher},
+				Name:    "braibot",
+				Logf:    logBackend.Logger("DIR").Infof,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to init directory registrant: %v", err)
+			}
+			reg.RegisterTools(h)
+			reg.Start(ctx)
+			for _, uid := range uids {
+				go func(uid string) {
+					// Give the clientrpc websocket a moment to connect.
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(10 * time.Second):
+					}
+					if err := reg.Register(ctx, uid); err != nil {
+						log.Warnf("Directory registration at %s failed: %v", uid[:8], err)
+					}
+				}(uid)
+			}
+			log.Infof("Directory registrant enabled (%d directories)", len(uids))
+		}
 	}
 
 	// Add a goroutine to handle PMs using our bidirectional channel
@@ -363,9 +419,20 @@ func realMain() error {
 		}
 	}()
 
-	// Drain tip progress events (must be consumed to prevent bisonbotkit handlers from blocking)
+	// Tip progress events resolve outbound directory payments; everything
+	// else is drained so bisonbotkit handlers don't block.
 	go func() {
-		for range tipProgressChan {
+		for ev := range tipProgressChan {
+			if dirMatcher == nil || ev == nil {
+				continue
+			}
+			if ev.Completed || !ev.WillRetry {
+				var res error
+				if !ev.Completed {
+					res = errors.New(ev.AttemptErr)
+				}
+				dirMatcher.Resolve(utils.GetUserIDString(ev.Uid), ev.AmountMatoms, res)
+			}
 		}
 	}()
 
@@ -436,4 +503,53 @@ type mcpSender struct{ bot *kit.Bot }
 
 func (s mcpSender) SendPM(ctx context.Context, peer, text string) error {
 	return s.bot.SendPM(ctx, peer, text)
+}
+
+// tipPayer settles directory payments as Bison Relay tips, resolved by the
+// matching terminal tip-progress events.
+type tipPayer struct {
+	bot     *kit.Bot
+	matcher *bridge.TipMatcher
+}
+
+func (p *tipPayer) Pay(ctx context.Context, payeeUID string, atoms int64) error {
+	var sid zkidentity.ShortID
+	if err := sid.FromString(payeeUID); err != nil {
+		return fmt.Errorf("payee uid: %w", err)
+	}
+	w := p.matcher.Expect(payeeUID, atoms*1000)
+	if err := p.bot.PayTip(ctx, sid, dcrutil.Amount(atoms), 3); err != nil {
+		w.Cancel()
+		return fmt.Errorf("tip: %w", err)
+	}
+	select {
+	case err := <-w.Done():
+		if err != nil {
+			return fmt.Errorf("tip failed: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		w.Cancel()
+		return errors.New("tip not confirmed in time; the attempt keeps " +
+			"running in the background and still credits the payee")
+	}
+}
+
+// splitCSV parses a comma-separated config value into trimmed entries.
+func splitCSV(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// extraInt reads an integer config key, falling back when absent or invalid.
+func extraInt(extra map[string]string, key string, def int64) int64 {
+	if v, err := strconv.ParseInt(extra[key], 10, 64); err == nil && v > 0 {
+		return v
+	}
+	return def
 }

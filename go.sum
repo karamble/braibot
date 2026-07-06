@@ -48,8 +48,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/jrick/logrotate v1.1.2 h1:6ePk462NCX7TfKtNp5JJ7MbA2YIslkpfgP03TlTYMN0=
 github.com/jrick/logrotate v1.1.2/go.mod h1:f9tdWggSVK3iqavGpyvegq5IhNois7KXmasU6/N96OQ=
-github.com/karamble/brmcp v0.1.0 h1:PrqWW+pmTqLog3Ds1WFSq1553sZLvxNUE1PaehEsbUI=
-github.com/karamble/brmcp v0.1.0/go.mod h1:3vQ8V2PvhGBZ0lllsfaaXFazEYnzeUXWtxKLMEUg3e8=
+github.com/karamble/brmcp v0.1.1-0.20260706124435-3683c70fe681 h1:814gAKi4q2J9F9ft3pyltLM+tkV3SksPVA9uVkOxKNc=
+github.com/karamble/brmcp v0.1.1-0.20260706124435-3683c70fe681/go.mod h1:3vQ8V2PvhGBZ0lllsfaaXFazEYnzeUXWtxKLMEUg3e8=
 github.com/klauspost/cpuid/v2 v2.3.0 h1:S4CRMLnYUhGeDFDqkGriYKdfoFlDnMtqTiI/sFzhA9Y=
 github.com/klauspost/cpuid/v2 v2.3.0/go.mod h1:hqwkgyIinND0mEev00jJYCxPNVRVXFQeu1XKlok6oO0=
 github.com/mattn/go-sqlite3 v1.14.27 h1:drZCnuvf37yPfs95E5jd9s3XhdVWLal+6BOK6qrv6IU=
