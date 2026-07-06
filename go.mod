@@ -9,7 +9,7 @@ require (
 	github.com/vctt94/bisonbotkit v0.0.2-0.20260204145852-60ab34d1acd1
 )
 
-require github.com/karamble/brmcp v0.1.1-0.20260706124435-3683c70fe681
+require github.com/karamble/brmcp v0.1.1-0.20260706215223-55f4e050994c
 
 require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
