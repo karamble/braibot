@@ -175,10 +175,14 @@ func AttachSatellite(h *server.Harness, svc *satfetch.Service, bot *kit.Bot) {
 		return usdToAtoms(satTierUSD(mpp))
 	}, func(ctx context.Context, peer string, in satImageIn) (any, error) {
 		sizeKM := orDefaultF(in.SizeKM, 5)
+		format := satfetch.Format(strings.ToLower(in.Format))
+		if format == "" {
+			format = satfetch.FormatJPEG
+		}
 		res, err := svc.Image(ctx, satfetch.ImageRequest{
 			Lat: in.Lat, Lon: in.Lon, SizeKM: in.SizeKM, MaxCloud: in.MaxCloud,
 			Days: in.Days, SceneID: in.SceneID,
-			Format: satfetch.Format(strings.ToLower(in.Format)),
+			Format: format,
 			MaxPx:  orDefaultI(in.MaxPx, 1024),
 		})
 		if err != nil {
