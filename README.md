@@ -12,6 +12,7 @@ It connects to the **[Fal.ai](https://fal.ai/)** service to let you generate ima
 *   **AI Image Transformation:** Modify existing images using AI (e.g., apply artistic styles).
 *   **AI Video Generation:** Create short video clips from text descriptions or existing images.
 *   **AI Text-to-Speech:** Convert your text messages into spoken audio clips using different voices.
+*   **Satellite Imagery (MCP):** AI agents can order Sentinel-2 satellite images, NDVI vegetation renders, and centimeter-class national orthophotos of any coordinates via the MCP tools, delivered into the chat. Powered by [satfetch](https://github.com/karamble/satfetch) over free, keyless open-data sources.
 *   **Decred Lightning Payments:** Add funds to your bot balance by sending tips via Bison Relay's built-in Decred Lightning Network feature. The bot automatically uses your balance to pay for AI tasks.
 *   **Easy Model Selection:** List available AI models for different tasks and choose the one you prefer.
 *   **Balance Checking:** Check your current DCR balance with the bot at any time.

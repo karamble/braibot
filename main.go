@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -33,6 +34,7 @@ import (
 	"github.com/karamble/brmcp/bridge"
 	"github.com/karamble/brmcp/directory"
 	"github.com/karamble/brmcp/server"
+	"github.com/karamble/satfetch"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	kit "github.com/vctt94/bisonbotkit"
 	botkitconfig "github.com/vctt94/bisonbotkit/config"
@@ -179,6 +181,23 @@ func realMain() error {
 			mcpsrv.AttachStock(h, stockSvc, bot)
 			log.Infof("Stock market tools enabled")
 		}
+		// Satellite imagery tools: every upstream source is free and
+		// keyless, so they are always on. The product cache lives under
+		// the app root, capped by the optional satcachemb key.
+		satSvc, err := satfetch.New(satfetch.Options{
+			Catalog:    satfetch.NewEarthSearch(satfetch.EarthSearchOptions{}),
+			CacheDir:   filepath.Join(appRoot, "satcache"),
+			CacheMaxMB: int(extraInt(cfg.ExtraConfig, "satcachemb", 2048)),
+			Logger: slog.New(slog.NewTextHandler(
+				satLogWriter{log: logBackend.Logger("SAT")},
+				&slog.HandlerOptions{Level: slog.LevelInfo})),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to init satellite service: %v", err)
+		}
+		defer satSvc.Close()
+		mcpsrv.AttachSatellite(h, satSvc, bot)
+		log.Infof("Satellite imagery tools enabled")
 		mcpRouter = h.Start(ctx, mcpSender{bot: bot})
 		log.Infof("MCP over Bison Relay enabled")
 
@@ -503,6 +522,18 @@ type mcpSender struct{ bot *kit.Bot }
 
 func (s mcpSender) SendPM(ctx context.Context, peer, text string) error {
 	return s.bot.SendPM(ctx, peer, text)
+}
+
+// satLogWriter bridges satfetch's stdlib slog output into braibot's logger.
+type satLogWriter struct {
+	log interface {
+		Infof(format string, params ...interface{})
+	}
+}
+
+func (w satLogWriter) Write(p []byte) (int, error) {
+	w.log.Infof("%s", strings.TrimRight(string(p), "\n"))
+	return len(p), nil
 }
 
 // tipPayer settles directory payments as Bison Relay tips, resolved by the

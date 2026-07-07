@@ -11,6 +11,8 @@ require (
 
 require github.com/karamble/brmcp v0.1.1-0.20260706221912-61502343ed2e
 
+require github.com/karamble/satfetch v0.0.0-20260707125944-336af717af25
+
 require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.6.1
