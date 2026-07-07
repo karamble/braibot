@@ -52,6 +52,8 @@ github.com/karamble/brmcp v0.1.1-0.20260706221912-61502343ed2e h1:6inK0Nc5jen00V
 github.com/karamble/brmcp v0.1.1-0.20260706221912-61502343ed2e/go.mod h1:3vQ8V2PvhGBZ0lllsfaaXFazEYnzeUXWtxKLMEUg3e8=
 github.com/karamble/satfetch v0.0.0-20260707125944-336af717af25 h1:rsq+l0fKt5hheOn4IaN7/iBIR+ybX+tNZPjdvws3cnE=
 github.com/karamble/satfetch v0.0.0-20260707125944-336af717af25/go.mod h1:iocOqmmbTwzq8fEtuPLRIGjKPvWA8EYm00scrj1VRaI=
+github.com/karamble/satfetch v0.0.0-20260707203034-774667bcbb2c h1:R47dulD0/jReEkPreG5kuLdXfb78rXNLnys8iGzgaiU=
+github.com/karamble/satfetch v0.0.0-20260707203034-774667bcbb2c/go.mod h1:iocOqmmbTwzq8fEtuPLRIGjKPvWA8EYm00scrj1VRaI=
 github.com/klauspost/cpuid/v2 v2.3.0 h1:S4CRMLnYUhGeDFDqkGriYKdfoFlDnMtqTiI/sFzhA9Y=
 github.com/klauspost/cpuid/v2 v2.3.0/go.mod h1:hqwkgyIinND0mEev00jJYCxPNVRVXFQeu1XKlok6oO0=
 github.com/mattn/go-sqlite3 v1.14.27 h1:drZCnuvf37yPfs95E5jd9s3XhdVWLal+6BOK6qrv6IU=
