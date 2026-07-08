@@ -156,9 +156,16 @@ func realMain() error {
 	var dirMatcher *bridge.TipMatcher
 	if v := strings.ToLower(cfg.ExtraConfig["mcpenabled"]); v == "1" || v == "true" {
 		falClient := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
+		adminUIDs := splitCSV(cfg.ExtraConfig["adminuids"])
+		dirUIDs := splitCSV(cfg.ExtraConfig["directoryuids"])
+		adm, err := mcpsrv.NewAdmin(dbManager, filepath.Join(appRoot, "mcp"), adminUIDs, dirUIDs)
+		if err != nil {
+			return fmt.Errorf("failed to init MCP admin gate: %v", err)
+		}
 		hcfg := server.HarnessConfig{
 			DataDir:        filepath.Join(appRoot, "mcp"),
-			AllowFunc:      func(string) bool { return true },
+			AllowFunc:      adm.Allow,
+			ToolVisible:    adm.ToolVisible,
 			Billing:        mcpsrv.NewBilling(dbManager, debug),
 			CallsPerMinute: 20,
 			// Video generations legitimately run for many minutes.
@@ -198,6 +205,10 @@ func realMain() error {
 		defer satSvc.Close()
 		mcpsrv.AttachSatellite(h, satSvc, bot)
 		log.Infof("Satellite imagery tools enabled")
+		if len(adminUIDs) > 0 {
+			adm.AttachAdmin(h)
+			log.Infof("Admin tools enabled (%d admins)", len(adminUIDs))
+		}
 		mcpRouter = h.Start(ctx, mcpSender{bot: bot})
 		log.Infof("MCP over Bison Relay enabled")
 
@@ -206,12 +217,18 @@ func realMain() error {
 		// the configured caps. The nominated verification test is the
 		// cheapest image generation.
 		if v := strings.ToLower(cfg.ExtraConfig["directoryenabled"]); v == "1" || v == "true" {
-			uids := splitCSV(cfg.ExtraConfig["directoryuids"])
+			uids := dirUIDs
 			desc := cfg.ExtraConfig["directorydescription"]
 			if len(uids) == 0 || desc == "" {
 				return fmt.Errorf("directoryenabled requires directoryuids and directorydescription in braibot.conf")
 			}
 			dirMatcher = bridge.NewTipMatcher()
+			autoFund := directory.AutoFund{
+				Enabled:              true,
+				MaxAtomsPerRequest:   extraInt(cfg.ExtraConfig, "autofundmaxatoms", 1_000_000),
+				MaxAtomsPerMonth:     extraInt(cfg.ExtraConfig, "autofundmonthlyatoms", 5_000_000),
+				AllowedDirectoryUIDs: uids,
+			}
 			reg, err := directory.NewRegistrant(directory.RegistrantConfig{
 				Description: desc,
 				Tags:        splitCSV(cfg.ExtraConfig["directorytags"]),
@@ -220,23 +237,19 @@ func realMain() error {
 					Args:     map[string]any{"model": "fast-sdxl", "prompt": "directory verification", "num_images": 1},
 					MaxAtoms: extraInt(cfg.ExtraConfig, "directorytestmaxatoms", 500_000),
 				},
-				AutoFund: directory.AutoFund{
-					Enabled:              true,
-					MaxAtomsPerRequest:   extraInt(cfg.ExtraConfig, "autofundmaxatoms", 1_000_000),
-					MaxAtomsPerMonth:     extraInt(cfg.ExtraConfig, "autofundmonthlyatoms", 5_000_000),
-					AllowedDirectoryUIDs: uids,
-				},
-				DataDir: filepath.Join(appRoot, "mcp"),
-				Router:  mcpRouter,
-				Payer:   &tipPayer{bot: bot, matcher: dirMatcher},
-				Name:    "braibot",
-				Logf:    logBackend.Logger("DIR").Infof,
+				AutoFund: autoFund,
+				DataDir:  filepath.Join(appRoot, "mcp"),
+				Router:   mcpRouter,
+				Payer:    &tipPayer{bot: bot, matcher: dirMatcher},
+				Name:     "braibot",
+				Logf:     logBackend.Logger("DIR").Infof,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to init directory registrant: %v", err)
 			}
 			reg.RegisterTools(h)
 			reg.Start(ctx)
+			adm.SetDirectory(reg, autoFund)
 			for _, uid := range uids {
 				go func(uid string) {
 					// Give the clientrpc websocket a moment to connect.

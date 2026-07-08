@@ -80,6 +80,22 @@ Once the bot is running and you've added it as a contact in Bison Relay, send it
     *   Example: `!text2speech Hello from BraiBot!`
     *   Example: `!text2speech Friendly_Person How are you today?`
 
+## MCP Admin Tools (Operators)
+
+When the MCP service is enabled (`mcpenabled=1` in `braibot.conf`), the optional
+`adminuids=` key (comma-separated 64-hex Bison Relay uids) nominates operator
+identities. Admins get extra MCP tools that no other caller can see or call:
+
+*   **`admin_balances`**: List every user balance in DCR.
+*   **`admin_credit` / `admin_debit`**: Adjust a user's balance by an amount in DCR.
+*   **`admin_ban` / `admin_unban` / `admin_list_bans`**: Manage a persisted ban list; banned peers are refused at the MCP transport immediately.
+*   **`admin_register`**: Register or renew the bot's listing at a brmcpdir directory.
+*   **`admin_autofund`**: Show the directory auto-fund policy and the rolling 30-day listing spend.
+
+Mutating admin calls are recorded in an append-only audit log
+(`<approot>/mcp/adminlog.json`). The `listing_invite` tool is likewise only
+visible to admins and the directories configured in `directoryuids`.
+
 ## Troubleshooting Tips
 
 *   **Bot not responding?** Make sure your Bison Relay client is running and that Braibot is running and connected to it. Check the Braibot logs for connection errors.

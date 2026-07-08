@@ -80,6 +80,31 @@ func (dm *DBManager) GetBalance(uid string) (int64, error) {
 	return balance, nil
 }
 
+// ListBalances retrieves every user's balance
+func (dm *DBManager) ListBalances() ([]UserBalance, error) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	rows, err := dm.db.Query("SELECT uid, balance FROM user_balances ORDER BY uid")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list balances: %v", err)
+	}
+	defer rows.Close()
+
+	var balances []UserBalance
+	for rows.Next() {
+		var b UserBalance
+		if err := rows.Scan(&b.UID, &b.Balance); err != nil {
+			return nil, fmt.Errorf("failed to scan balance: %v", err)
+		}
+		balances = append(balances, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to list balances: %v", err)
+	}
+	return balances, nil
+}
+
 // UpdateBalance updates a user's balance
 func (dm *DBManager) UpdateBalance(uid string, amount int64) error {
 	dm.mu.Lock()
