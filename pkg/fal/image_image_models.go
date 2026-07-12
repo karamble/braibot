@@ -31,20 +31,6 @@ func (m *cartoonifyModel) Define() Model {
 	}
 }
 
-// --- star-vector ---
-
-type starVectorModel struct{}
-
-func (m *starVectorModel) Define() Model {
-	return Model{
-		Name:        "star-vector",
-		Description: "Convert images to SVG using AI vectorization",
-		Type:        "image2image",
-		Endpoint:    "/fal-ai/star-vector",
-		Options:     &StarVectorOptions{},
-	}
-}
-
 // --- flux-2-pro/edit ---
 
 type flux2ProEditModel struct{}
@@ -93,7 +79,6 @@ func (m *nanoBanana2EditModel) Define() Model {
 func init() {
 	registerModel(&ghiblifyModel{})
 	registerModel(&cartoonifyModel{})
-	registerModel(&starVectorModel{})
 	registerModel(&flux2ProEditModel{})
 	registerModel(&flux2EditModel{})
 	registerModel(&nanoBanana2EditModel{})

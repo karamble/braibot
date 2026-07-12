@@ -309,17 +309,6 @@ func createFalImageRequest(req *ImageRequest, numImagesToRequest int) (interface
 				Progress: req.Progress,
 			},
 		}
-	case "star-vector":
-		if req.ImageURL == "" {
-			return nil, fmt.Errorf("image_url is required for star-vector model")
-		}
-		falReq = &fal.StarVectorRequest{
-			BaseImageRequest: fal.BaseImageRequest{
-				Prompt:   req.Prompt,
-				ImageURL: req.ImageURL,
-				Progress: req.Progress,
-			},
-		}
 	case "flux/schnell":
 		falReq = &fal.FluxSchnellRequest{
 			BaseImageRequest: fal.BaseImageRequest{

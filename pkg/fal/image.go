@@ -462,21 +462,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 			reqBody["prompt"] = r.Prompt
 		} // Allow optional prompt
 		r.Model = modelName
-	case *StarVectorRequest:
-		modelName = "star-vector"
-		modelType = "image2image"
-		baseReq = &r.BaseImageRequest
-		if r.ImageURL == "" {
-			return nil, fmt.Errorf("image_url required for %s", modelName)
-		}
-		// Validate specific options (none currently)
-		opts := StarVectorOptions{}
-		if err := opts.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
-		}
-		// Build request body
-		reqBody = map[string]interface{}{"image_url": r.ImageURL}
-		r.Model = modelName
 	// case *OtherImageRequest:
 	// ...
 	default:
@@ -522,10 +507,6 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 				Width       int    `json:"width"`
 				Height      int    `json:"height"`
 			} `json:"image"`
-			SVG struct { // Handle star-vector potentially returning SVG
-				URL         string `json:"url"`
-				ContentType string `json:"content_type"`
-			} `json:"svg"`
 			Seed uint64 `json:"seed"` // Changed from int to uint64
 		}
 
@@ -540,15 +521,8 @@ func (c *Client) GenerateImage(ctx context.Context, req interface{}) (*ImageResp
 		imgWidth := singleImageResp.Image.Width
 		imgHeight := singleImageResp.Image.Height
 
-		if singleImageResp.SVG.URL != "" { // Prioritize SVG if present
-			imgURL = singleImageResp.SVG.URL
-			imgContentType = singleImageResp.SVG.ContentType
-			imgWidth = 0 // SVG doesn't have inherent width/height in this context
-			imgHeight = 0
-		}
-
 		if imgURL == "" {
-			return nil, fmt.Errorf("final response did not contain a valid image or svg URL. Body: %s", string(data))
+			return nil, fmt.Errorf("final response did not contain a valid image URL. Body: %s", string(data))
 		}
 
 		// Use the named struct ImageOutput when assigning the slice

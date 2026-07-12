@@ -140,27 +140,6 @@ func (m *klingVideoV25ImageModel) Define() Model {
 	}
 }
 
-// --- luma-dream-machine ---
-
-type lumaDreamMachineModel struct{}
-
-func (m *lumaDreamMachineModel) Define() Model {
-	defaultOpts := &LumaDreamMachineOptions{}
-	defaults := defaultOpts.GetDefaultValues()
-	defaultLoop := defaults["loop"].(*bool)
-
-	return Model{
-		Name:        "luma-dream-machine",
-		Description: "Luma Dream Machine 1.5 - High quality video generation from images",
-		Type:        "image2video",
-		Endpoint:    "/luma-dream-machine",
-		Options: &LumaDreamMachineOptions{
-			AspectRatio: defaults["aspect_ratio"].(string),
-			Loop:        defaultLoop,
-		},
-	}
-}
-
 // --- ltx-video-13b ---
 
 type ltxVideo13BModel struct{}
@@ -297,7 +276,6 @@ func init() {
 	registerModel(&veo3Model{})
 	registerModel(&veo31FastModel{})
 	registerModel(&klingVideoV25ImageModel{})
-	registerModel(&lumaDreamMachineModel{})
 	registerModel(&ltxVideo13BModel{})
 	registerModel(&grokImagineVideoModel{})
 	registerModel(&klingVideoV3ImageModel{})

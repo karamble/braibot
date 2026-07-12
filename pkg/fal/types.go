@@ -1148,16 +1148,6 @@ func (o *CartoonifyOptions) GetDefaultValues() map[string]interface{} {
 }
 func (o *CartoonifyOptions) Validate() error { return nil }
 
-// StarVectorOptions represents options for the star-vector model.
-type StarVectorOptions struct {
-	// No specific options identified yet
-}
-
-func (o *StarVectorOptions) GetDefaultValues() map[string]interface{} {
-	return make(map[string]interface{})
-}
-func (o *StarVectorOptions) Validate() error { return nil }
-
 // FluxProV1_1UltraRequest represents a request for fal-ai/flux-pro/v1.1-ultra
 type FluxProV1_1UltraRequest struct {
 	BaseImageRequest
@@ -1173,11 +1163,6 @@ type FluxProV1_1UltraRequest struct {
 
 // CartoonifyRequest represents a request for the cartoonify model
 type CartoonifyRequest struct {
-	BaseImageRequest // Requires ImageURL
-}
-
-// StarVectorRequest represents a request for the star-vector model
-type StarVectorRequest struct {
 	BaseImageRequest // Requires ImageURL
 }
 
@@ -1498,40 +1483,6 @@ type KlingVideoV25Request struct {
 	AspectRatio    string  `json:"aspect_ratio,omitempty"`
 	NegativePrompt string  `json:"negative_prompt,omitempty"`
 	CFGScale       float64 `json:"cfg_scale,omitempty"`
-}
-
-// LumaDreamMachineOptions represents options for fal-ai/luma-dream-machine
-type LumaDreamMachineOptions struct {
-	AspectRatio string `json:"aspect_ratio,omitempty"` // 16:9, 9:16, 4:3, 3:4, 21:9, 9:21, 1:1. Default: 16:9
-	Loop        *bool  `json:"loop,omitempty"`         // Default: false
-}
-
-// GetDefaultValues returns the default values for Luma Dream Machine options
-func (o *LumaDreamMachineOptions) GetDefaultValues() map[string]interface{} {
-	defaultLoop := false
-	return map[string]interface{}{
-		"aspect_ratio": "16:9",
-		"loop":         &defaultLoop,
-	}
-}
-
-// Validate validates Luma Dream Machine options
-func (o *LumaDreamMachineOptions) Validate() error {
-	validAspectRatios := map[string]bool{
-		"16:9": true, "9:16": true, "4:3": true, "3:4": true,
-		"21:9": true, "9:21": true, "1:1": true, "": true,
-	}
-	if !validAspectRatios[o.AspectRatio] {
-		return fmt.Errorf("invalid aspect_ratio: %s", o.AspectRatio)
-	}
-	return nil
-}
-
-// LumaDreamMachineRequest represents a request for fal-ai/luma-dream-machine
-type LumaDreamMachineRequest struct {
-	BaseVideoRequest
-	AspectRatio string `json:"aspect_ratio,omitempty"`
-	Loop        *bool  `json:"loop,omitempty"`
 }
 
 // LTXVideo13BOptions represents options for fal-ai/ltx-video-13b-distilled/multiconditioning
