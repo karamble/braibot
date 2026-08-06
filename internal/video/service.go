@@ -184,20 +184,7 @@ func (s *VideoService) validateRequest(req *VideoRequest) error {
 
 	// Format duration based on model
 	switch model.Name {
-	case "veo2":
-		// Ensure duration HAS 's' suffix for veo2
-		if _, err := strconv.Atoi(req.Duration); err == nil { // Check if it's a plain number
-			if !strings.HasSuffix(req.Duration, "s") {
-				req.Duration += "s" // Modify in place
-			}
-		} else {
-			// If it's not a plain number, maybe it already has 's' or is invalid?
-			// Add more robust validation here if needed.
-			if !strings.HasSuffix(req.Duration, "s") {
-				// Or return an error: return fmt.Errorf("invalid duration format for veo2: %s", req.Duration)
-				req.Duration += "s" // Modify in place
-			}
-		}
+
 	case "kling-video-text", "kling-video-image",
 		"kling-video-v3-text", "kling-video-v3-pro-text",
 		"kling-video-v3-image", "kling-video-v3-pro-image",
@@ -257,7 +244,7 @@ func (s *VideoService) validateRequest(req *VideoRequest) error {
 			}
 		// Add cases for other image2video models that might use different URL fields
 		default:
-			// Default check for models using the standard ImageURL field (e.g., veo2, kling-video-image)
+			// Default check for models using the standard ImageURL field (e.g. kling-video-image)
 			if req.ImageURL == "" {
 				return fmt.Errorf("image URL is required for model %s", model.Name)
 			}
@@ -344,18 +331,6 @@ func createFalVideoRequest(req *VideoRequest, modelName string) (interface{}, er
 		// Adjust base fields specific to type if necessary
 		if modelName == "kling-video-text" {
 			falReq.BaseVideoRequest.ImageURL = "" // Ensure empty for text2video
-		}
-		return falReq, nil
-	case "veo2":
-		if base.ImageURL == "" {
-			return nil, fmt.Errorf("image_url is required for veo2 model")
-		}
-
-		// Duration formatting removed - handled in validateRequest
-		falReq := &fal.Veo2Request{
-			BaseVideoRequest: base,
-			Duration:         req.Duration, // Use pre-formatted duration
-			AspectRatio:      req.AspectRatio,
 		}
 		return falReq, nil
 	case "minimax/video-01-director":

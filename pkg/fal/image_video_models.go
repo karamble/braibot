@@ -4,23 +4,6 @@
 
 package fal
 
-// --- veo2 ---
-
-type veo2Model struct{}
-
-func (m *veo2Model) Define() Model {
-	return Model{
-		Name:        "veo2",
-		Description: "Creates videos from images with realistic motion using Google's Veo 2 model.",
-		Type:        "image2video",
-		Endpoint:    "/veo2/image-to-video",
-		Options: &Veo2Options{
-			AspectRatio: "16:9",
-			Duration:    "5s",
-		},
-	}
-}
-
 // --- kling-video-image ---
 
 type klingVideoImageModel struct{}
@@ -269,7 +252,6 @@ func (m *seedanceFastImageModel) Define() Model {
 }
 
 func init() {
-	registerModel(&veo2Model{})
 	registerModel(&klingVideoImageModel{})
 	registerModel(&minimaxSubjectReferenceModel{})
 	registerModel(&minimaxLiveModel{})

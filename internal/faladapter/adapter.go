@@ -209,4 +209,3 @@ func GenerateSpeech(ctx context.Context, client *fal.Client, req interface{}, bo
 
 	return resp, nil
 }
-

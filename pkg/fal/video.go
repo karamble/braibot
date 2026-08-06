@@ -29,35 +29,7 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 
 	// Determine model name, endpoint and create request body based on request type
 	switch r := req.(type) {
-	case *Veo2Request:
-		modelName = "veo2"
-		// Get model options
-		model, exists := GetModel(modelName, "image2video") // Veo2 is image2video
-		if !exists {
-			return nil, fmt.Errorf("model not found: %s", modelName)
-		}
-		endpoint = model.Endpoint
-		options, ok := model.Options.(*Veo2Options)
-		if !ok {
-			return nil, fmt.Errorf("invalid options type for model %s", modelName)
-		}
-		// Validate options before proceeding
-		if err := options.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
-		}
-		// Set default values from model options if not provided in request
-		if r.AspectRatio == "" {
-			r.AspectRatio = options.AspectRatio
-		}
-		if r.Duration == "" {
-			r.Duration = options.Duration
-		}
-		reqBody = map[string]interface{}{
-			"prompt":       r.Prompt,
-			"image_url":    r.ImageURL,
-			"aspect_ratio": r.AspectRatio,
-			"duration":     r.Duration,
-		}
+
 	case *KlingVideoRequest:
 		if r.BaseVideoRequest.Model == "" { // Determine model based on fields if not set
 			if r.BaseVideoRequest.ImageURL != "" {

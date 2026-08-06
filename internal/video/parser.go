@@ -10,8 +10,8 @@ import (
 // All parse functions return this struct; unused fields are zero-valued.
 type ParseResult struct {
 	Prompt          string
-	ImageURL        string   // image2video only
-	VideoURL        string   // video2video only
+	ImageURL        string // image2video only
+	VideoURL        string // video2video only
 	Duration        string
 	AspectRatio     string
 	NegativePrompt  string
@@ -19,7 +19,7 @@ type ParseResult struct {
 	PromptOptimizer *bool
 	Resolution      string
 	GenerateAudio   *bool
-	KeepAudio       *bool    // video2video only
+	KeepAudio       *bool // video2video only
 	EndImageURL     string
 	Seed            *int64
 	ImageURLs       []string // multi2video / video2video

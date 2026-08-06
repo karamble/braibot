@@ -26,49 +26,6 @@ type ModelOptions interface {
 	Validate() error
 }
 
-// Veo2Options represents the options available for the Veo2 model.
-// fal.ai's veo2 endpoint uses "s"-suffixed durations (5s, 6s, 7s, 8s); the
-// bare-integer form ("5") is NOT accepted. braibot's internal/video layer
-// normalizes user input to this form (parser strips "s", service re-appends it),
-// so both "5" and "5s" from a user resolve here; a direct pkg/fal caller must
-// pass the "s"-suffixed value.
-type Veo2Options struct {
-	AspectRatio string `json:"aspect_ratio,omitempty"` // auto, auto_prefer_portrait, 16:9, 9:16
-	Duration    string `json:"duration,omitempty"`     // 5s, 6s, 7s, 8s
-}
-
-// GetDefaultValues returns the default values for Veo2 options
-func (o *Veo2Options) GetDefaultValues() map[string]interface{} {
-	return map[string]interface{}{
-		"aspect_ratio": "16:9",
-		"duration":     "5s",
-	}
-}
-
-// Validate validates the Veo2 options
-func (o *Veo2Options) Validate() error {
-	validAspectRatios := map[string]bool{
-		"auto":                 true,
-		"auto_prefer_portrait": true,
-		"16:9":                 true,
-		"9:16":                 true,
-	}
-	validDurations := map[string]bool{
-		"5s": true,
-		"6s": true,
-		"7s": true,
-		"8s": true,
-	}
-
-	if o.AspectRatio != "" && !validAspectRatios[o.AspectRatio] {
-		return fmt.Errorf("invalid aspect ratio: %s (must be one of: auto, auto_prefer_portrait, 16:9, 9:16)", o.AspectRatio)
-	}
-	if o.Duration != "" && !validDurations[o.Duration] {
-		return fmt.Errorf("invalid duration: %s (must be one of: 5s, 6s, 7s, 8s)", o.Duration)
-	}
-	return nil
-}
-
 // KlingVideoOptions represents the options available for the Kling-video model
 type KlingVideoOptions struct {
 	Duration       string  `json:"duration,omitempty"`     // Duration in seconds
@@ -313,7 +270,7 @@ type Model struct {
 	Name        string
 	Description string
 	Type        string
-	Endpoint    string      // API endpoint path (e.g. "/veo2/image-to-video") or full URL
+	Endpoint    string      // API endpoint path (e.g. "/kling-video/v2/master/image-to-video") or full URL
 	Options     interface{} // Model-specific options
 }
 
@@ -806,13 +763,6 @@ func (r *BaseVideoRequest) GetQueueInfo() QueueInfoCallback {
 // GetOptions returns the options map
 func (r *BaseVideoRequest) GetOptions() map[string]interface{} {
 	return r.Options
-}
-
-// Veo2Request represents a request to generate a video using the Veo2 model
-type Veo2Request struct {
-	BaseVideoRequest
-	Duration    string `json:"duration,omitempty"`
-	AspectRatio string `json:"aspect_ratio,omitempty"`
 }
 
 // KlingVideoRequest represents a request to generate a video using the Kling-video model

@@ -127,9 +127,14 @@ func Text2VideoCommand(bot *kit.Bot, cfg *botconfig.BotConfig, videoService *vid
 				}
 			}
 
-			totalCost := model.PriceUSD
+			// Some models price per second at a rate that depends on the
+			// resolution asked for (seedance is token-billed upstream, so
+			// cost rises with pixel count). RateFor falls back to PriceUSD
+			// for every model that is not resolution-priced.
+			rateUSD := model.RateFor(parsed.Resolution)
+			totalCost := rateUSD
 			if model.PerSecondPricing {
-				totalCost = model.PriceUSD * float64(durInt)
+				totalCost = rateUSD * float64(durInt)
 			}
 
 			// Create progress callback

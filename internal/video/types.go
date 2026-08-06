@@ -8,7 +8,7 @@ import (
 type VideoRequest struct {
 	braibottypes.GenerationRequest
 	Prompt                   string
-	ImageURL                 string   // Optional, used by some image2video models (Veo2, Kling)
+	ImageURL                 string   // Optional, used by some image2video models (Kling, veo3)
 	SubjectReferenceImageURL string   // Optional, used by minimax-subject-reference
 	Duration                 string   // Optional, defaults handled by FAL
 	AspectRatio              string   // Optional, defaults handled by FAL
