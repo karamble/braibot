@@ -281,3 +281,25 @@ func (m *grokImagineVideoTextModel) Define() Model {
 		Options:     &GrokImagineVideoTextOptions{Duration: 6, AspectRatio: "16:9", Resolution: "720p"},
 	}
 }
+
+// --- minimax/h3 text-to-video ---
+
+type minimaxH3TextModel struct{}
+
+func (m *minimaxH3TextModel) Define() Model {
+	return Model{
+		Name:        "minimax/h3-text",
+		Description: "MiniMax H3 text-to-video - cinematic video from a prompt, 768P or 2K.",
+		Type:        "text2video",
+		Endpoint:    "/minimax/h3/text-to-video",
+		Options: &MinimaxH3Options{
+			Duration:    5,
+			Resolution:  "2K",
+			AspectRatio: "16:9",
+		},
+	}
+}
+
+func init() {
+	registerModel(&minimaxH3TextModel{})
+}

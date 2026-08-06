@@ -795,6 +795,143 @@ func (c *Client) GenerateVideo(ctx context.Context, req interface{}) (*VideoResp
 		if r.Seed != nil {
 			reqBody["seed"] = *r.Seed
 		}
+	case *MinimaxH3Request:
+		modelName = "minimax/h3-text"
+		model, exists := GetModel(modelName, "text2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		endpoint = model.Endpoint
+		options, ok := model.Options.(*MinimaxH3Options)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+
+		h3Opts := MinimaxH3Options{
+			Duration:    r.Duration,
+			Resolution:  r.Resolution,
+			AspectRatio: r.AspectRatio,
+		}
+		if err := h3Opts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		if r.Duration == 0 {
+			r.Duration = options.Duration
+		}
+		if r.Resolution == "" {
+			r.Resolution = options.Resolution
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+
+		reqBody = map[string]interface{}{
+			"prompt":       r.Prompt,
+			"duration":     r.Duration,
+			"resolution":   r.Resolution,
+			"aspect_ratio": r.AspectRatio,
+		}
+
+	case *MinimaxH3ImageRequest:
+		modelName = "minimax/h3-image"
+		model, exists := GetModel(modelName, "image2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		endpoint = model.Endpoint
+		options, ok := model.Options.(*MinimaxH3ImageOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+		if r.ImageURL == "" {
+			return nil, fmt.Errorf("image_url is required for %s", modelName)
+		}
+
+		h3ImgOpts := MinimaxH3ImageOptions{
+			Duration:   r.Duration,
+			Resolution: r.Resolution,
+		}
+		if err := h3ImgOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		if r.Duration == 0 {
+			r.Duration = options.Duration
+		}
+		if r.Resolution == "" {
+			r.Resolution = options.Resolution
+		}
+
+		reqBody = map[string]interface{}{
+			"prompt":     r.Prompt,
+			"image_url":  r.ImageURL,
+			"duration":   r.Duration,
+			"resolution": r.Resolution,
+		}
+		if r.EndImageURL != "" {
+			reqBody["end_image_url"] = r.EndImageURL
+		}
+
+	case *MinimaxH3ReferenceRequest:
+		modelName = "minimax/h3-reference"
+		model, exists := GetModel(modelName, "multi2video")
+		if !exists {
+			return nil, fmt.Errorf("model not found: %s", modelName)
+		}
+		endpoint = model.Endpoint
+		options, ok := model.Options.(*MinimaxH3ReferenceOptions)
+		if !ok {
+			return nil, fmt.Errorf("invalid options type for model %s", modelName)
+		}
+		if r.Prompt == "" {
+			return nil, fmt.Errorf("prompt is required for %s", modelName)
+		}
+		if len(r.ReferenceImageURLs)+len(r.ReferenceVideoURLs)+len(r.ReferenceAudioURLs) == 0 {
+			return nil, fmt.Errorf("at least one reference input (image, video, or audio) is required for %s", modelName)
+		}
+
+		h3RefOpts := MinimaxH3ReferenceOptions{
+			Duration:    r.Duration,
+			Resolution:  r.Resolution,
+			AspectRatio: r.AspectRatio,
+		}
+		if err := h3RefOpts.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid options for %s: %v", modelName, err)
+		}
+
+		if r.Duration == 0 {
+			r.Duration = options.Duration
+		}
+		if r.Resolution == "" {
+			r.Resolution = options.Resolution
+		}
+		if r.AspectRatio == "" {
+			r.AspectRatio = options.AspectRatio
+		}
+
+		reqBody = map[string]interface{}{
+			"prompt":       r.Prompt,
+			"duration":     r.Duration,
+			"resolution":   r.Resolution,
+			"aspect_ratio": r.AspectRatio,
+		}
+		if len(r.ReferenceImageURLs) > 0 {
+			reqBody["reference_image_urls"] = r.ReferenceImageURLs
+		}
+		if len(r.ReferenceVideoURLs) > 0 {
+			reqBody["reference_video_urls"] = r.ReferenceVideoURLs
+		}
+		if len(r.ReferenceAudioURLs) > 0 {
+			reqBody["reference_audio_urls"] = r.ReferenceAudioURLs
+		}
+
 	case *KlingVideoO3TextRequest:
 		modelName = r.BaseVideoRequest.Model
 		model, exists := GetModel(modelName, "text2video")

@@ -7,6 +7,7 @@ package fal
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -620,7 +621,7 @@ func (o *Flux2ProEditOptions) Validate() error {
 // Flux2ProEditRequest represents a request for the fal-ai/flux-2-pro/edit model
 type Flux2ProEditRequest struct {
 	BaseImageRequest
-	ImageURLs           []string `json:"image_urls"`                      // Required: list of input image URLs
+	ImageURLs           []string `json:"image_urls"` // Required: list of input image URLs
 	ImageSize           string   `json:"image_size,omitempty"`
 	Seed                *int     `json:"seed,omitempty"`
 	SyncMode            bool     `json:"sync_mode,omitempty"`
@@ -1067,15 +1068,15 @@ type FluxDevRequest struct {
 
 // StableDiffusionV35LargeOptions represents options for fal-ai/stable-diffusion-v35-large
 type StableDiffusionV35LargeOptions struct {
-	ImageSize           string   `json:"image_size,omitempty"`            // Default: square_hd
-	NumInferenceSteps   int      `json:"num_inference_steps,omitempty"`   // Default: 40
-	Seed                *int     `json:"seed,omitempty"`                  // Optional
-	GuidanceScale       float64  `json:"guidance_scale,omitempty"`        // Default: 4.5
-	NumImages           int      `json:"num_images,omitempty"`            // Default: 1
-	EnableSafetyChecker *bool    `json:"enable_safety_checker,omitempty"` // Default: true
-	OutputFormat        string   `json:"output_format,omitempty"`         // jpeg, png. Default: jpeg
-	NegativePrompt      string   `json:"negative_prompt,omitempty"`       // Optional
-	PromptExpansion     *bool    `json:"prompt_expansion,omitempty"`      // Default: true
+	ImageSize           string  `json:"image_size,omitempty"`            // Default: square_hd
+	NumInferenceSteps   int     `json:"num_inference_steps,omitempty"`   // Default: 40
+	Seed                *int    `json:"seed,omitempty"`                  // Optional
+	GuidanceScale       float64 `json:"guidance_scale,omitempty"`        // Default: 4.5
+	NumImages           int     `json:"num_images,omitempty"`            // Default: 1
+	EnableSafetyChecker *bool   `json:"enable_safety_checker,omitempty"` // Default: true
+	OutputFormat        string  `json:"output_format,omitempty"`         // jpeg, png. Default: jpeg
+	NegativePrompt      string  `json:"negative_prompt,omitempty"`       // Optional
+	PromptExpansion     *bool   `json:"prompt_expansion,omitempty"`      // Default: true
 }
 
 // GetDefaultValues returns the default values for Stable Diffusion 3.5 Large options
@@ -1386,12 +1387,12 @@ type Veo31FastRequest struct {
 
 // HunyuanVideoOptions represents options for fal-ai/hunyuan-video
 type HunyuanVideoOptions struct {
-	AspectRatio         string `json:"aspect_ratio,omitempty"`           // 16:9, 9:16, 4:3, 3:4, 1:1. Default: 16:9
-	Resolution          string `json:"resolution,omitempty"`             // 480p, 580p, 720p, 1080p. Default: 720p
-	VideoLength         string `json:"video_length,omitempty"`           // 5s, 10s. Default: 5s
-	NumInferenceSteps   int    `json:"num_inference_steps,omitempty"`    // Default: 50
-	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"`  // Default: true
-	Seed                *int   `json:"seed,omitempty"`                   // Optional
+	AspectRatio         string `json:"aspect_ratio,omitempty"`            // 16:9, 9:16, 4:3, 3:4, 1:1. Default: 16:9
+	Resolution          string `json:"resolution,omitempty"`              // 480p, 580p, 720p, 1080p. Default: 720p
+	VideoLength         string `json:"video_length,omitempty"`            // 5s, 10s. Default: 5s
+	NumInferenceSteps   int    `json:"num_inference_steps,omitempty"`     // Default: 50
+	EnableSafetyChecker *bool  `json:"enable_safety_checker,omitempty"`   // Default: true
+	Seed                *int   `json:"seed,omitempty"`                    // Optional
 	EmbeddedGuidance    *bool  `json:"embedded_guidance_scale,omitempty"` // Default: 6.0
 }
 
@@ -1616,9 +1617,9 @@ func (r *SyncLipsyncV2Request) GetProgress() ProgressCallback {
 
 // MMAudioV2Options represents options for fal-ai/mmaudio-v2
 type MMAudioV2Options struct {
-	Duration         float64 `json:"duration,omitempty"`          // Output duration. Default: video duration
-	NumInferenceSteps int    `json:"num_inference_steps,omitempty"` // Default: 25
-	Seed             *int    `json:"seed,omitempty"`               // Optional
+	Duration          float64 `json:"duration,omitempty"`            // Output duration. Default: video duration
+	NumInferenceSteps int     `json:"num_inference_steps,omitempty"` // Default: 25
+	Seed              *int    `json:"seed,omitempty"`                // Optional
 }
 
 // GetDefaultValues returns the default values for MMAudio V2 options
@@ -1655,7 +1656,7 @@ func (r *MMAudioV2Request) GetProgress() ProgressCallback {
 
 // MinimaxMusicV2Options represents options for fal-ai/minimax-music/v2
 type MinimaxMusicV2Options struct {
-	Duration     int    `json:"duration,omitempty"`      // 1-300 seconds. Default: 60
+	Duration          int    `json:"duration,omitempty"`            // 1-300 seconds. Default: 60
 	ReferenceAudioURL string `json:"reference_audio_url,omitempty"` // Optional reference audio
 }
 
@@ -1689,10 +1690,10 @@ func (r *MinimaxMusicV2Request) GetProgress() ProgressCallback {
 
 // StableAudio25Options represents options for fal-ai/stable-audio-25/text-to-audio
 type StableAudio25Options struct {
-	Duration    float64 `json:"duration,omitempty"`     // 1-180 seconds. Default: 30
-	SampleRate  int     `json:"sample_rate,omitempty"`  // Default: 44100
-	OutputFormat string `json:"output_format,omitempty"` // wav, mp3, ogg. Default: wav
-	Seed        *int    `json:"seed,omitempty"`         // Optional
+	Duration     float64 `json:"duration,omitempty"`      // 1-180 seconds. Default: 30
+	SampleRate   int     `json:"sample_rate,omitempty"`   // Default: 44100
+	OutputFormat string  `json:"output_format,omitempty"` // wav, mp3, ogg. Default: wav
+	Seed         *int    `json:"seed,omitempty"`          // Optional
 }
 
 // GetDefaultValues returns the default values for Stable Audio 2.5 options
@@ -2001,7 +2002,7 @@ func (r *ElevenLabsVoiceChangerRequest) GetProgress() ProgressCallback {
 
 // KlingVideoV26MotionControlOptions represents options for kling-video v2.6 motion control
 type KlingVideoV26MotionControlOptions struct {
-	CharacterOrientation string `json:"character_orientation"` // Required: "image" or "video"
+	CharacterOrientation string `json:"character_orientation"`         // Required: "image" or "video"
 	KeepOriginalSound    *bool  `json:"keep_original_sound,omitempty"` // Default: true
 }
 
@@ -2025,12 +2026,12 @@ func (o *KlingVideoV26MotionControlOptions) Validate() error {
 
 // KlingVideoV26MotionControlRequest represents a request for kling-video v2.6 motion control
 type KlingVideoV26MotionControlRequest struct {
-	ImageURL             string           `json:"image_url"`              // Required: reference image
-	VideoURL             string           `json:"video_url"`              // Required: reference video for motion
-	Prompt               string           `json:"prompt,omitempty"`       // Optional text description
-	CharacterOrientation string           `json:"character_orientation"`  // Required: "image" or "video"
-	KeepOriginalSound    *bool            `json:"keep_original_sound,omitempty"` // Optional, default true
-	Progress             ProgressCallback `json:"-"`
+	ImageURL             string            `json:"image_url"`                     // Required: reference image
+	VideoURL             string            `json:"video_url"`                     // Required: reference video for motion
+	Prompt               string            `json:"prompt,omitempty"`              // Optional text description
+	CharacterOrientation string            `json:"character_orientation"`         // Required: "image" or "video"
+	KeepOriginalSound    *bool             `json:"keep_original_sound,omitempty"` // Optional, default true
+	Progress             ProgressCallback  `json:"-"`
 	QueueInfo            QueueInfoCallback `json:"-"`
 }
 
@@ -2248,10 +2249,10 @@ func (o *KlingVideoO3EditOptions) Validate() error {
 
 // KlingVideoO3EditRequest represents a request for Kling Video O3 video-to-video edit models
 type KlingVideoO3EditRequest struct {
-	BaseVideoRequest                // Embeds Prompt, Progress, QueueInfo, Model
-	VideoURL         string         `json:"video_url"`
-	ImageURLs        []string       `json:"image_urls,omitempty"`
-	KeepAudio        *bool          `json:"keep_audio,omitempty"`
+	BaseVideoRequest          // Embeds Prompt, Progress, QueueInfo, Model
+	VideoURL         string   `json:"video_url"`
+	ImageURLs        []string `json:"image_urls,omitempty"`
+	KeepAudio        *bool    `json:"keep_audio,omitempty"`
 }
 
 // ==================== Seedance 2.0 (ByteDance, Text2Video + Image2Video) ====================
@@ -2364,4 +2365,156 @@ type SeedanceReferenceRequest struct {
 	AudioURLs     []string `json:"audio_urls,omitempty"` // Up to 3 reference audio files
 	Seed          *int64   `json:"seed,omitempty"`
 	EndUserID     string   `json:"end_user_id,omitempty"` // Required by ByteDance for copyright tracking
+}
+
+// --- minimax/h3 ---
+//
+// fal bills H3 per second of output at a rate that depends on resolution:
+// $0.16/s at 768P and $0.26/s at 2K. braibot's PerSecondPricing carries a
+// single rate, so the registry prices H3 at the 2K rate and is safe either
+// way (internal/faladapter/appregistry.go).
+
+// MinimaxH3Options are the shared H3 knobs for text-to-video.
+type MinimaxH3Options struct {
+	Duration    int    `json:"duration,omitempty"`     // seconds. Default: 5
+	Resolution  string `json:"resolution,omitempty"`   // 768P, 2K. Default: 2K
+	AspectRatio string `json:"aspect_ratio,omitempty"` // 21:9, 16:9, 4:3, 1:1, 3:4, 9:16. Default: 16:9
+}
+
+// GetDefaultValues returns default values for MiniMax H3 text-to-video options
+func (o *MinimaxH3Options) GetDefaultValues() map[string]interface{} {
+	return map[string]interface{}{
+		"duration":     5,
+		"resolution":   "2K",
+		"aspect_ratio": "16:9",
+	}
+}
+
+// Validate validates MiniMax H3 text-to-video options
+func (o *MinimaxH3Options) Validate() error {
+	if err := validateH3Resolution(o.Resolution); err != nil {
+		return err
+	}
+	if err := validateH3Duration(o.Duration); err != nil {
+		return err
+	}
+	return validateH3AspectRatio(o.AspectRatio, false)
+}
+
+// MinimaxH3ImageOptions are the H3 image-to-video knobs. fal derives the
+// aspect ratio from the supplied image, so there is no aspect_ratio here.
+type MinimaxH3ImageOptions struct {
+	Duration   int    `json:"duration,omitempty"`   // seconds. Default: 5
+	Resolution string `json:"resolution,omitempty"` // 768P, 2K. Default: 2K
+}
+
+// GetDefaultValues returns default values for MiniMax H3 image-to-video options
+func (o *MinimaxH3ImageOptions) GetDefaultValues() map[string]interface{} {
+	return map[string]interface{}{
+		"duration":   5,
+		"resolution": "2K",
+	}
+}
+
+// Validate validates MiniMax H3 image-to-video options
+func (o *MinimaxH3ImageOptions) Validate() error {
+	if err := validateH3Resolution(o.Resolution); err != nil {
+		return err
+	}
+	return validateH3Duration(o.Duration)
+}
+
+// MinimaxH3ReferenceOptions are the H3 reference-to-video knobs. This variant
+// also accepts "adaptive" as an aspect ratio.
+type MinimaxH3ReferenceOptions struct {
+	Duration    int    `json:"duration,omitempty"`     // seconds. Default: 5
+	Resolution  string `json:"resolution,omitempty"`   // 768P, 2K. Default: 2K
+	AspectRatio string `json:"aspect_ratio,omitempty"` // adaptive, 21:9, 16:9, 4:3, 1:1, 3:4, 9:16. Default: adaptive
+}
+
+// GetDefaultValues returns default values for MiniMax H3 reference-to-video options
+func (o *MinimaxH3ReferenceOptions) GetDefaultValues() map[string]interface{} {
+	return map[string]interface{}{
+		"duration":     5,
+		"resolution":   "2K",
+		"aspect_ratio": "adaptive",
+	}
+}
+
+// Validate validates MiniMax H3 reference-to-video options
+func (o *MinimaxH3ReferenceOptions) Validate() error {
+	if err := validateH3Resolution(o.Resolution); err != nil {
+		return err
+	}
+	if err := validateH3Duration(o.Duration); err != nil {
+		return err
+	}
+	return validateH3AspectRatio(o.AspectRatio, true)
+}
+
+// validateH3Resolution accepts the two documented tiers (case-insensitively,
+// since the rate depends on this value and a rejected typo is far cheaper
+// than a silently wrong tier).
+func validateH3Resolution(res string) error {
+	switch strings.ToLower(res) {
+	case "", "768p", "2k":
+		return nil
+	}
+	return fmt.Errorf("invalid resolution: %s (must be 768P or 2K)", res)
+}
+
+// validateH3Duration bounds the clip length; duration drives the price.
+func validateH3Duration(dur int) error {
+	if dur != 0 && (dur < 1 || dur > 10) {
+		return fmt.Errorf("invalid duration: %d (must be between 1 and 10 seconds)", dur)
+	}
+	return nil
+}
+
+// validateH3AspectRatio checks the documented set; adaptive is only valid on
+// the reference-to-video variant.
+func validateH3AspectRatio(ar string, allowAdaptive bool) error {
+	valid := map[string]bool{
+		"": true, "21:9": true, "16:9": true, "4:3": true,
+		"1:1": true, "3:4": true, "9:16": true,
+	}
+	if allowAdaptive {
+		valid["adaptive"] = true
+	}
+	if !valid[ar] {
+		if allowAdaptive {
+			return fmt.Errorf("invalid aspect_ratio: %s (must be adaptive, 21:9, 16:9, 4:3, 1:1, 3:4, or 9:16)", ar)
+		}
+		return fmt.Errorf("invalid aspect_ratio: %s (must be 21:9, 16:9, 4:3, 1:1, 3:4, or 9:16)", ar)
+	}
+	return nil
+}
+
+// MinimaxH3Request represents a request for minimax/h3/text-to-video
+type MinimaxH3Request struct {
+	BaseVideoRequest
+	Duration    int    `json:"duration,omitempty"`
+	Resolution  string `json:"resolution,omitempty"`
+	AspectRatio string `json:"aspect_ratio,omitempty"`
+}
+
+// MinimaxH3ImageRequest represents a request for minimax/h3/image-to-video
+type MinimaxH3ImageRequest struct {
+	BaseVideoRequest
+	Duration    int    `json:"duration,omitempty"`
+	Resolution  string `json:"resolution,omitempty"`
+	EndImageURL string `json:"end_image_url,omitempty"`
+}
+
+// MinimaxH3ReferenceRequest represents a request for minimax/h3/reference-to-video.
+// fal includes the first 5 reference images at no cost and charges $0.08 for
+// each one after that, so the image list is a price input, not just a knob.
+type MinimaxH3ReferenceRequest struct {
+	BaseVideoRequest
+	Duration           int      `json:"duration,omitempty"`
+	Resolution         string   `json:"resolution,omitempty"`
+	AspectRatio        string   `json:"aspect_ratio,omitempty"`
+	ReferenceImageURLs []string `json:"reference_image_urls,omitempty"`
+	ReferenceVideoURLs []string `json:"reference_video_urls,omitempty"`
+	ReferenceAudioURLs []string `json:"reference_audio_urls,omitempty"`
 }

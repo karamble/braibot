@@ -283,3 +283,24 @@ func init() {
 	registerModel(&seedanceImageModel{})
 	registerModel(&seedanceFastImageModel{})
 }
+
+// --- minimax/h3 image-to-video ---
+
+type minimaxH3ImageModel struct{}
+
+func (m *minimaxH3ImageModel) Define() Model {
+	return Model{
+		Name:        "minimax/h3-image",
+		Description: "MiniMax H3 image-to-video - animate a still, optionally toward an end frame.",
+		Type:        "image2video",
+		Endpoint:    "/minimax/h3/image-to-video",
+		Options: &MinimaxH3ImageOptions{
+			Duration:   5,
+			Resolution: "2K",
+		},
+	}
+}
+
+func init() {
+	registerModel(&minimaxH3ImageModel{})
+}

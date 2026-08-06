@@ -27,3 +27,25 @@ func (m *seedanceReferenceModel) Define() Model {
 func init() {
 	registerModel(&seedanceReferenceModel{})
 }
+
+// --- minimax/h3 reference-to-video ---
+
+type minimaxH3ReferenceModel struct{}
+
+func (m *minimaxH3ReferenceModel) Define() Model {
+	return Model{
+		Name:        "minimax/h3-reference",
+		Description: "MiniMax H3 reference-to-video - generate video from a prompt plus reference images, videos and audio.",
+		Type:        "multi2video",
+		Endpoint:    "/minimax/h3/reference-to-video",
+		Options: &MinimaxH3ReferenceOptions{
+			Duration:    5,
+			Resolution:  "2K",
+			AspectRatio: "adaptive",
+		},
+	}
+}
+
+func init() {
+	registerModel(&minimaxH3ReferenceModel{})
+}
