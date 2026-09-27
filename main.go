@@ -21,7 +21,6 @@ import (
 
 	"github.com/companyzero/bisonrelay/clientrpc/types"
 	"github.com/companyzero/bisonrelay/zkidentity"
-	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/karamble/braibot/internal/commands"
 	braiconfig "github.com/karamble/braibot/internal/config"
 	"github.com/karamble/braibot/internal/database"
@@ -31,6 +30,7 @@ import (
 	"github.com/karamble/braibot/internal/utils"
 	"github.com/karamble/braibot/pkg/fal"
 	"github.com/karamble/brmcp"
+	"github.com/karamble/brmcp/botkit"
 	"github.com/karamble/brmcp/bridge"
 	"github.com/karamble/brmcp/directory"
 	"github.com/karamble/brmcp/server"
@@ -153,7 +153,7 @@ func realMain() error {
 	// mcpenabled=1 is set in braibot.conf. braibot is an open service, so
 	// any KX'd caller may connect; balances and rate limits do the gating.
 	var mcpRouter *brmcp.Router
-	var dirMatcher *bridge.TipMatcher
+	var dirPayer *bridge.TipPayer
 	if v := strings.ToLower(cfg.ExtraConfig["mcpenabled"]); v == "1" || v == "true" {
 		falClient := fal.NewClient(cfg.ExtraConfig["falapikey"], fal.WithDebug(debug))
 		adminUIDs := splitCSV(cfg.ExtraConfig["adminuids"])
@@ -169,8 +169,8 @@ func realMain() error {
 			Billing:        mcpsrv.NewBilling(dbManager, debug),
 			CallsPerMinute: 20,
 			// Video generations legitimately run for many minutes.
-			TTL:  30 * time.Minute,
-			Logf: logBackend.Logger("MCP").Infof,
+			TTL: 30 * time.Minute,
+			Log: logBackend.Logger("MCP"),
 		}
 		h, err := server.NewHarness(&mcp.Implementation{Name: "braibot", Version: "1"}, hcfg)
 		if err != nil {
@@ -209,7 +209,7 @@ func realMain() error {
 			adm.AttachAdmin(h)
 			log.Infof("Admin tools enabled (%d admins)", len(adminUIDs))
 		}
-		mcpRouter = h.Start(ctx, mcpSender{bot: bot})
+		mcpRouter = h.Start(ctx, botkit.Sender{Bot: bot})
 		log.Infof("MCP over Bison Relay enabled")
 
 		// Directory presence: register the tools at brmcpdir directories
@@ -222,7 +222,7 @@ func realMain() error {
 			if len(uids) == 0 || desc == "" {
 				return fmt.Errorf("directoryenabled requires directoryuids and directorydescription in braibot.conf")
 			}
-			dirMatcher = bridge.NewTipMatcher()
+			dirPayer = botkit.NewTipPayer(bot)
 			autoFund := directory.AutoFund{
 				Enabled:              true,
 				MaxAtomsPerRequest:   extraInt(cfg.ExtraConfig, "autofundmaxatoms", 1_000_000),
@@ -240,9 +240,9 @@ func realMain() error {
 				AutoFund: autoFund,
 				DataDir:  filepath.Join(appRoot, "mcp"),
 				Router:   mcpRouter,
-				Payer:    &tipPayer{bot: bot, matcher: dirMatcher},
+				Payer:    dirPayer,
 				Name:     "braibot",
-				Logf:     logBackend.Logger("DIR").Infof,
+				Log:      logBackend.Logger("DIR"),
 			})
 			if err != nil {
 				return fmt.Errorf("failed to init directory registrant: %v", err)
@@ -455,15 +455,8 @@ func realMain() error {
 	// else is drained so bisonbotkit handlers don't block.
 	go func() {
 		for ev := range tipProgressChan {
-			if dirMatcher == nil || ev == nil {
-				continue
-			}
-			if ev.Completed || !ev.WillRetry {
-				var res error
-				if !ev.Completed {
-					res = errors.New(ev.AttemptErr)
-				}
-				dirMatcher.Resolve(utils.GetUserIDString(ev.Uid), ev.AmountMatoms, res)
+			if dirPayer != nil {
+				botkit.HandleTipProgress(dirPayer, ev)
 			}
 		}
 	}()
@@ -530,13 +523,6 @@ func main() {
 	}
 }
 
-// mcpSender adapts the bot to the brmcp PM sender contract.
-type mcpSender struct{ bot *kit.Bot }
-
-func (s mcpSender) SendPM(ctx context.Context, peer, text string) error {
-	return s.bot.SendPM(ctx, peer, text)
-}
-
 // satLogWriter bridges satfetch's stdlib slog output into braibot's logger.
 type satLogWriter struct {
 	log interface {
@@ -547,36 +533,6 @@ type satLogWriter struct {
 func (w satLogWriter) Write(p []byte) (int, error) {
 	w.log.Infof("%s", strings.TrimRight(string(p), "\n"))
 	return len(p), nil
-}
-
-// tipPayer settles directory payments as Bison Relay tips, resolved by the
-// matching terminal tip-progress events.
-type tipPayer struct {
-	bot     *kit.Bot
-	matcher *bridge.TipMatcher
-}
-
-func (p *tipPayer) Pay(ctx context.Context, payeeUID string, atoms int64) error {
-	var sid zkidentity.ShortID
-	if err := sid.FromString(payeeUID); err != nil {
-		return fmt.Errorf("payee uid: %w", err)
-	}
-	w := p.matcher.Expect(payeeUID, atoms*1000)
-	if err := p.bot.PayTip(ctx, sid, dcrutil.Amount(atoms), 3); err != nil {
-		w.Cancel()
-		return fmt.Errorf("tip: %w", err)
-	}
-	select {
-	case err := <-w.Done():
-		if err != nil {
-			return fmt.Errorf("tip failed: %w", err)
-		}
-		return nil
-	case <-ctx.Done():
-		w.Cancel()
-		return errors.New("tip not confirmed in time; the attempt keeps " +
-			"running in the background and still credits the payee")
-	}
 }
 
 // splitCSV parses a comma-separated config value into trimmed entries.
